@@ -21,7 +21,7 @@ from netgrip.engine.budget import CallContext, call_model
 from netgrip.evidence.status import ClaimStatus, Credibility, Source, claim_status
 from netgrip.store.db import Database
 from netgrip.store.pages import PageVersion
-from netgrip.store.projections import Publisher, append_and_project
+from netgrip.store.projections import Publisher, append_and_project_in_tx
 
 log = logging.getLogger(__name__)
 
@@ -132,9 +132,19 @@ class EvidenceService:
 
     # --- writes ------------------------------------------------------------------------------
 
-    async def _commit(self, ctx: CallContext, drafts: list[EventDraft]) -> None:
+    async def _commit(
+        self, ctx: CallContext, drafts: list[EventDraft], reconciled: str | None = None
+    ) -> None:
+        """`reconciled`: mark that claim reconciled in the same transaction as its events."""
         pending, ctx.pending_events = ctx.pending_events, []
-        await append_and_project(self.db, ctx.investigation_id, [*pending, *drafts], self.bus)
+        async with self.db.tx() as tx:
+            await append_and_project_in_tx(tx, ctx.investigation_id, [*pending, *drafts], self.bus)
+            if reconciled is not None:
+                await tx.execute(
+                    "INSERT OR IGNORE INTO reconciled_claims(investigation_id, claim_id)"
+                    " VALUES (?, ?)",
+                    [ctx.investigation_id, reconciled],
+                )
 
     async def record_source(
         self,
@@ -270,6 +280,12 @@ class EvidenceService:
         """Compare `claim` with the investigation's other claims (one Fast call). Same: merge
         into the known claim. Contradicts: record it and have a Strong call judge it, which
         sets the stances and so the statuses. No other claims: no model call."""
+        done = await self.db.read(
+            "SELECT 1 FROM reconciled_claims WHERE investigation_id = ? AND claim_id = ?",
+            [ctx.investigation_id, claim.id],
+        )
+        if done:  # each claim is reconciled once, so a repeat makes no call and no event
+            return
         others = [c for c in await self._claims(ctx.investigation_id) if c.id != claim.id]
         if not others:
             return
@@ -288,13 +304,13 @@ class EvidenceService:
             )  # fmt: skip
         except ModelMalformed:
             log.info("evidence.match answer malformed for claim %s; left unreconciled", claim.id)
-            await self._commit(ctx, [])
+            await self._commit(ctx, [])  # tried again next time
             return
         answer = resp.parsed or {}
         other = next((c for c in others if c.id == answer.get("claim_id")), None)
         relation = answer.get("relation")
         if other is None or relation not in ("same", "contradicts"):
-            await self._commit(ctx, [])
+            await self._commit(ctx, [], claim.id)
             return
         sources = await self._sources(ctx.investigation_id, [])
         if relation == "same":
@@ -304,6 +320,7 @@ class EvidenceService:
             await self._commit(
                 ctx,
                 [self._updated(other, ctx.node_id), self._updated(claim, ctx.node_id, other.id)],
+                claim.id,
             )
             return
         drafts: list[EventDraft] = []
@@ -322,7 +339,7 @@ class EvidenceService:
             for c in (claim, other):
                 c.status = self._status(ctx, sources, c.supporting, c.contradicting)
                 drafts.append(self._updated(c, ctx.node_id))
-        await self._commit(ctx, drafts)
+        await self._commit(ctx, drafts, claim.id)
 
     async def _judge(
         self, ctx: CallContext, a: Claim, b: Claim, sources: dict[str, Source]

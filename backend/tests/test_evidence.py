@@ -304,3 +304,24 @@ async def test_evidence_state_is_rebuilt_from_the_log(svc, db):
     before = await dump()
     await rebuild(db)
     assert await dump() == before
+
+
+async def test_reconciled_claim_is_not_reconciled_again(svc, db):
+    ctx1 = make_ctx({}, node_id="n1")
+    s1 = await source(svc, ctx1, "a.org")
+    a = await svc.add_claim(ctx1, "n1", "The wall is visible from space", [s1.id], [])
+    script = {
+        "evidence.match": [{"parsed": {"relation": "contradicts", "claim_id": a.id}}],
+        "evidence.contradiction": [{"parsed": {"contradicts": True}}],
+    }
+    ctx2 = make_ctx(script, node_id="n2")
+    ctx2.client.repeat_last = True
+    s2 = await source(svc, ctx2, "b.org")
+    b = await svc.add_claim(ctx2, "n2", "The wall is not visible from space", [s2.id], [])
+    await svc.reconcile(ctx2, b)
+    before = await db.read("SELECT type FROM events ORDER BY seq")
+    # A later page repeats the claim: add_claim returns the known one, reconcile runs again.
+    again = await svc.add_claim(ctx2, "n2", "The wall is not visible from space", [s2.id], [])
+    await svc.reconcile(ctx2, again)
+    assert [c.purpose for c in ctx2.client.calls] == ["evidence.match", "evidence.contradiction"]
+    assert await db.read("SELECT type FROM events ORDER BY seq") == before
