@@ -1,0 +1,334 @@
+{
+  "plan.initial": [
+    {
+      "parsed": {
+        "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+        "premises": [
+          {
+            "ref": "P1",
+            "text": "The Wall is visible to the naked eye from low Earth orbit."
+          }
+        ],
+        "nodes": [
+          {
+            "ref": "P1",
+            "parent_ref": null,
+            "kind": "Premise check",
+            "question": "Is the Great Wall of China visible to the naked eye from low Earth orbit?",
+            "justification": "The question takes this as given; if it is false the report must say so first.",
+            "out_of_scope": "Visibility from the Moon or from aircraft.",
+            "done_when": "Two independent primary sources (astronaut accounts or measurements) agree or disagree.",
+            "depends_on_refs": []
+          },
+          {
+            "ref": "D1",
+            "parent_ref": null,
+            "kind": "Divergent",
+            "question": "What do astronauts and the historical record report about seeing the Wall?",
+            "justification": "First-hand accounts are the most direct evidence for or against the claim.",
+            "out_of_scope": "Photographs taken with telephoto lenses.",
+            "done_when": "At least three first-hand accounts from different missions are compared.",
+            "depends_on_refs": []
+          },
+          {
+            "ref": "D2",
+            "parent_ref": null,
+            "kind": "Deep-dive",
+            "question": "How do the Wall's width and contrast compare with the limits of the human eye at orbital altitude?",
+            "justification": "Physics sets a hard bound that does not depend on anyone's testimony.",
+            "out_of_scope": "Satellites and radar imaging.",
+            "done_when": "The angular size and contrast of the Wall are computed and compared with eye resolution.",
+            "depends_on_refs": []
+          },
+          {
+            "ref": "D2a",
+            "parent_ref": "D2",
+            "kind": "Deep-dive",
+            "question": "What angular resolution does the human eye reach, and what is the Wall's apparent width at 400 km?",
+            "justification": "Gives the two numbers the comparison in D2 needs.",
+            "out_of_scope": "Effects of atmosphere and lighting.",
+            "done_when": "Both numbers are found in sources and the ratio is stated.",
+            "depends_on_refs": [
+              "D1"
+            ]
+          },
+          {
+            "ref": "D3",
+            "parent_ref": null,
+            "kind": "Divergent",
+            "question": "How is the claim used in tourism marketing?",
+            "justification": "Shows how widespread the belief is among visitors.",
+            "out_of_scope": "Marketing claims about other landmarks.",
+            "done_when": "Typical marketing uses are listed with sources.",
+            "depends_on_refs": []
+          },
+          {
+            "ref": "V1",
+            "parent_ref": null,
+            "kind": "Verification",
+            "question": "Do the accounts in D1 and the physics in D2 agree?",
+            "justification": "Cross-checks testimony against calculation before any conclusion is drawn.",
+            "out_of_scope": "New evidence beyond D1 and D2.",
+            "done_when": "Each account is marked consistent or inconsistent with the computed limits.",
+            "depends_on_refs": [
+              "D1",
+              "D2"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "plan.replan": [
+    {
+      "parsed": {
+        "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+        "premises": [
+          {
+            "ref": "P1",
+            "text": "The Wall is visible to the naked eye from low Earth orbit."
+          }
+        ],
+        "nodes": [
+          {
+            "ref": "P1",
+            "parent_ref": null,
+            "kind": "Premise check",
+            "question": "Is the Great Wall of China visible to the naked eye from low Earth orbit?",
+            "justification": "The question takes this as given; if it is false the report must say so first.",
+            "out_of_scope": "Visibility from the Moon or from aircraft.",
+            "done_when": "Two independent primary sources (astronaut accounts or measurements) agree or disagree.",
+            "depends_on_refs": []
+          },
+          {
+            "ref": "D1",
+            "parent_ref": null,
+            "kind": "Divergent",
+            "question": "What do astronauts and the historical record report about seeing the Wall?",
+            "justification": "First-hand accounts are the most direct evidence for or against the claim.",
+            "out_of_scope": "Photographs taken with telephoto lenses.",
+            "done_when": "At least three first-hand accounts from different missions are compared.",
+            "depends_on_refs": []
+          },
+          {
+            "ref": "D2",
+            "parent_ref": null,
+            "kind": "Deep-dive",
+            "question": "How do the Wall's width and contrast compare with the limits of the human eye at orbital altitude?",
+            "justification": "Physics sets a hard bound that does not depend on anyone's testimony.",
+            "out_of_scope": "Satellites and radar imaging.",
+            "done_when": "The angular size and contrast of the Wall are computed and compared with eye resolution.",
+            "depends_on_refs": []
+          },
+          {
+            "ref": "D2a",
+            "parent_ref": "D2",
+            "kind": "Deep-dive",
+            "question": "What angular resolution does the human eye reach, and what is the Wall's apparent width at 400 km?",
+            "justification": "Gives the two numbers the comparison in D2 needs.",
+            "out_of_scope": "Effects of atmosphere and lighting.",
+            "done_when": "Both numbers are found in sources and the ratio is stated.",
+            "depends_on_refs": [
+              "D1"
+            ]
+          },
+          {
+            "ref": "V1",
+            "parent_ref": null,
+            "kind": "Verification",
+            "question": "Do the accounts in D1 and the physics in D2 agree?",
+            "justification": "Cross-checks testimony against calculation before any conclusion is drawn.",
+            "out_of_scope": "New evidence beyond D1 and D2.",
+            "done_when": "Each account is marked consistent or inconsistent with the computed limits.",
+            "depends_on_refs": [
+              "D1",
+              "D2"
+            ]
+          },
+          {
+            "ref": "D4",
+            "parent_ref": null,
+            "kind": "Divergent",
+            "question": "Where does the claim come from?",
+            "justification": "Explains why the belief exists, which the root goal asks for.",
+            "out_of_scope": "Modern fact-checking articles as primary evidence.",
+            "done_when": "The earliest known printed versions of the claim are dated and cited.",
+            "depends_on_refs": []
+          },
+          {
+            "ref": "D5",
+            "parent_ref": null,
+            "kind": "Deep-dive",
+            "question": "Which photographs of the Wall from orbit exist, and what was needed to take them?",
+            "justification": "Separates what the naked eye sees from what cameras with long lenses record.",
+            "out_of_scope": "Photographs of other structures.",
+            "done_when": "Each photograph is matched to its equipment and altitude.",
+            "depends_on_refs": []
+          }
+        ]
+      }
+    },
+    {
+      "parsed": {
+        "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+        "premises": [
+          {
+            "ref": "P1",
+            "text": "The Wall is visible to the naked eye from low Earth orbit."
+          }
+        ],
+        "nodes": [
+          {
+            "ref": "P1",
+            "parent_ref": null,
+            "kind": "Premise check",
+            "question": "Is the Great Wall of China visible to the naked eye from low Earth orbit?",
+            "justification": "The question takes this as given; if it is false the report must say so first.",
+            "out_of_scope": "Visibility from the Moon or from aircraft.",
+            "done_when": "Two independent primary sources (astronaut accounts or measurements) agree or disagree.",
+            "depends_on_refs": []
+          },
+          {
+            "ref": "D1",
+            "parent_ref": null,
+            "kind": "Divergent",
+            "question": "What do astronauts and the historical record report about seeing the Wall?",
+            "justification": "First-hand accounts are the most direct evidence for or against the claim.",
+            "out_of_scope": "Photographs taken with telephoto lenses.",
+            "done_when": "At least three first-hand accounts from different missions are compared.",
+            "depends_on_refs": []
+          },
+          {
+            "ref": "D2",
+            "parent_ref": null,
+            "kind": "Deep-dive",
+            "question": "How do the Wall's width and contrast compare with the limits of the human eye at orbital altitude?",
+            "justification": "Physics sets a hard bound that does not depend on anyone's testimony.",
+            "out_of_scope": "Satellites and radar imaging.",
+            "done_when": "The angular size and contrast of the Wall are computed and compared with eye resolution.",
+            "depends_on_refs": []
+          },
+          {
+            "ref": "V1",
+            "parent_ref": null,
+            "kind": "Verification",
+            "question": "Do the accounts in D1 and the physics in D2 agree?",
+            "justification": "Cross-checks testimony against calculation before any conclusion is drawn.",
+            "out_of_scope": "New evidence beyond D1 and D2.",
+            "done_when": "Each account is marked consistent or inconsistent with the computed limits.",
+            "depends_on_refs": [
+              "D1",
+              "D2"
+            ]
+          },
+          {
+            "ref": "D4",
+            "parent_ref": null,
+            "kind": "Divergent",
+            "question": "Where does the claim come from?",
+            "justification": "Explains why the belief exists, which the root goal asks for.",
+            "out_of_scope": "Modern fact-checking articles as primary evidence.",
+            "done_when": "The earliest known printed versions of the claim are dated and cited.",
+            "depends_on_refs": []
+          },
+          {
+            "ref": "D5",
+            "parent_ref": null,
+            "kind": "Deep-dive",
+            "question": "Which photographs of the Wall from orbit exist, and what was needed to take them?",
+            "justification": "Separates what the naked eye sees from what cameras with long lenses record.",
+            "out_of_scope": "Photographs of other structures. Anything about the Moon.",
+            "done_when": "Each photograph is matched to its equipment and altitude.",
+            "depends_on_refs": []
+          }
+        ]
+      }
+    },
+    {
+      "parsed": {
+        "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+        "premises": [
+          {
+            "ref": "P1",
+            "text": "The Wall is visible to the naked eye from low Earth orbit."
+          }
+        ],
+        "nodes": [
+          {
+            "ref": "P1",
+            "parent_ref": null,
+            "kind": "Premise check",
+            "question": "Is the Great Wall of China visible to the naked eye from low Earth orbit?",
+            "justification": "The question takes this as given; if it is false the report must say so first.",
+            "out_of_scope": "Visibility from the Moon or from aircraft.",
+            "done_when": "Two independent primary sources (astronaut accounts or measurements) agree or disagree.",
+            "depends_on_refs": []
+          },
+          {
+            "ref": "D1",
+            "parent_ref": null,
+            "kind": "Divergent",
+            "question": "What do astronauts and the historical record report about seeing the Wall?",
+            "justification": "First-hand accounts are the most direct evidence for or against the claim.",
+            "out_of_scope": "Photographs taken with telephoto lenses.",
+            "done_when": "At least three first-hand accounts from different missions are compared.",
+            "depends_on_refs": []
+          },
+          {
+            "ref": "D2",
+            "parent_ref": null,
+            "kind": "Deep-dive",
+            "question": "How do the Wall's width and contrast compare with the limits of the human eye at orbital altitude?",
+            "justification": "Physics sets a hard bound that does not depend on anyone's testimony.",
+            "out_of_scope": "Satellites and radar imaging.",
+            "done_when": "The angular size and contrast of the Wall are computed and compared with eye resolution.",
+            "depends_on_refs": []
+          },
+          {
+            "ref": "V1",
+            "parent_ref": null,
+            "kind": "Verification",
+            "question": "Do the accounts in D1 and the physics in D2 agree?",
+            "justification": "Cross-checks testimony against calculation before any conclusion is drawn.",
+            "out_of_scope": "New evidence beyond D1 and D2.",
+            "done_when": "Each account is marked consistent or inconsistent with the computed limits.",
+            "depends_on_refs": [
+              "D1",
+              "D2"
+            ]
+          },
+          {
+            "ref": "D4",
+            "parent_ref": null,
+            "kind": "Divergent",
+            "question": "Where does the claim come from?",
+            "justification": "Explains why the belief exists, which the root goal asks for.",
+            "out_of_scope": "Modern fact-checking articles as primary evidence.",
+            "done_when": "The earliest known printed versions of the claim are dated and cited.",
+            "depends_on_refs": []
+          },
+          {
+            "ref": "D5",
+            "parent_ref": null,
+            "kind": "Deep-dive",
+            "question": "Which photographs of the Wall from orbit exist, and what was needed to take them?",
+            "justification": "Separates what the naked eye sees from what cameras with long lenses record.",
+            "out_of_scope": "Photographs of other structures. Anything about the Moon.",
+            "done_when": "Each photograph is matched to its equipment and altitude.",
+            "depends_on_refs": []
+          },
+          {
+            "ref": "D6",
+            "parent_ref": null,
+            "kind": "Divergent",
+            "question": "Under which conditions has the Wall been reported as visible?",
+            "justification": "The root goal asks under what conditions; low sun and snow cover are candidates.",
+            "out_of_scope": "Conditions unrelated to the Wall itself.",
+            "done_when": "Reported conditions are listed with the missions that reported them.",
+            "depends_on_refs": []
+          }
+        ]
+      }
+    }
+  ]
+}

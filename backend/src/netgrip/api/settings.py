@@ -3,7 +3,9 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel
 
-from netgrip.api.deps import get_db
+from netgrip.adapters.model_openai import check_model_key
+from netgrip.api.deps import get_db, get_engine
+from netgrip.engine.engine import Engine
 from netgrip.engine.estimate import Estimate, estimate
 from netgrip.store.db import Database
 from netgrip.store.settings import (
@@ -13,6 +15,7 @@ from netgrip.store.settings import (
     Tier,
     get_settings,
     key_status,
+    mark_key,
     patch_settings,
     set_key,
 )
@@ -49,6 +52,18 @@ async def put_key(name: str, body: KeyBody, db: Annotated[Database, Depends(get_
         raise HTTPException(404, "No such key")
     await set_key(db, name, body.value)
     return await key_status(db, name)
+
+
+@router.post("/keys/model/check")
+async def check_key(engine: Annotated[Engine, Depends(get_engine)]) -> KeyStatus:
+    """Ask the provider whether the stored model key works, and record the verdict."""
+    if engine.config.fake:
+        return await check_model_key(engine.model_client)
+    if not (await key_status(engine.db, "model")).set:
+        return await key_status(engine.db, "model")
+    status = await check_model_key(engine.model_client)
+    await mark_key(engine.db, "model", status.status, status.message)
+    return await key_status(engine.db, "model")
 
 
 class EstimateBody(BaseModel):

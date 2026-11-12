@@ -6,12 +6,15 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import ValidationError
 
+from netgrip.adapters.fakes import FakeModelClient
+from netgrip.adapters.model_openai import OpenAICompatClient
 from netgrip.api import commands, investigations, settings, stream, system
 from netgrip.boundary.bus import EventBus
 from netgrip.boundary.commands import CommandRejected
 from netgrip.config import Config
 from netgrip.engine.engine import Engine
 from netgrip.store.db import open_db
+from netgrip.store.settings import get_key, get_settings
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_FRONTEND_DIST = REPO_ROOT / "frontend" / "dist"
@@ -25,13 +28,27 @@ def create_app(config: Config, frontend_dist: Path | None = None) -> FastAPI:
     async def lifespan(app: FastAPI):
         config.data_dir.mkdir(parents=True, exist_ok=True)
         db = await open_db(config.db_path)
-        engine = Engine(db, config, EventBus())
+        model_client: FakeModelClient | OpenAICompatClient
+        if config.fake:
+            model_client = FakeModelClient.from_scenario("great_wall", repeat_last=True)
+        else:
+
+            async def model_endpoint() -> str:
+                return (await get_settings(db)).model_endpoint
+
+            async def model_key() -> str | None:
+                return await get_key(db, "model")
+
+            model_client = OpenAICompatClient(model_endpoint, model_key)
+        engine = Engine(db, config, EventBus(), model_client)
         await engine.start()
         app.state.engine = engine
         try:
             yield
         finally:
             await engine.stop()
+            if isinstance(model_client, OpenAICompatClient):
+                await model_client.aclose()
             await db.close()
 
     app = FastAPI(title="Netgrip", lifespan=lifespan)

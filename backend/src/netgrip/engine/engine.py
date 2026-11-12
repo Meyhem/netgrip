@@ -4,6 +4,7 @@ import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from uuid import UUID
 
+from netgrip.adapters.model import ModelClient
 from netgrip.boundary.bus import Ephemeral, EventBus
 from netgrip.boundary.commands import Command, CommandAck, CommandRejected
 from netgrip.boundary.events import Event, EventDraft, utc_now_iso
@@ -42,10 +43,13 @@ async def _record_command(tx: Tx, command_id: str, investigation_id: str, type: 
 
 
 class Engine:
-    def __init__(self, db: Database, config: Config, bus: EventBus) -> None:
+    def __init__(
+        self, db: Database, config: Config, bus: EventBus, model_client: ModelClient | None = None
+    ) -> None:
         self.db = db
         self.config = config
         self.bus = bus
+        self.model_client = model_client
 
     async def start(self) -> None:
         mismatched = await verify(self.db)
