@@ -161,8 +161,8 @@ class NodeProposed(_Data):
     kind: str
     question: str
     justification: str | None = None
-    out_of_scope: Any = None
-    done_when: Any = None
+    out_of_scope: str | None = None
+    done_when: str | None = None
     depends_on: list[str] = Field(default_factory=list)
     depth: int = 0
     proposed_by: str | None = None

@@ -23,7 +23,7 @@ def ev(type, data, node_id=None, actor="orchestrator"):
 def proposed(disp, parent=None, deps=(), kind="Divergent", depth=0):
     return {
         "display_id": disp, "parent_id": parent, "kind": kind, "question": f"Q {disp}",
-        "justification": "j", "out_of_scope": ["x"], "done_when": "d",
+        "justification": "j", "out_of_scope": "x", "done_when": "d",
         "depends_on": list(deps), "depth": depth, "proposed_by": "orchestrator",
     }  # fmt: skip
 
@@ -77,7 +77,7 @@ async def test_proposed_node_in_snapshot_with_deps(db):
     assert by["D1"]["depends_on"] == []
     assert by["D2"]["status"] == "Proposed" and by["D2"]["inclusion"] == "Included"
     assert by["D2"]["plan_version_added"] == 1
-    assert by["D2"]["out_of_scope"] == ["x"]
+    assert by["D2"]["out_of_scope"] == "x"
     assert [p["id"] for p in s["premises"]] == ["p1"]
 
 
