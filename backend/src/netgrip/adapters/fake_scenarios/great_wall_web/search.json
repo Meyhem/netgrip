@@ -1,0 +1,18 @@
+{
+  "results": [
+    {
+      "match": "visible",
+      "hits": [
+        {"url": "https://example.org/nasa/great-wall-from-orbit", "title": "Great Wall from orbit", "snippet": "Astronauts report the Wall is hard to see from low Earth orbit without aid.", "published_at": "2005-02-01"},
+        {"url": "https://example.org/history/wall-myth", "title": "Origin of the space myth", "snippet": "The claim predates spaceflight by decades.", "published_at": null}
+      ]
+    },
+    {
+      "match": "unreachable",
+      "raise": "unavailable"
+    }
+  ],
+  "default": [
+    {"url": "https://example.org/encyclopedia/great-wall", "title": "Great Wall of China", "snippet": "A series of fortifications built across northern China.", "published_at": null}
+  ]
+}

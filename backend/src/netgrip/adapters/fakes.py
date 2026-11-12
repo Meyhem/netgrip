@@ -7,6 +7,13 @@ from pathlib import Path
 
 import jsonschema
 
+from netgrip.adapters.fetcher import (
+    ROUTES,
+    FetchAttempt,
+    FetchResult,
+    OnAttempt,
+    PageContent,
+)
 from netgrip.adapters.model import (
     ModelMalformed,
     ModelRejected,
@@ -16,6 +23,7 @@ from netgrip.adapters.model import (
     ToolCall,
     Usage,
 )
+from netgrip.adapters.search import SearchHit, SearchRejected, SearchUnavailable
 
 SCENARIOS = Path(__file__).parent / "fake_scenarios"
 
@@ -94,3 +102,85 @@ class FakeModelClient:
 
     async def check(self) -> None:
         return None
+
+
+class FakeSearch:
+    """`fixtures`: {"results": [{"match": substring of the query, "hits": [...]} or
+    {"match": ..., "raise": "unavailable" | "key" | "credit" | "request"}], "default": [hits]}.
+    The first matching entry wins; no match gives `default`."""
+
+    def __init__(self, fixtures: dict) -> None:
+        self.fixtures = fixtures
+        self.calls: list[str] = []
+
+    @classmethod
+    def from_scenario(cls, name: str) -> "FakeSearch":
+        path = SCENARIOS / name / "search.json"
+        return cls(json.loads(path.read_text(encoding="utf-8")))
+
+    async def search(
+        self, query: str, *, max_results: int, exclude_domains: list[str], prefer: str
+    ) -> list[SearchHit]:
+        self.calls.append(query)
+        entry = next(
+            (e for e in self.fixtures.get("results", []) if e["match"].lower() in query.lower()),
+            {"hits": self.fixtures.get("default", [])},
+        )
+        match entry.get("raise"):
+            case None:
+                pass
+            case "unavailable":
+                raise SearchUnavailable("fake: unavailable")
+            case kind:
+                raise SearchRejected(kind, f"fake: {kind} rejected")
+        hits = [SearchHit(**{"published_at": None, **h}) for h in entry["hits"]]
+        hits = [h for h in hits if not any(d in h.url for d in exclude_domains)]
+        return hits[:max_results]
+
+
+class FakeFetcher:
+    """`fixtures`: {url: spec}. A spec has `text` (and optional `title`, `published_at`, `raw`),
+    and `attempts`, the outcomes of successive tries (default ["ok"]): "timeout", "blocked",
+    "error" or "ok", tried on the simple, browser and hardened routes in turn. `unobtainable`
+    is shorthand for three blocked tries. An unknown URL is unobtainable. `delay` seconds are
+    awaited per fetch, so tests can overlap calls."""
+
+    def __init__(self, fixtures: dict, delay: float = 0.0) -> None:
+        self.fixtures = fixtures
+        self.delay = delay
+        self.calls: list[str] = []
+
+    @classmethod
+    def from_scenario(cls, name: str) -> "FakeFetcher":
+        path = SCENARIOS / name / "pages.json"
+        return cls(json.loads(path.read_text(encoding="utf-8")))
+
+    async def fetch(self, url: str, *, on_attempt: OnAttempt) -> FetchResult:
+        import asyncio
+
+        self.calls.append(url)
+        if self.delay:
+            await asyncio.sleep(self.delay)
+        spec = self.fixtures.get(url, {"unobtainable": True})
+        outcomes = (
+            ["blocked"] * len(ROUTES) if spec.get("unobtainable") else spec.get("attempts", ["ok"])
+        )
+        attempts: list[FetchAttempt] = []
+        total = len(ROUTES)
+        for n, (route, outcome) in enumerate(zip(ROUTES, outcomes, strict=False), start=1):
+            await on_attempt(n, total, None)
+            attempt = FetchAttempt(route, outcome, None if outcome == "ok" else f"fake: {outcome}")
+            attempts.append(attempt)
+            await on_attempt(n, total, attempt)
+            if outcome == "ok":
+                text = spec["text"]
+                raw = spec.get("raw", text).encode("utf-8")
+                page = PageContent(
+                    final_url=url,
+                    raw=raw,
+                    text=text,
+                    title=spec.get("title"),
+                    published_at=spec.get("published_at"),
+                )
+                return FetchResult("ok", page, attempts)
+        return FetchResult("unobtainable", None, attempts)
