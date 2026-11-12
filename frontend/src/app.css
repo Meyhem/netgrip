@@ -26,3 +26,13 @@ html, body, #root { height: 100%; margin: 0; }
 .new-investigation .wide { justify-content: center; }
 .new-investigation th.num { text-align: right; }
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+
+/* ScreenSettings */
+.settings-sections { gap: var(--space-6); }
+.settings-sections section { scroll-margin-top: var(--space-4); }
+.form-panel { padding: 0 var(--space-4); }
+.settings-sections th.num { text-align: right; }
+.settings-sections .price { width: 72px; text-align: right; }
+.settings-sections .count { width: 64px; }
+.settings-sections .money { width: 120px; }
+.settings-sections .wide-select { width: 200px; }
