@@ -245,8 +245,9 @@ async def _instruction_applied(tx: Tx, event: Event) -> None:
 @projector("plan.version_created")
 async def _plan_version_created(tx: Tx, event: Event) -> None:
     d = event.data
+    # After an undo the next version reuses the number of the undone one (R7).
     await tx.execute(
-        "INSERT INTO plan_versions(investigation_id, version, instruction_id, diff)"
+        "INSERT OR REPLACE INTO plan_versions(investigation_id, version, instruction_id, diff)"
         " VALUES (?, ?, ?, ?)",
         [event.investigation_id, d["version"], d.get("instruction_id"), _j(d["diff"])],
     )
@@ -262,6 +263,11 @@ async def _plan_version_created(tx: Tx, event: Event) -> None:
 
 @projector("plan.reverted")
 async def _plan_reverted(tx: Tx, event: Event) -> None:
+    # The current version is the highest left, so the versions above `to_version` go.
+    await tx.execute(
+        "DELETE FROM plan_versions WHERE investigation_id = ? AND version > ?",
+        [event.investigation_id, event.data["to_version"]],
+    )
     await tx.execute(
         "UPDATE instructions SET state = 'undone', undone = 1 WHERE id = ?",
         [event.data["instruction_id"]],

@@ -11,7 +11,7 @@ from netgrip.adapters.model import (
     Usage,
 )
 from netgrip.boundary.events import EventDraft
-from netgrip.store.settings import ModelPrice
+from netgrip.store.settings import Effort, ModelPrice
 
 MILLION = Decimal(1_000_000)
 
@@ -77,3 +77,28 @@ def _record(ctx: CallContext, tier: str, model: str, usage: Usage) -> None:
             },
         )
     )
+
+
+# --- Node budgets (O2, B1) -------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class NodeBudget:
+    sources: int  # sources the node may consult
+    child_nodes: int  # children the node may propose
+
+    def as_dict(self) -> dict[str, int]:
+        return {"sources": self.sources, "child_nodes": self.child_nodes}
+
+
+def allocate_budget(effort: Effort, depth: int) -> NodeBudget:
+    """The budget of a node at `depth` (children of the root are 1); shrinks with depth (O2).
+
+    sources: the effort's sources per node, x0.75 per level below 1, never below 2.
+    child_nodes: half the effort's node limit at depth 1, halving per level, and 0 at the
+    deepest allowed level, whose nodes cannot have children. The root is allocated as depth 1.
+    """
+    depth = max(1, depth)
+    sources = max(2, round(effort.sources_per_node * 0.75 ** (depth - 1)))
+    child_nodes = 0 if depth >= effort.max_depth else max(1, effort.max_nodes // 2**depth)
+    return NodeBudget(sources=sources, child_nodes=child_nodes)

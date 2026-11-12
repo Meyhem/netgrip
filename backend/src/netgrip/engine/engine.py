@@ -1,6 +1,8 @@
 """The engine boundary: commands in (`submit`), events out (`subscribe`). Nothing else crosses."""
 
+import json
 import logging
+import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from uuid import UUID
 
@@ -9,13 +11,14 @@ from netgrip.boundary.bus import Ephemeral, EventBus
 from netgrip.boundary.commands import Command, CommandAck, CommandRejected
 from netgrip.boundary.events import Event, EventDraft, utc_now_iso
 from netgrip.config import Config
-from netgrip.engine.planner import draft_plan
+from netgrip.engine.budget import allocate_budget
+from netgrip.engine.planner import draft_plan, replan
 from netgrip.engine.planning_queue import PlanningQueue
 from netgrip.store import eventlog
 from netgrip.store.db import Database, Tx
 from netgrip.store.projections import ID_COLUMNS, STATE_TABLES, append_and_project_in_tx
 from netgrip.store.rebuild import rebuild, verify
-from netgrip.store.settings import get_settings, resolve_investigation_settings
+from netgrip.store.settings import Effort, get_settings, resolve_investigation_settings
 
 log = logging.getLogger(__name__)
 
@@ -209,3 +212,134 @@ async def _draft_plan(engine: Engine, tx: Tx, cmd: Command) -> list[EventDraft]:
         lambda: engine.planning.enqueue(inv, lambda: draft_plan(engine, inv, command_id), "draft")
     )
     return drafts
+
+
+async def _plan_under_review(engine: Engine, tx: Tx, inv: str, busy_code: str | None) -> dict:
+    """The investigation in plan review: Planning with a plan (version >= 1), else 409
+    wrong_state. With `busy_code`, also 409 `busy_code` while a planning job is queued or
+    running."""
+    row = await tx.fetchone(
+        "SELECT state, settings,"
+        " (SELECT COALESCE(MAX(version), 0) FROM plan_versions"
+        "  WHERE investigation_id = i.id) AS version,"
+        " (SELECT id FROM nodes WHERE investigation_id = i.id AND parent_id IS NULL"
+        "  ORDER BY seq LIMIT 1) AS root_id"
+        " FROM investigations i WHERE id = ?",
+        [inv],
+    )
+    if row["state"] != "Planning" or row["version"] == 0:
+        raise CommandRejected("wrong_state", "There is no plan under review")
+    if busy_code and engine.planning.busy(inv):
+        raise CommandRejected(busy_code, "The plan is being re-planned")
+    return dict(row)
+
+
+@handles("instruct_plan")
+async def _instruct_plan(engine: Engine, tx: Tx, cmd: Command) -> list[EventDraft]:
+    """Queue an instruction to the root (U6); the re-plan runs on the planning queue after
+    commit (R4). Allowed while another re-plan runs: they apply in order, one version each."""
+    inv = cmd.investigation_id
+    plan = await _plan_under_review(engine, tx, inv, busy_code=None)
+    text = str(cmd.payload.get("text") or "").strip()
+    if not text:
+        raise CommandRejected("empty_instruction", "The instruction is empty")
+    if not await _has_model_key(engine, tx):
+        raise CommandRejected("no_model_key", "No model key is set")
+    instruction_id = str(uuid.uuid4())
+    command_id = str(cmd.id)
+    tx.after_commit(
+        lambda: engine.planning.enqueue(
+            inv, lambda: replan(engine, inv, instruction_id, command_id), "replan"
+        )
+    )
+    return [
+        EventDraft(
+            type="instruction.queued",
+            actor="user",
+            node_id=plan["root_id"],
+            data={"instruction_id": instruction_id, "text": text, "waiting_for": "replan"},
+        )
+    ]
+
+
+@handles("undo_plan_instruction")
+async def _undo_plan_instruction(engine: Engine, tx: Tx, cmd: Command) -> list[EventDraft]:
+    """Undo the instruction behind the current version (R8): supersede what it proposed,
+    restore what it superseded, and go back one version."""
+    inv = cmd.investigation_id
+    plan = await _plan_under_review(engine, tx, inv, busy_code="replanning")
+    if plan["version"] <= 1:
+        raise CommandRejected("nothing_to_undo", "No instruction is left to undo")
+    current = await tx.fetchone(
+        "SELECT instruction_id, diff FROM plan_versions WHERE investigation_id = ? AND version = ?",
+        [inv, plan["version"]],
+    )
+    iid = current["instruction_id"]
+    diff = json.loads(current["diff"])
+
+    async def having(ids: list[str], inclusion: str) -> list[str]:
+        if not ids:
+            return []
+        marks = ",".join("?" * len(ids))
+        rows = await tx.fetchall(
+            f"SELECT id FROM nodes WHERE id IN ({marks}) AND inclusion = ?", [*ids, inclusion]
+        )
+        found = {r["id"] for r in rows}
+        return [i for i in ids if i in found]
+
+    drafts = []
+    for ids, inclusion in (
+        (await having(diff["proposed"], "Included"), "Superseded"),
+        (await having(diff["superseded"], "Superseded"), "Included"),
+    ):
+        if ids:
+            drafts.append(
+                EventDraft(
+                    type="node.inclusion_changed",
+                    actor="user",
+                    data={
+                        "node_ids": ids,
+                        "inclusion": inclusion,
+                        "by": "replan",
+                        "instruction_id": iid,
+                    },
+                )
+            )
+    drafts.append(
+        EventDraft(
+            type="plan.reverted",
+            actor="user",
+            data={"to_version": plan["version"] - 1, "instruction_id": iid},
+        )
+    )
+    return drafts
+
+
+@handles("approve_plan")
+async def _approve_plan(engine: Engine, tx: Tx, cmd: Command) -> list[EventDraft]:
+    """Approve every Included planned node and R with its budget (O2), then Planning ->
+    Running. Superseded and ignored nodes are not approved."""
+    inv = cmd.investigation_id
+    plan = await _plan_under_review(engine, tx, inv, busy_code="replanning")
+    effort = Effort.model_validate(json.loads(plan["settings"])["effort_budget"])
+    rows = await tx.fetchall(
+        "SELECT id, depth FROM nodes WHERE investigation_id = ? AND inclusion = 'Included'"
+        " AND status = 'Proposed' ORDER BY seq",
+        [inv],
+    )
+    return [
+        *(
+            EventDraft(
+                type="node.approved",
+                actor="orchestrator",
+                node_id=r["id"],
+                data={"budget": allocate_budget(effort, r["depth"]).as_dict()},
+            )
+            for r in rows
+        ),
+        EventDraft(
+            type="investigation.state_changed",
+            actor="user",
+            data={"from": "Planning", "to": "Running", "origin": "user"},
+        ),
+    ]
