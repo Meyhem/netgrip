@@ -1,8 +1,9 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import ValidationError
 
 from netgrip.api import commands, investigations, settings, stream, system
@@ -12,8 +13,14 @@ from netgrip.config import Config
 from netgrip.engine.engine import Engine
 from netgrip.store.db import open_db
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
+DEFAULT_FRONTEND_DIST = REPO_ROOT / "frontend" / "dist"
 
-def create_app(config: Config) -> FastAPI:
+
+def create_app(config: Config, frontend_dist: Path | None = None) -> FastAPI:
+    if frontend_dist is None and DEFAULT_FRONTEND_DIST.is_dir():
+        frontend_dist = DEFAULT_FRONTEND_DIST
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         config.data_dir.mkdir(parents=True, exist_ok=True)
@@ -53,4 +60,22 @@ def create_app(config: Config) -> FastAPI:
     for module in (investigations, commands, stream, settings, system):
         app.include_router(module.router)
 
+    if frontend_dist is not None:
+        _serve_frontend(app, frontend_dist)
+
     return app
+
+
+def _serve_frontend(app: FastAPI, dist: Path) -> None:
+    """Built files as they are; any other non-API path gets index.html (single-page app)."""
+    root = dist.resolve()
+    index = root / "index.html"
+
+    @app.get("/{path:path}", include_in_schema=False)
+    async def frontend(path: str) -> Response:
+        if path == "api" or path.startswith("api/"):
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
+        candidate = (root / path).resolve()
+        if path and candidate.is_relative_to(root) and candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(index)
