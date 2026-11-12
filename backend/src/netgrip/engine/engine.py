@@ -425,9 +425,15 @@ async def _pause(engine: Engine, tx: Tx, cmd: Command) -> list[EventDraft]:
 @handles("resume")
 async def _resume(engine: Engine, tx: Tx, cmd: Command) -> list[EventDraft]:
     """Paused or Stopped -> Running; nodes stopped at a boundary continue from their next
-    step. Task 7 adds the spending-limit refusal."""
+    step. Refused with `limit_reached` while the spending limit is still reached (B4): the
+    interface raises the limit first, then resumes."""
     inv = cmd.investigation_id
     current = await _state_of(tx, inv)
+    spend = await tx.fetchone(
+        "SELECT spent_usd, spending_limit_usd FROM investigations WHERE id = ?", [inv]
+    )
+    if current in ("Paused", "Stopped") and spend["spent_usd"] >= spend["spending_limit_usd"]:
+        raise CommandRejected("limit_reached", "The spending limit is reached; raise it first")
     rt = engine.runtimes.get(inv)
     if current == "Running":
         # A pause still draining is cancelled; a runtime that ended on an internal error is

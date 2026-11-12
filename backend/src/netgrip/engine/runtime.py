@@ -10,8 +10,16 @@ step in flight finishes and commits, and its `NodeContext` is kept, so resume co
 node from its next step. A paused investigation enters Paused once nothing is in flight.
 
 Hooks for later tasks:
-- `_on_provider_error` (Task 7: backoff, outage and limit pauses) receives a node's provider
-  error; here it keeps the node to continue and requests a system pause.
+System pauses (Task 7, N-05, B4):
+- An outage (ModelUnavailable, SearchUnavailable) in a node is retried with delays 1, 2, 4 ...
+  capped at 30 s, within the "retry before pausing" setting, shown as `Retrying` on the node.
+  Then the investigation pauses (origin system). The node keeps its context: its interrupted
+  step was not committed, so it runs again on resume (no reset event).
+- A rejected key or exhausted credit pauses at once; a rejected key is marked on the key.
+- Before every step (and before starting nodes or asking the orchestrator) the spend is
+  checked: at or over the limit, nothing more is called and the investigation pauses with
+  cause `spending_limit`. Spend is committed with each step, so checking at step boundaries
+  is checking before every model call that could see new spend.
 - `start()` on an investigation whose nodes were reset by recovery (Task 8) just schedules
   them: a fresh context starts the node over.
 """
@@ -21,8 +29,8 @@ import json
 import logging
 from typing import TYPE_CHECKING
 
-from netgrip.adapters.model import ModelError, ModelRejected
-from netgrip.adapters.search import SearchError, SearchRejected
+from netgrip.adapters.model import ModelError, ModelRejected, ModelUnavailable
+from netgrip.adapters.search import SearchError, SearchRejected, SearchUnavailable
 from netgrip.boundary.events import EventDraft
 from netgrip.engine import orchestrator
 from netgrip.engine.agent import Deps, NodeContext, Signal, node_context, run_node
@@ -33,12 +41,25 @@ from netgrip.engine.synthesis import synthesise
 from netgrip.evidence.service import EvidenceService
 from netgrip.store.pages import PageStore
 from netgrip.store.projections import append_and_project, append_and_project_in_tx
-from netgrip.store.settings import get_settings
+from netgrip.store.settings import get_settings, mark_key
 
 if TYPE_CHECKING:
     from netgrip.engine.engine import Engine
 
 log = logging.getLogger(__name__)
+
+MAX_DELAY = 30.0
+
+
+def backoff_delays(limit: float) -> list[float]:
+    """1, 2, 4, 8 ... capped at 30 s, as many as fit in `limit` seconds in total."""
+    out: list[float] = []
+    total, d = 0.0, 1.0
+    while total + d <= limit:
+        out.append(d)
+        total += d
+        d = min(d * 2, MAX_DELAY)
+    return out
 
 
 class InvestigationRuntime:
@@ -55,6 +76,8 @@ class InvestigationRuntime:
         self._last_schedule: tuple | None = None
         self._deps: Deps | None = None
         self._octx: OrchestratorContext | None = None
+        self._gen = 0  # bumped by every (re)launch; a pause write from an older one is dropped
+        self._retry_limit = 300.0
 
     # --- control -----------------------------------------------------------------------------
 
@@ -67,6 +90,7 @@ class InvestigationRuntime:
         self._launch()
 
     def _launch(self) -> None:
+        self._gen += 1
         self._stopping = False
         self._pause = None
         if self.active:  # still draining a pause or stop: keep this loop going
@@ -114,7 +138,9 @@ class InvestigationRuntime:
         if self._deps is not None:
             return
         e = self.engine
-        prices = (await get_settings(e.db)).models
+        glob = await get_settings(e.db)
+        prices = glob.models
+        self._retry_limit = float(glob.retry_before_pause_seconds)
         evidence = EvidenceService(e.db, e.bus)
         clock = e.clock or SystemClock()
         self._deps = Deps(
@@ -167,6 +193,9 @@ class InvestigationRuntime:
                             return
                         continue  # resumed while draining
                 else:
+                    if await self._state() == "Running" and await self._limit_reached():
+                        self._request_limit_pause()
+                        continue
                     if await self._state() != "Running":
                         if not self._tasks:
                             return
@@ -192,7 +221,11 @@ class InvestigationRuntime:
         except (ModelError, SearchError) as e:
             # An orchestrator call in the loop hit the provider: pause the system way.
             log.warning("runtime of %s: provider error in the loop (%s)", self.id, e)
-            await self._enter_paused((self._cause(e), str(e), "system"))
+            try:
+                await self._mark_rejected_key(e)
+                await self._enter_paused((self._cause(e), str(e), "system"))
+            except Exception:
+                log.exception("runtime of %s: could not record the system pause", self.id)
         except Exception:
             # Not a provider problem: log it; the investigation stays Running and `resume`
             # restarts this runtime (the resume handler accepts Running with no live loop).
@@ -228,13 +261,18 @@ class InvestigationRuntime:
             t = self._tasks.pop(nid)
             exc = None if t.cancelled() else t.exception()
             if isinstance(exc, ModelError | SearchError):
-                self._on_provider_error(nid, exc)  # from an orchestrator call after the node
+                await self._on_provider_error(nid, exc)  # from an orchestrator call after the node
             elif exc is not None:
                 log.error("node task %s of %s failed", nid, self.id, exc_info=exc)
 
     async def _enter_paused(self, pause: tuple[str, str | None, str]) -> None:
         cause, detail, origin = pause
+        gen = self._gen
         async with self.engine.db.tx() as tx:
+            # A resume that committed while we waited for the writer ran its after_commit
+            # (relaunch) before we got the lock: it bumped the generation; keep Running.
+            if self._gen != gen:
+                return
             row = await tx.fetchone("SELECT state FROM investigations WHERE id = ?", [self.id])
             if row["state"] != "Running":
                 return
@@ -254,32 +292,72 @@ class InvestigationRuntime:
     async def _boundary(self) -> Signal:
         if self._stopping:
             return Signal.CANCEL
+        if self._pause is None and await self._limit_reached():
+            self._request_limit_pause()
         if self._pause is not None:
             return Signal.PAUSE
         return Signal.CONTINUE
 
+    async def _limit_reached(self) -> bool:
+        rows = await self.engine.db.read(
+            "SELECT spent_usd, spending_limit_usd FROM investigations WHERE id = ?", [self.id]
+        )
+        return bool(rows) and rows[0]["spent_usd"] >= rows[0]["spending_limit_usd"]
+
+    def _request_limit_pause(self) -> None:
+        self.request_pause("spending_limit", "The spending limit was reached", "system")
+
+    def _halting(self) -> bool:
+        return self._stopping or self._pause is not None
+
     async def _node(self, nid: str) -> None:
         ctx = self._ctxs.get(nid)
-        try:
-            if ctx is None:
-                ctx = self._ctxs[nid] = await node_context(self._deps, self.id, nid, self._boundary)
-            await run_node(ctx)
-        except (ModelError, SearchError) as e:
-            self._suspended.append(nid)
-            self._on_provider_error(nid, e)
-            return
-        except Exception as e:
-            log.exception("node %s of %s failed unexpectedly", nid, self.id)
-            self._ctxs.pop(nid, None)
-            await append_and_project(self.engine.db, self.id, [EventDraft(
-                type="node.failed", actor="node", node_id=nid,
-                data={"reason": f"internal error: {type(e).__name__}", "auto_retry_used": False},
-            )], self.engine.bus)  # fmt: skip
+        delays: list[float] | None = None  # the backoff of the current outage
+        attempt = 0
+        while True:
             try:
-                await orchestrator.on_node_failed(self._octx, nid)
-            except Exception:
-                log.exception("retry decision for failed node %s of %s failed", nid, self.id)
-            return
+                if ctx is None:
+                    ctx = self._ctxs[nid] = await node_context(
+                        self._deps, self.id, nid, self._boundary
+                    )
+                await run_node(ctx)
+                break
+            except (ModelUnavailable, SearchUnavailable) as e:
+                if delays is None:
+                    delays = backoff_delays(self._retry_limit)
+                if self._halting() or attempt >= len(delays):
+                    self._suspended.append(nid)
+                    if not self._halting():
+                        await self._on_provider_error(nid, e)
+                    return
+                step = ctx.state.next_step[0] if ctx and ctx.state.next_step else "plan"
+                await append_and_project(self.engine.db, self.id, [EventDraft(
+                    type="node.activity", actor="node", node_id=nid,
+                    data={"activity": "Retrying", "detail": str(e), "step": step,
+                          "retry": {"n": attempt + 1, "m": len(delays)}},
+                )], self.engine.bus)  # fmt: skip
+                await self._deps.clock.sleep(delays[attempt])
+                attempt += 1
+                if self._halting():  # paused or stopped while waiting
+                    self._suspended.append(nid)
+                    return
+            except (ModelError, SearchError) as e:
+                self._suspended.append(nid)
+                await self._on_provider_error(nid, e)
+                return
+            except Exception as e:
+                log.exception("node %s of %s failed unexpectedly", nid, self.id)
+                self._ctxs.pop(nid, None)
+                await append_and_project(self.engine.db, self.id, [EventDraft(
+                    type="node.failed", actor="node", node_id=nid,
+                    data={"reason": f"internal error: {type(e).__name__}",
+                          "auto_retry_used": False},
+                )], self.engine.bus)  # fmt: skip
+                try:
+                    await orchestrator.on_node_failed(self._octx, nid)
+                except Exception:
+                    log.exception("retry decision for failed node %s of %s failed", nid, self.id)
+                return
         if not ctx.state.done and ctx.node.status not in ("Completed", "Failed", "Rejected"):
             self._suspended.append(nid)  # returned at a boundary: continue it on resume
             return
@@ -298,11 +376,20 @@ class InvestigationRuntime:
         elif status == "Failed":
             await orchestrator.on_node_failed(self._octx, nid)
 
-    def _on_provider_error(self, nid: str, exc: Exception) -> None:
-        """Hook for Task 7 (retry with backoff, then pause). For now: pause at once with the
-        matching cause; the node continues from its next step on resume."""
+    async def _on_provider_error(self, nid: str, exc: Exception) -> None:
+        """A provider error that is not retried (any more): pause the system way. The node
+        keeps its context; its interrupted step runs again on resume."""
         log.warning("node %s: provider error (%s); pausing %s", nid, exc, self.id)
         self.request_pause(self._cause(exc), str(exc), "system")
+        try:
+            await self._mark_rejected_key(exc)
+        except Exception:
+            log.exception("could not mark the rejected key of %s", self.id)
+
+    async def _mark_rejected_key(self, exc: Exception) -> None:
+        if isinstance(exc, ModelRejected | SearchRejected) and exc.kind == "key":
+            name = "model" if isinstance(exc, ModelRejected) else "search"
+            await mark_key(self.engine.db, name, "rejected", str(exc))
 
     @staticmethod
     def _cause(exc: Exception) -> str:
