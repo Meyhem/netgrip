@@ -58,15 +58,66 @@ export interface InvestigationRow {
   summary: string | null;
 }
 
+export interface NodeBudget { child_nodes: number; sources: number }
+
+/** One node of the investigation graph, as in the snapshot's `nodes`. */
+export interface GraphNode {
+  id: string;
+  display_id: string;
+  parent_id: string | null;
+  kind: Kind;
+  question: string;
+  justification: string | null;
+  out_of_scope: string | null;
+  done_when: string | null;
+  depth: number;
+  status: NodeState;
+  inclusion: Inclusion;
+  budget: NodeBudget | null;
+  activity: Activity | null;
+  verdict: unknown;
+  brief: string | null;
+  spent_usd: number;
+  instruction_count: number;
+  plan_version_added: number | null;
+  proposed_by: string | null;
+  depends_on: string[];
+}
+
+/** kept / superseded / proposed node ids of one plan version or applied instruction. */
+export interface PlanDiff { kept: string[]; superseded: string[]; proposed: string[]; notes: string[] }
+
+export interface Instruction {
+  id: string;
+  node_id: string | null;
+  text: string;
+  state: "queued" | "applied" | "undone";
+  queued_seq: number;
+  applied_seq: number | null;
+  diff: PlanDiff | null;
+  undone: boolean;
+}
+
+export interface Premise { id: string; text: string; node_id: string | null; outcome: string | null }
+
 export interface Snapshot {
   seq: number;
   investigation: InvestigationRow & { settings: InvestigationSettings; root_goal: string | null };
-  nodes: unknown[];
-  instructions: unknown[];
-  premises: unknown[];
+  nodes: GraphNode[];
+  instructions: Instruction[];
+  premises: Premise[];
+  plan_failed: string | null;
   schedule: { order: string[]; reasons: Record<string, string>; slots: number };
   focus_node_id: string | null;
   plan_version: number;
+}
+
+/** Streamed model text and similar: no seq, never stored or replayed (D-11). */
+export interface EphemeralEvent {
+  investigation_id: string;
+  node_id: string | null;
+  kind: string;
+  data: Record<string, unknown>;
 }
 
 export interface DurableEvent {
