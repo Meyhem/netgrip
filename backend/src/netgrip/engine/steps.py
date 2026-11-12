@@ -251,6 +251,8 @@ async def _route(ctx: NodeContext, step: str, answer: dict) -> Next:
         nxt: Next = ("search", answer["query"].strip())
         summary = f"search: {answer['query']}"
     elif action == "read":
+        # Free URLs are allowed on purpose (the model may know a primary source); they count
+        # against budget.sources like any other read, and tried/unobtainable ones are refused.
         url = answer.get("url") or _next_url(ctx)
         nxt, summary = ("read", url), f"read: {url}"
     elif action == "split":
@@ -379,7 +381,9 @@ async def extract(ctx: NodeContext, arg: tuple) -> Next:
         if claim.id not in known:
             added += 1
             known.add(claim.id)
-            await ev.reconcile(ctx.call, claim)
+        # Every claim of this extraction, new or not: a run killed between add_claim and
+        # reconcile must still reconcile on the rerun. Reconcile is idempotent in state.
+        await ev.reconcile(ctx.call, claim)
         if text not in ctx.state.claims:
             ctx.state.claims.append(text)
     await ctx.commit(

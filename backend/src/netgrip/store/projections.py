@@ -380,10 +380,10 @@ async def _node_started(tx: Tx, event: Event) -> None:
 
 @projector("node.activity")
 async def _node_activity(tx: Tx, event: Event) -> None:
-    # A node waiting on its children runs again when it aggregates.
+    # The status is left alone: a node aggregating stays `Waiting on children` until it
+    # completes, so after a restart it is still recognised as a coordinator (Task 8).
     await tx.execute(
-        "UPDATE nodes SET activity = ?, updated_at = ?, status = CASE WHEN status ="
-        " 'Waiting on children' THEN 'Running' ELSE status END WHERE id = ?",
+        "UPDATE nodes SET activity = ?, updated_at = ? WHERE id = ?",
         [event.data["activity"], event.at, event.node_id],
     )
 

@@ -3,6 +3,7 @@ import json
 import pytest
 
 from netgrip.adapters.fakes import FakeFetcher, FakeModelClient, FakeSearch
+from netgrip.adapters.model import ModelUnavailable
 from netgrip.boundary.events import EventDraft
 from netgrip.engine import agent as agent_mod
 from netgrip.engine.agent import TOOLS, Deps, Signal, node_context, run_node
@@ -377,3 +378,52 @@ async def test_premise_check_emits_outcome(db, tmp_path):
 
 def test_agent_module_exports():
     assert agent_mod.run_node is run_node
+
+
+async def test_aggregate_survives_outage_and_restart(db, tmp_path):
+    deps = make_deps(db, tmp_path, {
+        "node.decide": [decide("split", children=[{"question": "Who first claimed it?"}]),
+                        {"raise": "unavailable"}, conclude("Combined answer")],
+    })  # fmt: skip
+    await run(deps)
+    child = (await events(db, "node.proposed"))[-1][1]
+    await append_and_project(db, INV, [
+        ev("node.approved", {"budget": {"sources": 1, "child_nodes": 0}}, node_id=child),
+        ev("node.completed", {"verdict": {"text": "A 1932 cartoon", "confidence": "high"},
+                              "open_questions": [], "off_topic": False},
+           node_id=child, actor="node"),
+    ])  # fmt: skip
+    with pytest.raises(ModelUnavailable):
+        await run(deps)  # the outage hits mid-aggregate
+    assert (await node_row(db, "n-1"))["status"] == "Waiting on children"
+    proposed_before = len(await events(db, "node.proposed"))
+    await run(deps)  # a fresh context, as after a kill
+    assert len(await events(db, "node.proposed")) == proposed_before
+    assert len([e for e in await events(db, "node.started") if e[1] == "n-1"]) == 1
+    row = await node_row(db, "n-1")
+    assert row["status"] == "Completed"
+    assert json.loads(row["verdict"])["text"] == "Combined answer"
+
+
+async def test_claim_reconciled_on_rerun_after_kill_before_reconcile(db, tmp_path, monkeypatch):
+    script = {"node.decide": [decide("read", url=NASA)] * 2 + [conclude()],
+              "node.extract": [extraction("Hard to see")]}  # fmt: skip
+    deps = make_deps(db, tmp_path, script)
+    seen = []
+
+    async def killed(ctx, claim):
+        raise RuntimeError("killed")
+
+    monkeypatch.setattr(deps.evidence, "reconcile", killed)
+    with pytest.raises(RuntimeError):
+        await run(deps)
+    assert len(await db.read("SELECT * FROM claims")) == 1  # committed before the kill
+
+    async def spy(ctx, claim):
+        seen.append(claim.text)
+
+    monkeypatch.setattr(deps.evidence, "reconcile", spy)
+    await append_and_project(db, INV, [ev("node.reset", {"reason": "recovery"}, node_id="n-1")])
+    await run(deps)
+    assert seen == ["Hard to see"]
+    assert len(await db.read("SELECT * FROM claims")) == 1
