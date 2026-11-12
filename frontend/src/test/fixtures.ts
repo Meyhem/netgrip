@@ -1,4 +1,4 @@
-import type { InvestigationRow, Pools, Settings } from "../api/types";
+import type { GraphNode, InvestigationRow, Pools, Settings } from "../api/types";
 
 export const POOLS: Pools = {
   models: { in_use: 5, limit: 8 },
@@ -50,6 +50,17 @@ export function settings(over: Partial<Settings> = {}): Settings {
       model: { set: true, status: "set", checked_at: null, message: null },
       search: { set: false, status: "none", checked_at: null, message: null },
     },
+    ...over,
+  };
+}
+
+/** A snapshot node; `id` doubles as the display id unless given. */
+export function graphNode(over: Partial<GraphNode> & { id: string }): GraphNode {
+  return {
+    display_id: over.id, parent_id: null, kind: "Deep-dive", question: `Question of ${over.id}`,
+    justification: null, out_of_scope: null, done_when: null, depth: 0,
+    status: "Proposed", inclusion: "Included", budget: null, activity: null, verdict: null, brief: null,
+    spent_usd: 0, instruction_count: 0, plan_version_added: 1, proposed_by: "planner", depends_on: [],
     ...over,
   };
 }
