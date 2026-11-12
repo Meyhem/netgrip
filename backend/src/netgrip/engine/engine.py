@@ -14,6 +14,7 @@ from netgrip.config import Config
 from netgrip.engine.budget import allocate_budget
 from netgrip.engine.planner import draft_plan, replan
 from netgrip.engine.planning_queue import PlanningQueue
+from netgrip.engine.recovery import recover_planning
 from netgrip.store import eventlog
 from netgrip.store.db import Database, Tx
 from netgrip.store.projections import ID_COLUMNS, STATE_TABLES, append_and_project_in_tx
@@ -62,6 +63,7 @@ class Engine:
         for inv in mismatched:
             log.warning("state of investigation %s disagrees with its log; rebuilding", inv)
             await rebuild(self.db, inv)
+        await recover_planning(self)
 
     async def stop(self) -> None:
         await self.planning.stop()
