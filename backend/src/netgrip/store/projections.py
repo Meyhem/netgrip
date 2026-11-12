@@ -15,7 +15,14 @@ Projector = Callable[[Tx, Event], Awaitable[None]]
 _projectors: dict[str, list[Projector]] = defaultdict(list)
 
 # Tables a rebuild truncates and refills from the log. Later migrations append to this list.
-STATE_TABLES: list[str] = ["investigations"]
+STATE_TABLES: list[str] = [
+    "investigations",
+    "nodes",
+    "node_deps",
+    "instructions",
+    "premises",
+    "plan_versions",
+]
 
 # Column holding the investigation id, for tables where it is not `investigation_id`.
 ID_COLUMNS: dict[str, str] = {"investigations": "id"}
@@ -104,12 +111,166 @@ async def _state_changed(tx: Tx, event: Event) -> None:
 
 @projector("spend.recorded")
 async def _spend_recorded(tx: Tx, event: Event) -> None:
+    amount = float(Decimal(event.data["amount_usd"]))
     await tx.execute(
         "UPDATE investigations SET spent_usd = spent_usd + ?,"
         " spend_approximate = MAX(spend_approximate, ?) WHERE id = ?",
+        [amount, int(event.data["approximate"]), event.investigation_id],
+    )
+    if event.node_id:
+        await tx.execute(
+            "UPDATE nodes SET spent_usd = spent_usd + ? WHERE id = ?", [amount, event.node_id]
+        )
+
+
+# --- Phase 3 projectors: graph, instructions, premises ---------------------------------------
+
+
+def _j(value: object) -> str | None:
+    return None if value is None else json.dumps(value, ensure_ascii=False)
+
+
+@projector("investigation.root_goal_set")
+async def _root_goal_set(tx: Tx, event: Event) -> None:
+    row = await tx.fetchone(
+        "SELECT root_goal FROM investigations WHERE id = ?", [event.investigation_id]
+    )
+    if row is not None and row["root_goal"] is not None:
+        raise ValueError("root goal is already set (I1)")
+    await tx.execute(
+        "UPDATE investigations SET root_goal = ? WHERE id = ?",
+        [event.data["root_goal"], event.investigation_id],
+    )
+
+
+@projector("premise.extracted")
+async def _premise_extracted(tx: Tx, event: Event) -> None:
+    await tx.execute(
+        "INSERT INTO premises(id, investigation_id, text, node_id, seq) VALUES (?, ?, ?, ?, ?)",
         [
-            float(Decimal(event.data["amount_usd"])),
-            int(event.data["approximate"]),
+            event.data["premise_id"],
             event.investigation_id,
+            event.data["text"],
+            event.data.get("node_id"),
+            event.seq,
         ],
+    )
+
+
+@projector("node.proposed")
+async def _node_proposed(tx: Tx, event: Event) -> None:
+    d = event.data
+    # Provisional plan_version_added: the version this node will land in. plan.version_created
+    # confirms it for the nodes in its diff, so the value is the same on rebuild.
+    row = await tx.fetchone(
+        "SELECT COALESCE(MAX(version), 0) + 1 FROM plan_versions WHERE investigation_id = ?",
+        [event.investigation_id],
+    )
+    await tx.execute(
+        "INSERT INTO nodes(id, investigation_id, display_id, parent_id, kind, question,"
+        " justification, out_of_scope, done_when, depth, plan_version_added, proposed_by,"
+        " created_at, updated_at, seq) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        [
+            event.node_id,
+            event.investigation_id,
+            d["display_id"],
+            d.get("parent_id"),
+            d["kind"],
+            d["question"],
+            d.get("justification"),
+            _j(d.get("out_of_scope")),
+            _j(d.get("done_when")),
+            d.get("depth", 0),
+            row[0] if row else 1,
+            d.get("proposed_by"),
+            event.at,
+            event.at,
+            event.seq,
+        ],
+    )
+    await tx.executemany(
+        "INSERT INTO node_deps(investigation_id, node_id, depends_on_id) VALUES (?, ?, ?)",
+        [(event.investigation_id, event.node_id, dep) for dep in d.get("depends_on", [])],
+    )
+
+
+@projector("node.approved")
+async def _node_approved(tx: Tx, event: Event) -> None:
+    await tx.execute(
+        "UPDATE nodes SET status = 'Pending', budget = ?, updated_at = ? WHERE id = ?",
+        [_j(event.data["budget"]), event.at, event.node_id],
+    )
+
+
+@projector("node.inclusion_changed")
+async def _inclusion_changed(tx: Tx, event: Event) -> None:
+    await tx.executemany(
+        "UPDATE nodes SET inclusion = ?, updated_at = ? WHERE id = ?",
+        [(event.data["inclusion"], event.at, nid) for nid in event.data["node_ids"]],
+    )
+
+
+@projector("instruction.queued")
+async def _instruction_queued(tx: Tx, event: Event) -> None:
+    node_id = event.node_id
+    if node_id is None:
+        root = await tx.fetchone(
+            "SELECT id FROM nodes WHERE investigation_id = ? AND parent_id IS NULL"
+            " ORDER BY seq LIMIT 1",
+            [event.investigation_id],
+        )
+        node_id = root["id"] if root else None
+    await tx.execute(
+        "INSERT INTO instructions(id, investigation_id, node_id, text, state, queued_seq)"
+        " VALUES (?, ?, ?, ?, 'queued', ?)",
+        [event.data["instruction_id"], event.investigation_id, node_id, event.data["text"],
+         event.seq],
+    )  # fmt: skip
+
+
+@projector("instruction.applied")
+async def _instruction_applied(tx: Tx, event: Event) -> None:
+    iid = event.data["instruction_id"]
+    await tx.execute(
+        "UPDATE instructions SET state = 'applied', applied_seq = ?, diff = ? WHERE id = ?",
+        [event.seq, _j(event.data["diff"]), iid],
+    )
+    await tx.execute(
+        "UPDATE nodes SET instruction_count = instruction_count + 1 WHERE id ="
+        " (SELECT node_id FROM instructions WHERE id = ?)",
+        [iid],
+    )
+
+
+@projector("plan.version_created")
+async def _plan_version_created(tx: Tx, event: Event) -> None:
+    d = event.data
+    await tx.execute(
+        "INSERT INTO plan_versions(investigation_id, version, instruction_id, diff)"
+        " VALUES (?, ?, ?, ?)",
+        [event.investigation_id, d["version"], d.get("instruction_id"), _j(d["diff"])],
+    )
+    await tx.executemany(
+        "UPDATE nodes SET plan_version_added = ? WHERE id = ?",
+        [(d["version"], nid) for nid in d["diff"].get("proposed", [])],
+    )
+    await tx.execute(
+        "UPDATE investigations SET plan_failed_reason = NULL WHERE id = ?",
+        [event.investigation_id],
+    )
+
+
+@projector("plan.reverted")
+async def _plan_reverted(tx: Tx, event: Event) -> None:
+    await tx.execute(
+        "UPDATE instructions SET state = 'undone', undone = 1 WHERE id = ?",
+        [event.data["instruction_id"]],
+    )
+
+
+@projector("plan.failed")
+async def _plan_failed(tx: Tx, event: Event) -> None:
+    await tx.execute(
+        "UPDATE investigations SET plan_failed_reason = ? WHERE id = ?",
+        [event.data["reason"], event.investigation_id],
     )

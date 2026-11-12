@@ -44,6 +44,48 @@ def list_row(r: Row) -> dict[str, Any]:
     }
 
 
+def _load(text: str | None) -> Any:
+    return None if text is None else json.loads(text)
+
+
+def node_json(n: Row, depends_on: list[str]) -> dict[str, Any]:
+    return {
+        "id": n["id"],
+        "display_id": n["display_id"],
+        "parent_id": n["parent_id"],
+        "kind": n["kind"],
+        "question": n["question"],
+        "justification": n["justification"],
+        "out_of_scope": _load(n["out_of_scope"]),
+        "done_when": _load(n["done_when"]),
+        "depth": n["depth"],
+        "status": n["status"],
+        "inclusion": n["inclusion"],
+        "budget": _load(n["budget"]),
+        "activity": n["activity"],
+        "verdict": _load(n["verdict"]),
+        "brief": n["brief"],
+        "spent_usd": n["spent_usd"],
+        "instruction_count": n["instruction_count"],
+        "plan_version_added": n["plan_version_added"],
+        "proposed_by": n["proposed_by"],
+        "depends_on": depends_on,
+    }
+
+
+def instruction_json(i: Row) -> dict[str, Any]:
+    return {
+        "id": i["id"],
+        "node_id": i["node_id"],
+        "text": i["text"],
+        "state": i["state"],
+        "queued_seq": i["queued_seq"],
+        "applied_seq": i["applied_seq"],
+        "diff": _load(i["diff"]),
+        "undone": bool(i["undone"]),
+    }
+
+
 async def _row(db: Database, id: str) -> Row:
     rows = await db.read("SELECT * FROM investigations WHERE id = ?", [id])
     if not rows:
@@ -73,16 +115,40 @@ async def delete_investigation(id: str, engine: Annotated[Engine, Depends(get_en
 @router.get("/{id}")
 async def snapshot(id: str, db: Annotated[Database, Depends(get_db)]) -> dict:
     r = await _row(db, id)
-    investigation = list_row(r) | {"settings": json.loads(r["settings"]), "root_goal": None}
+    investigation = list_row(r) | {
+        "settings": json.loads(r["settings"]),
+        "root_goal": r["root_goal"],
+    }
+    node_rows = await db.read("SELECT * FROM nodes WHERE investigation_id = ? ORDER BY seq", [id])
+    deps: dict[str, list[str]] = {}
+    for d in await db.read(
+        "SELECT node_id, depends_on_id FROM node_deps WHERE investigation_id = ?"
+        " ORDER BY node_id, depends_on_id",
+        [id],
+    ):
+        deps.setdefault(d["node_id"], []).append(d["depends_on_id"])
+    instruction_rows = await db.read(
+        "SELECT * FROM instructions WHERE investigation_id = ? ORDER BY queued_seq", [id]
+    )
+    premise_rows = await db.read(
+        "SELECT * FROM premises WHERE investigation_id = ? ORDER BY seq", [id]
+    )
+    version = await db.read(
+        "SELECT COALESCE(MAX(version), 0) AS v FROM plan_versions WHERE investigation_id = ?", [id]
+    )
     return {
         "seq": r["last_seq"],
         "investigation": investigation,
-        "nodes": [],
-        "instructions": [],
-        "premises": [],
+        "nodes": [node_json(n, deps.get(n["id"], [])) for n in node_rows],
+        "instructions": [instruction_json(i) for i in instruction_rows],
+        "premises": [
+            {"id": p["id"], "text": p["text"], "node_id": p["node_id"], "outcome": p["outcome"]}
+            for p in premise_rows
+        ],
+        "plan_failed": r["plan_failed_reason"],
         "schedule": {"order": [], "reasons": {}, "slots": 0},
         "focus_node_id": None,
-        "plan_version": 0,
+        "plan_version": version[0]["v"],
     }
 
 

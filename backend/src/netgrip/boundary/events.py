@@ -118,3 +118,86 @@ class SpendRecorded(_Data):
 
 
 register_event("spend.recorded", 1, SpendRecorded)
+
+
+# --- Phase 3 shapes --------------------------------------------------------------------------
+
+
+class RootGoalSet(_Data):
+    root_goal: str
+
+
+class PremiseExtracted(_Data):
+    premise_id: str
+    text: str
+    node_id: str | None = None
+
+
+class PlanDiff(_Data):
+    kept: list[str] = Field(default_factory=list)
+    superseded: list[str] = Field(default_factory=list)
+    proposed: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class PlanVersionCreated(_Data):
+    version: int
+    instruction_id: str | None = None
+    diff: PlanDiff
+
+
+class PlanReverted(_Data):
+    to_version: int
+    instruction_id: str
+
+
+class PlanFailed(_Data):
+    reason: str
+
+
+class NodeProposed(_Data):
+    display_id: str
+    parent_id: str | None = None
+    kind: str
+    question: str
+    justification: str | None = None
+    out_of_scope: Any = None
+    done_when: Any = None
+    depends_on: list[str] = Field(default_factory=list)
+    depth: int = 0
+    proposed_by: str | None = None
+
+
+class NodeApproved(_Data):
+    budget: dict[str, Any]
+
+
+class NodeInclusionChanged(_Data):
+    node_ids: list[str]
+    inclusion: Literal["Included", "Ignored", "Superseded"]
+    by: Literal["user", "replan"]
+    instruction_id: str | None = None
+
+
+class InstructionQueued(_Data):
+    instruction_id: str
+    text: str
+    waiting_for: Any = None
+
+
+class InstructionApplied(_Data):
+    instruction_id: str
+    at_step: Any = None
+    diff: PlanDiff
+
+
+register_event("investigation.root_goal_set", 1, RootGoalSet)
+register_event("premise.extracted", 1, PremiseExtracted)
+register_event("plan.version_created", 1, PlanVersionCreated)
+register_event("plan.reverted", 1, PlanReverted)
+register_event("plan.failed", 1, PlanFailed)
+register_event("node.proposed", 1, NodeProposed)
+register_event("node.approved", 1, NodeApproved)
+register_event("node.inclusion_changed", 1, NodeInclusionChanged)
+register_event("instruction.queued", 1, InstructionQueued)
+register_event("instruction.applied", 1, InstructionApplied)
