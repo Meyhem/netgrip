@@ -3,6 +3,7 @@
 import json
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
+from decimal import Decimal
 from typing import Protocol
 
 from netgrip.boundary.events import Event, EventDraft
@@ -96,6 +97,19 @@ async def _state_changed(tx: Tx, event: Event) -> None:
             event.data["to"],
             event.data.get("cause") if paused else None,
             event.data.get("detail") if paused else None,
+            event.investigation_id,
+        ],
+    )
+
+
+@projector("spend.recorded")
+async def _spend_recorded(tx: Tx, event: Event) -> None:
+    await tx.execute(
+        "UPDATE investigations SET spent_usd = spent_usd + ?,"
+        " spend_approximate = MAX(spend_approximate, ?) WHERE id = ?",
+        [
+            float(Decimal(event.data["amount_usd"])),
+            int(event.data["approximate"]),
             event.investigation_id,
         ],
     )

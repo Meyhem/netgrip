@@ -106,3 +106,15 @@ class InvestigationStateChanged(_Data):
 
 register_event("investigation.created", 1, InvestigationCreated)
 register_event("investigation.state_changed", 1, InvestigationStateChanged)
+
+
+class SpendRecorded(_Data):
+    tier: Literal["strong", "standard", "fast", "verifier"]
+    model: str
+    amount_usd: str  # decimal string, exact
+    approximate: bool
+    tokens_in: int = Field(ge=0)
+    tokens_out: int = Field(ge=0)
+
+
+register_event("spend.recorded", 1, SpendRecorded)
