@@ -1,0 +1,18 @@
+export const money = (n: number) => `$${n.toFixed(2)}`;
+export const moneyOf = (a: number, b: number) => `${money(a)} / ${money(b)}`;
+
+export function duration(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+const MB = 1024 * 1024;
+export function bytes(n: number): string {
+  if (n <= 0) return "0 MB";
+  const mb = n / MB;
+  if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
+  if (mb >= 10) return `${Math.round(mb)} MB`;
+  return `${Math.max(0.1, Math.round(mb * 10) / 10)} MB`;
+}
