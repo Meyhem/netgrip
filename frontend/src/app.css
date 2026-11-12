@@ -19,3 +19,10 @@ html, body, #root { height: 100%; margin: 0; }
 /* The app's only modal. */
 .scrim { position: fixed; inset: 0; background: var(--scrim); display: grid; place-items: center; z-index: 100; padding: var(--space-5); }
 .dialog { width: 100%; max-width: 480px; }
+
+/* ScreenNewInvestigation: left column, sticky 340px right column. */
+.new-investigation { max-width: 1120px; display: grid; grid-template-columns: 1fr 340px; gap: var(--space-6); align-items: start; }
+.new-investigation .sticky { position: sticky; top: 0; }
+.new-investigation .wide { justify-content: center; }
+.new-investigation th.num { text-align: right; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }

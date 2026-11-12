@@ -48,10 +48,11 @@ export function Toggle({ on, onChange, children }: { on: boolean; onChange: (v: 
 }
 
 /** A number input that commits on blur or Enter. A non-number shows is-error and commits nothing. */
-export function NumberField({ value, onCommit, parse = parseNumber, format = String, error: externalError, ...rest }:
+export function NumberField({ value, onCommit, parse = parseNumber, format = String, error: externalError, onValidity, ...rest }:
   Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "onChange"> & {
     value: number | null; onCommit: (n: number) => void;
     parse?: (s: string) => number | null; format?: (n: number) => string; error?: boolean;
+    onValidity?: (valid: boolean) => void;
   }) {
   const [text, setText] = useState(value == null ? "" : format(value));
   const [bad, setBad] = useState(false);
@@ -62,8 +63,9 @@ export function NumberField({ value, onCommit, parse = parseNumber, format = Str
   const commit = () => {
     if (text.trim() === "" && value == null) return;
     const n = parse(text);
-    if (n == null) { setBad(true); return; }
+    if (n == null) { setBad(true); onValidity?.(false); return; }
     setBad(false);
+    onValidity?.(true);
     if (n !== value) onCommit(n);
     else setText(format(n));
   };

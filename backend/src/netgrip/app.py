@@ -59,6 +59,7 @@ def create_app(config: Config, frontend_dist: Path | None = None) -> FastAPI:
 
     for module in (investigations, commands, stream, settings, system):
         app.include_router(module.router)
+    app.include_router(settings.estimate_router)
 
     if frontend_dist is not None:
         _serve_frontend(app, frontend_dist)
