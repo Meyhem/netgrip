@@ -22,18 +22,18 @@ async def db(tmp_path):
 
 async def test_defaults_match_overview(db):
     s = await get_settings(db)
-    medium = s.effort["medium"]
+    medium = s.effort["Medium"]
     assert (medium.max_depth, medium.max_nodes, medium.sources_per_node) == (4, 40, 8)
     assert (medium.parallel, medium.sources_to_confirm) == (4, 2)
-    low, high = s.effort["low"], s.effort["high"]
+    low, high = s.effort["Low"], s.effort["High"]
     assert (low.max_depth, low.max_nodes, low.sources_per_node, low.parallel) == (2, 12, 4, 2)
     assert low.sources_to_confirm == 1
     assert (high.max_depth, high.max_nodes, high.sources_per_node, high.parallel) == (6, 80, 12, 6)
     assert high.sources_to_confirm == 3
-    assert s.default_effort == "medium"
+    assert s.default_effort == "Medium"
     assert f"{s.spending_limit_usd:.2f}" == "5.00"
     assert s.retry_before_pause_seconds == 300
-    assert s.page_reuse_window == 86400
+    assert s.page_reuse == "1d"
     assert s.politeness_seconds == 2
     cap = s.capacity
     assert (cap.investigations, cap.model_calls, cap.searches, cap.browser_pages) == (5, 8, 4, 6)
@@ -51,8 +51,8 @@ async def test_patch_persists(db):
     assert s.spending_limit_usd == 12.5
     assert s.capacity.searches == 2
     assert s.capacity.model_calls == 8  # untouched siblings keep their values
-    await patch_settings(db, {"page_reuse_window": "always_refetch"})
-    assert (await get_settings(db)).page_reuse_window == "always_refetch"
+    await patch_settings(db, {"page_reuse": "always_refetch"})
+    assert (await get_settings(db)).page_reuse == "always_refetch"
 
 
 @pytest.mark.parametrize(
@@ -61,10 +61,10 @@ async def test_patch_persists(db):
         {"capacity": {"browser_pages": 0}},
         {"capacity": {"model_calls": -1}},
         {"spending_limit_usd": 0},
-        {"effort": {"medium": {"max_nodes": -5}}},
+        {"effort": {"Medium": {"max_nodes": -5}}},
         {"no_such_setting": 1},
         {"default_preset": "lavish"},
-        {"page_reuse_window": 0},
+        {"page_reuse": "1w"},
     ],
 )
 async def test_invalid_patch_rejected_and_unchanged(db, partial):

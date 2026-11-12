@@ -13,6 +13,10 @@ import aiosqlite
 
 log = logging.getLogger(__name__)
 
+# aiosqlite logs every statement with its parameters at DEBUG, which would put API keys in
+# the log (D-13). Keep it quiet whatever the root level is.
+logging.getLogger("aiosqlite").setLevel(logging.INFO)
+
 MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 _MIGRATION_NAME = re.compile(r"^(\d{4})_[a-z0-9_]+\.sql$")
 

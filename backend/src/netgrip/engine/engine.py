@@ -12,6 +12,7 @@ from netgrip.store import eventlog
 from netgrip.store.db import Database, Tx
 from netgrip.store.projections import ID_COLUMNS, STATE_TABLES, append_and_project_in_tx
 from netgrip.store.rebuild import rebuild, verify
+from netgrip.store.settings import get_settings, resolve_investigation_settings
 
 log = logging.getLogger(__name__)
 
@@ -56,15 +57,15 @@ class Engine:
         pass
 
     async def submit(self, cmd: Command) -> CommandAck:
-        handler = _handlers.get(cmd.type)
-        if handler is None:
-            raise CommandRejected("unknown_command", f"Unknown command {cmd.type!r}")
         async with self.db.tx() as tx:
             exists = await tx.fetchone(
                 "SELECT 1 FROM investigations WHERE id = ?", [cmd.investigation_id]
             )
             if exists is None:
                 raise CommandRejected("not_found", "No such investigation")
+            handler = _handlers.get(cmd.type)
+            if handler is None:
+                raise CommandRejected("unknown_command", f"Unknown command {cmd.type!r}")
             if not await _record_command(tx, str(cmd.id), cmd.investigation_id, cmd.type):
                 return CommandAck(recorded=True, duplicate=True)
             drafts = await handler(self, tx, cmd)
@@ -74,9 +75,11 @@ class Engine:
         return CommandAck(recorded=True, duplicate=False)
 
     async def create_investigation(self, id: UUID, prompt: str, settings: dict) -> CommandAck:
+        """`settings` holds what the user chose; the rest comes from the global settings."""
         if not prompt.strip():
             raise CommandRejected("empty_prompt", "The prompt is empty")
         inv = str(id)
+        settings = resolve_investigation_settings(await get_settings(self.db), settings)
         async with self.db.tx() as tx:
             if not await _record_command(tx, inv, inv, "create_investigation"):
                 return CommandAck(recorded=True, duplicate=True)

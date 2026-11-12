@@ -4,7 +4,7 @@ import copy
 import json
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 from netgrip.boundary.events import utc_now_iso
 from netgrip.store.db import Database
@@ -12,7 +12,8 @@ from netgrip.store.db import Database
 KeyName = Literal["model", "search"]
 Tier = Literal["strong", "standard", "fast", "verifier"]
 PresetName = Literal["economy", "balanced", "maximum"]
-EffortName = Literal["low", "medium", "high"]
+PageReuse = Literal["1d", "always_refetch"]
+EffortName = Literal["Low", "Medium", "High"]
 
 OPUS = "anthropic/claude-opus-5.5"
 SONNET = "anthropic/claude-sonnet-5.5"
@@ -44,14 +45,14 @@ def _model(id: str, price_in: float | None, price_out: float | None) -> dict:
 # preview. To be tuned after real runs.
 DEFAULT_SETTINGS: dict[str, Any] = {
     "effort": {
-        "low": _effort(2, 12, 4, 2, 1),
-        "medium": _effort(4, 40, 8, 4, 2),
-        "high": _effort(6, 80, 12, 6, 3),
+        "Low": _effort(2, 12, 4, 2, 1),
+        "Medium": _effort(4, 40, 8, 4, 2),
+        "High": _effort(6, 80, 12, 6, 3),
     },
-    "default_effort": "medium",
+    "default_effort": "Medium",
     "spending_limit_usd": 5.0,
     "retry_before_pause_seconds": 300,
-    "page_reuse_window": 86400,
+    "page_reuse": "1d",
     "politeness_seconds": 2.0,
     "capacity": {"investigations": 5, "model_calls": 8, "searches": 4, "browser_pages": 6},
     "model_endpoint": "https://openrouter.ai/api/v1",
@@ -102,7 +103,7 @@ class SettingsModel(_Strict):
     default_effort: EffortName
     spending_limit_usd: float = Field(gt=0)
     retry_before_pause_seconds: int = Field(gt=0)
-    page_reuse_window: int | Literal["always_refetch"] = Field(union_mode="left_to_right")
+    page_reuse: PageReuse
     politeness_seconds: float = Field(gt=0)
     capacity: Capacity
     model_endpoint: str = Field(min_length=1)
@@ -110,13 +111,6 @@ class SettingsModel(_Strict):
     default_preset: PresetName
     models: list[ModelPrice]
     excluded_domains: list[str]
-
-    @field_validator("page_reuse_window")
-    @classmethod
-    def _positive_window(cls, v: int | str) -> int | str:
-        if isinstance(v, int) and v <= 0:
-            raise ValueError("must be a positive number of seconds or 'always_refetch'")
-        return v
 
 
 def _merge(base: dict, partial: dict) -> dict:
@@ -207,3 +201,37 @@ async def mark_key(
             "UPDATE secrets SET status = ?, checked_at = ?, message = ? WHERE name = ?",
             [status, utc_now_iso(), message, name],
         )
+
+
+# --- Per-investigation settings: chosen at creation, defaults from the global settings -------
+
+
+class InvestigationSettings(_Strict):
+    effort: EffortName | None = None
+    preset: PresetName | None = None
+    tiers: dict[Tier, str] | None = None
+    excluded_domains: list[str] | None = None
+    prefer: Literal["none", "primary"] | None = None
+    page_reuse: PageReuse | None = None
+    spending_limit_usd: float | None = Field(default=None, gt=0)
+
+
+def resolve_investigation_settings(glob: SettingsModel, chosen: dict) -> dict:
+    """Fill what the user did not choose from the global settings, and snapshot the effort
+    budget, so an investigation is not changed by later edits to the global settings."""
+    c = InvestigationSettings.model_validate(chosen)
+    effort = c.effort or glob.default_effort
+    preset = c.preset or glob.default_preset
+    tiers = dict(glob.presets[preset]) | (c.tiers or {})
+    return {
+        "effort": effort,
+        "effort_budget": glob.effort[effort].model_dump(),
+        "preset": preset,
+        "tiers": tiers,
+        "excluded_domains": c.excluded_domains
+        if c.excluded_domains is not None
+        else list(glob.excluded_domains),
+        "prefer": c.prefer or "none",
+        "page_reuse": c.page_reuse or glob.page_reuse,
+        "spending_limit_usd": c.spending_limit_usd or glob.spending_limit_usd,
+    }
