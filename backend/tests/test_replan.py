@@ -393,3 +393,56 @@ def test_compute_diff_matches_by_ref():
     assert diff.superseded == ["id-d3"]
     assert diff.proposed == ["D2", "D2a", "V1", "D4", "D5"]
     assert diff.notes == ["P1 kept: premises are always checked"]
+
+
+# --- fix round 1: a re-plan must not orphan kept nodes ---------------------------------------
+
+
+async def test_dropping_a_parent_but_keeping_its_child_is_retried(make_engine):
+    orphan = draft_without(REPLANS[0], "D2")
+    for n in orphan["parsed"]["nodes"]:
+        if n["ref"] == "D2a":
+            n["parent_ref"] = None
+        if n["ref"] == "V1":
+            n["depends_on_refs"] = ["D1"]
+    engine = await make_engine([orphan, REPLANS[0]])
+    inv = await planned(engine)
+    await instruct(engine, inv)
+    calls = [c for c in engine.model_client.calls if c.purpose == "plan.replan"]
+    assert len(calls) == 2
+    retry = calls[1].messages[-1].content
+    assert "D2a" in retry and "D2" in retry
+    assert await version(engine, inv) == 2
+    assert await included(engine, inv) == {"R", "P1", "D1", "D2", "D2a", "V1", "D4", "D5"}
+
+
+async def test_dropping_a_dependency_of_a_kept_node_is_retried(make_engine):
+    dropped = draft_without(REPLANS[0], "D1")
+    for n in dropped["parsed"]["nodes"]:
+        if n["ref"] in ("V1", "D2a"):
+            n["depends_on_refs"] = [d for d in n["depends_on_refs"] if d != "D1"]
+    engine = await make_engine([dropped, REPLANS[0]])
+    inv = await planned(engine)
+    await instruct(engine, inv)
+    calls = [c for c in engine.model_client.calls if c.purpose == "plan.replan"]
+    assert len(calls) == 2
+    retry = calls[1].messages[-1].content
+    assert "V1" in retry and "D1" in retry
+    assert await version(engine, inv) == 2
+    assert "D1" in await included(engine, inv)
+
+
+async def test_orphaning_drafts_fail_after_the_retries(make_engine):
+    orphan = draft_without(REPLANS[0], "D2")
+    for n in orphan["parsed"]["nodes"]:
+        if n["ref"] == "D2a":
+            n["parent_ref"] = None
+        if n["ref"] == "V1":
+            n["depends_on_refs"] = ["D1"]
+    engine = await make_engine([orphan] * 3)
+    inv = await planned(engine)
+    v1 = await included(engine, inv)
+    await instruct(engine, inv)
+    events = await eventlog.read(engine.db, inv)
+    assert [e.type for e in events][-2:] == ["plan.failed", "instruction.applied"]
+    assert await version(engine, inv) == 1 and await included(engine, inv) == v1

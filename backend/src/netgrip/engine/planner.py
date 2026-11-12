@@ -588,6 +588,44 @@ def _with_kept_premise_checks(draft: PlanDraft, current: PlanDraft) -> PlanDraft
     return draft.model_copy(update={"nodes": [*back, *draft.nodes]})
 
 
+def _orphan_errors(draft: PlanDraft, current: PlanDraft) -> list[str]:
+    """Kept nodes stay as stored, so a draft must not leave one under or waiting on a node it
+    removes: a kept node keeps its stored parent, and no kept node's stored parent or
+    dependency may be superseded. Premise checks are never superseded, so the I2 dependencies
+    on them always hold."""
+    refs = {n.ref for n in draft.nodes}
+    stored = {n.ref: n for n in current.nodes}
+    removed = {r for r, n in stored.items() if r not in refs and n.kind != PREMISE_CHECK}
+    errors: list[str] = []
+    for n in draft.nodes:
+        old = stored.get(n.ref)
+        if old is None:
+            continue
+        if n.parent_ref != old.parent_ref:
+            parent = "the root" if old.parent_ref is None else old.parent_ref
+            errors.append(
+                f"Node {n.ref} is kept, so it must keep its parent {parent}"
+                f" (parent_ref {json.dumps(old.parent_ref)}); give it a new ref to move it."
+            )
+        if old.parent_ref in removed:
+            errors.append(
+                f"Node {n.ref} is kept but its parent {old.parent_ref} was removed;"
+                f" keep {old.parent_ref} or remove {n.ref} too."
+            )
+        for dep in old.depends_on_refs:
+            if dep in removed:
+                errors.append(
+                    f"Node {n.ref} is kept and depends on {dep}, which was removed;"
+                    f" keep {dep} or remove {n.ref} too."
+                )
+    return errors
+
+
+def _replan_errors(draft: PlanDraft, current: PlanDraft, effort: Effort) -> list[str]:
+    full = _with_kept_premise_checks(draft, current)
+    return validate_plan(full, effort) + _orphan_errors(full, current)
+
+
 @dataclass
 class _Plan:
     """The current plan as stored, for a re-plan."""
@@ -795,7 +833,7 @@ async def replan(
             "plan.replan",
             SYSTEM_REPLAN,
             messages,
-            lambda d: validate_plan(_with_kept_premise_checks(d, plan.draft), effort),
+            lambda d: _replan_errors(d, plan.draft, effort),
         )
         if draft is not None:
             diff = compute_diff(plan.old_nodes, draft)

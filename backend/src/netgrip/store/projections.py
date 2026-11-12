@@ -245,9 +245,10 @@ async def _instruction_applied(tx: Tx, event: Event) -> None:
 @projector("plan.version_created")
 async def _plan_version_created(tx: Tx, event: Event) -> None:
     d = event.data
-    # After an undo the next version reuses the number of the undone one (R7).
+    # After an undo the next version reuses the number of the undone one (R7); plan.reverted
+    # deleted that row.
     await tx.execute(
-        "INSERT OR REPLACE INTO plan_versions(investigation_id, version, instruction_id, diff)"
+        "INSERT INTO plan_versions(investigation_id, version, instruction_id, diff)"
         " VALUES (?, ?, ?, ?)",
         [event.investigation_id, d["version"], d.get("instruction_id"), _j(d["diff"])],
     )
