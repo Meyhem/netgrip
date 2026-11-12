@@ -206,7 +206,8 @@ async def _decide(ctx: NodeContext, step: str, extra: str = "") -> Next:
         prompt += f"\n\n{s.note}"
         s.note = None
     messages = [Message(role="user", content=prompt)]
-    req = ModelRequest(purpose="node.decide", tier="standard", model="", system=_DECIDE_SYSTEM,
+    tier = ctx.node.budget.get("tier", "standard")  # Verification nodes: "verifier"
+    req = ModelRequest(purpose="node.decide", tier=tier, model="", system=_DECIDE_SYSTEM,
                        messages=messages, tools=None, response_schema=_schema(ctx, allowed),
                        node_ref=ctx.node.id)  # fmt: skip
     tried: str | None = None

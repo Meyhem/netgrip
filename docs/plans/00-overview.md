@@ -104,15 +104,16 @@ Every durable event, in the database, on the stream and in `contract/`:
 | `plan.failed` | `reason` | 3 |
 | `plan.draft_requested` | none (the plan is being drafted, first time or again after `plan.failed`; clears the failure) | 3 |
 | `node.proposed` | `display_id`, `parent_id`, `kind`, `question`, `justification`, `out_of_scope`, `done_when`, `depends_on`, `depth`, `proposed_by` | 3 |
-| `node.approved` | `budget` | 3 |
+| `node.approved` | `budget` (`sources`, `child_nodes`, optional `tier`: `verifier` for Verification nodes, used for their `node.decide` calls) | 3 |
 | `node.rejected` | `reason`, `duplicate_of` | 4 |
 | `node.started` | `attempt`, `brief` | 4 |
 | `node.activity` | `activity`, `detail`, `step`, `retry` (`{n, m}` or null) | 4 |
 | `node.step_completed` | `step`, `kind`, `summary`, `route`, `page_version_id` | 4 |
 | `node.waiting_on_children` | none | 4 |
-| `node.completed` | `verdict` (`text`, `confidence`), `open_questions`, `off_topic` | 4 |
+| `node.completed` | `verdict` (`text`, `confidence`), `open_questions`, `off_topic` (always false in v1; set later by `node.off_topic`) | 4 |
 | `node.failed` | `reason`, `auto_retry_used` | 4 |
-| `node.reset` | `reason` (`recovery`/`rerun`/`auto_retry`) | 4 |
+| `node.reset` | `reason` (`recovery`/`rerun`/`auto_retry`), `hint` (optional: the different approach for an auto retry, shown in the brief) | 4 |
+| `node.off_topic` | `reason` (the relevance gate found the result off-topic; its claims are kept out of synthesis, E3. A follow-up event so the node commits its own completion) | 4 |
 | `node.paused`, `node.resumed` | `node_ids` | 6 |
 | `node.inclusion_changed` | `node_ids`, `inclusion`, `by` (`user`/`replan`), `instruction_id` | 3 |
 | `node.budget_changed` | `budget`, `cause` | 6 |
@@ -128,6 +129,7 @@ Every durable event, in the database, on the stream and in `contract/`:
 | `claim.withdrawn` | `claim_ids`, `cause` (`rerun`) | 6 |
 | `spend.recorded` | `tier`, `model`, `amount_usd`, `approximate`, `tokens_in`, `tokens_out` | 3 |
 | `limit.changed` | `spending_limit_usd` | 4 |
+| `investigation.concluding` | `cut_short_by` (`budget` or null; the orchestrator decided to conclude, O3; feeds `report.created.cut_short_by`) | 4 |
 | `system.recovered` | `reset_node_ids` | 4 |
 | `report.created` | `report_id`, `ended_early`, `cut_short_by` | 8 |
 

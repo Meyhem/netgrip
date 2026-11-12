@@ -310,3 +310,12 @@ async def test_decide_next_conclude_not_cut_short(db):
     assert await decide_next(ctx) == "conclude"
     [(_, data)] = await events(db, "investigation.concluding")
     assert data == {"cut_short_by": None}
+
+
+async def test_malformed_review_entries_fall_back_to_approval(db):
+    ids = await propose_children(db, 1)
+    bad = {"parsed": {"decisions": [{"display_id": "D1a", "approve": "no"}]}}
+    ctx = octx(db, {"orchestrator.review": [bad, bad, bad]})
+    [d] = await review_proposals(ctx, ids)
+    assert d.approve
+    assert len(ctx.model.calls) == 3

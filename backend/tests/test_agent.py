@@ -427,3 +427,23 @@ async def test_claim_reconciled_on_rerun_after_kill_before_reconcile(db, tmp_pat
     await run(deps)
     assert seen == ["Hard to see"]
     assert len(await db.read("SELECT * FROM claims")) == 1
+
+
+async def test_verification_node_decides_on_verifier_tier(db, tmp_path):
+    await append_and_project(db, INV, [
+        ev("node.proposed", proposed("V1", "Verification", parent="n-r"), node_id="n-v"),
+        ev("node.approved", {"budget": {"sources": 2, "child_nodes": 0, "tier": "verifier"}},
+           node_id="n-v"),
+    ])  # fmt: skip
+    deps = make_deps(db, tmp_path, {"node.decide": [conclude()]})
+    await run(deps, "n-v")
+    tiers = {c.tier for c in deps.model.calls if c.purpose == "node.decide"}
+    assert tiers == {"verifier"}
+    spend = [d for _, n, d in await events(db, "spend.recorded") if n == "n-v"]
+    assert spend and all(d["tier"] == "verifier" for d in spend)
+
+
+async def test_ordinary_node_decides_on_standard_tier(db, tmp_path):
+    deps = make_deps(db, tmp_path, {"node.decide": [conclude()]})
+    await run(deps)
+    assert {c.tier for c in deps.model.calls if c.purpose == "node.decide"} == {"standard"}

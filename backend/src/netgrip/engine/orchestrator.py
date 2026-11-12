@@ -239,7 +239,9 @@ async def review_proposals(ctx: OrchestratorContext, proposals: list[NodeRef]) -
         )
         by_display = {n["display_id"]: n["id"] for n in nodes}
         for d in (answer or {}).get("decisions", []):
-            nid = by_display.get(d["display_id"])
+            if not isinstance(d, dict) or not isinstance(d.get("approve"), bool):
+                continue  # a bad entry: treated like no objection (the malformed fallback)
+            nid = by_display.get(d.get("display_id"))
             if nid in candidates:
                 verdicts[nid] = d | {"duplicate_of": by_display.get(d.get("duplicate_of") or "")}
 
@@ -250,7 +252,12 @@ async def review_proposals(ctx: OrchestratorContext, proposals: list[NodeRef]) -
             dec = Decision(nid, False, BUDGET)
         elif nid in verdicts and not verdicts[nid]["approve"]:
             dup = verdicts[nid]["duplicate_of"]
-            dec = Decision(nid, False, DUPLICATE if dup else verdicts[nid]["reason"], dup)
+            dec = Decision(
+                nid,
+                False,
+                DUPLICATE if dup else verdicts[nid].get("reason") or "rejected by review",
+                dup,
+            )
         else:
             dec = Decision(nid, True, verdicts.get(nid, {}).get("reason", ""))
         decisions.append(dec)
