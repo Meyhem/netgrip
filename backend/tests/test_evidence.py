@@ -173,7 +173,7 @@ async def test_contradiction_across_branches_recorded_and_both_contested(svc, db
     )
 
 
-async def test_contradiction_judged_false_leaves_statuses(svc):
+async def test_contradiction_judged_false_leaves_statuses(svc, db):
     ctx1 = make_ctx({})
     s1 = await source(svc, ctx1, "a.org")
     a = await svc.add_claim(ctx1, "n1", "A", [s1.id], [])
@@ -186,6 +186,89 @@ async def test_contradiction_judged_false_leaves_statuses(svc):
     b = await svc.add_claim(ctx2, "n2", "B", [s2.id], [])
     await svc.reconcile(ctx2, b)
     assert {c.status for c in await svc.known_claims(INV, "x")} == {"Supported"}
+    assert await db.read("SELECT 1 FROM contradictions") == []
+    assert await db.read("SELECT 1 FROM events WHERE type = 'claim.contradiction_recorded'") == []
+
+
+async def test_malformed_judgement_retried_twice_then_records_nothing(svc, db):
+    ctx1 = make_ctx({})
+    s1 = await source(svc, ctx1, "a.org")
+    a = await svc.add_claim(ctx1, "n1", "A", [s1.id], [])
+    script = {
+        "evidence.match": [{"parsed": {"relation": "contradicts", "claim_id": a.id}}],
+        "evidence.contradiction": [{"raise": "malformed"}] * 3,
+    }
+    ctx2 = make_ctx(script, node_id="n2")
+    s2 = await source(svc, ctx2, "b.org")
+    b = await svc.add_claim(ctx2, "n2", "B", [s2.id], [])
+    await svc.reconcile(ctx2, b)
+    assert [c.purpose for c in ctx2.client.calls].count("evidence.contradiction") == 3
+    assert await db.read("SELECT 1 FROM contradictions") == []
+    assert {c.status for c in await svc.known_claims(INV, "x")} == {"Supported"}
+
+
+async def test_malformed_judgement_then_good_answer_records(svc, db):
+    ctx1 = make_ctx({})
+    s1 = await source(svc, ctx1, "a.org")
+    a = await svc.add_claim(ctx1, "n1", "A", [s1.id], [])
+    script = {
+        "evidence.match": [{"parsed": {"relation": "contradicts", "claim_id": a.id}}],
+        "evidence.contradiction": [{"raise": "malformed"}, {"parsed": {"contradicts": True}}],
+    }
+    ctx2 = make_ctx(script, node_id="n2")
+    s2 = await source(svc, ctx2, "b.org")
+    b = await svc.add_claim(ctx2, "n2", "B", [s2.id], [])
+    await svc.reconcile(ctx2, b)
+    assert len(await db.read("SELECT 1 FROM contradictions")) == 1
+
+
+async def _merged_pair(svc):
+    ctx1 = make_ctx({}, node_id="n1")
+    s1 = await source(svc, ctx1, "a.org")
+    first = await svc.add_claim(ctx1, "n1", "The wall is long", [s1.id], [])
+    script = {"evidence.match": [{"parsed": {"relation": "same", "claim_id": first.id}}]}
+    ctx2 = make_ctx(script, node_id="n2")
+    s2 = await source(svc, ctx2, "b.org")
+    second = await svc.add_claim(ctx2, "n2", "The wall measures a lot", [s2.id], [])
+    await svc.reconcile(ctx2, second)
+    return first, second, s1, s2, ctx2
+
+
+async def test_add_claim_dedups_on_rerun_after_merge(svc, db):
+    first, second, s1, s2, ctx = await _merged_pair(svc)
+    again = await svc.add_claim(ctx, "n2", "The wall measures a lot", [s2.id], [])
+    assert again.id == first.id  # followed merged_into to the surviving claim
+    assert len(await db.read("SELECT 1 FROM claims")) == 2  # no third claim
+    assert [c.id for c in await svc.known_claims(INV, "wall")] == [first.id]
+    # nothing changed, so no further claim.updated
+    n = len(await db.read("SELECT 1 FROM events WHERE type = 'claim.updated'"))
+    await svc.add_claim(ctx, "n2", "The wall measures a lot", [s2.id], [])
+    assert len(await db.read("SELECT 1 FROM events WHERE type = 'claim.updated'")) == n
+
+
+async def test_merge_is_rebuilt_from_the_log(svc, db):
+    first, second, *_ = await _merged_pair(svc)
+
+    async def dump():
+        return [
+            [tuple(r) for r in await db.read(f"SELECT * FROM {t} ORDER BY 1, 2")]
+            for t in ("claims", "claim_sources")
+        ]
+
+    before = await dump()
+    await rebuild(db)
+    assert await dump() == before
+    row = (await db.read("SELECT merged_into FROM claims WHERE id = ?", [second.id]))[0]
+    assert row["merged_into"] == first.id
+
+
+async def test_concurrent_record_source_inserts_once(svc, db):
+    import asyncio
+
+    ctxs = [make_ctx({}, node_id=f"n{i}") for i in range(4)]
+    got = await asyncio.gather(*(source(svc, c, "a.org") for c in ctxs))
+    assert len({s.id for s in got}) == 1
+    assert len(await db.read("SELECT 1 FROM sources")) == 1
 
 
 async def test_set_premise_outcome(svc, db):

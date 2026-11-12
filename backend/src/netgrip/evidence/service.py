@@ -8,6 +8,7 @@ transaction; if a call raises, nothing is committed and the pending spend stays 
 caller's flusher (B5).
 """
 
+import asyncio
 import logging
 import re
 import uuid
@@ -17,13 +18,14 @@ from typing import Literal
 from netgrip.adapters.model import Message, ModelMalformed, ModelRequest
 from netgrip.boundary.events import EventDraft
 from netgrip.engine.budget import CallContext, call_model
-from netgrip.evidence.status import ClaimStatus, Source, claim_status
+from netgrip.evidence.status import ClaimStatus, Credibility, Source, claim_status
 from netgrip.store.db import Database
 from netgrip.store.pages import PageVersion
 from netgrip.store.projections import Publisher, append_and_project
 
 log = logging.getLogger(__name__)
 
+JUDGE_ATTEMPTS = 3  # the first call and up to 2 retries
 PremiseOutcomeName = Literal["confirmed", "refuted", "unverifiable"]
 
 
@@ -36,6 +38,7 @@ class Claim:
     status: ClaimStatus
     supporting: list[str] = field(default_factory=list)  # source ids
     contradicting: list[str] = field(default_factory=list)
+    merged_into: str | None = None
 
 
 _MATCH_SYSTEM = (
@@ -75,6 +78,7 @@ class EvidenceService:
     def __init__(self, db: Database, bus: Publisher | None = None) -> None:
         self.db = db
         self.bus = bus
+        self._source_lock = asyncio.Lock()
 
     # --- reads -------------------------------------------------------------------------------
 
@@ -96,13 +100,11 @@ class EvidenceService:
             if r["id"] in ids or not ids
         }
 
-    async def _claims(self, investigation_id: str, claim_id: str | None = None) -> list[Claim]:
-        sql = "SELECT * FROM claims WHERE investigation_id = ? AND merged_into IS NULL"
-        params: list = [investigation_id]
-        if claim_id:
-            sql = "SELECT * FROM claims WHERE investigation_id = ? AND id = ?"
-            params.append(claim_id)
-        rows = await self.db.read(sql + " ORDER BY seq", params)
+    async def _claims(self, investigation_id: str, include_merged: bool = False) -> list[Claim]:
+        sql = "SELECT * FROM claims WHERE investigation_id = ?"
+        if not include_merged:
+            sql += " AND merged_into IS NULL"
+        rows = await self.db.read(sql + " ORDER BY seq", [investigation_id])
         stances = await self.db.read(
             "SELECT claim_id, source_id, stance FROM claim_sources WHERE investigation_id = ?"
             " ORDER BY source_id",
@@ -118,6 +120,8 @@ class EvidenceService:
                 (c.supporting if s["stance"] == "supports" else c.contradicting).append(
                     s["source_id"]
                 )
+        for r in rows:
+            claims[r["id"]].merged_into = r["merged_into"]
         return list(claims.values())
 
     async def known_claims(self, investigation_id: str, question: str) -> list[Claim]:
@@ -137,11 +141,25 @@ class EvidenceService:
         ctx: CallContext,
         url: str,
         page_version: PageVersion,
-        credibility: str,
+        credibility: Credibility,
         published_at: str | None,
         origin_key: str,
     ) -> Source:
         """Record `page_version` as a source of this investigation; once per page version."""
+        async with self._source_lock:  # check and insert as one step
+            return await self._record_source(
+                ctx, url, page_version, credibility, published_at, origin_key
+            )
+
+    async def _record_source(
+        self,
+        ctx: CallContext,
+        url: str,
+        page_version: PageVersion,
+        credibility: Credibility,
+        published_at: str | None,
+        origin_key: str,
+    ) -> Source:
         rows = await self.db.read(
             "SELECT id FROM sources WHERE investigation_id = ? AND page_version_id = ?",
             [ctx.investigation_id, page_version.id],
@@ -151,7 +169,7 @@ class EvidenceService:
         source = Source(
             uuid.uuid4().hex, url, page_version.title, page_version.id,
             credibility, published_at, origin_key,
-        )  # type: ignore[arg-type]  # fmt: skip
+        )  # fmt: skip
         await self._commit(
             ctx,
             [
@@ -195,13 +213,19 @@ class EvidenceService:
         unknown = [i for i in [*supporting, *contradicting] if i not in sources]
         if unknown:
             raise ValueError(f"unknown source ids: {unknown}")
-        for existing in await self._claims(ctx.investigation_id):
+        every = await self._claims(ctx.investigation_id, include_merged=True)
+        by_id = {c.id: c for c in every}
+        for existing in every:
             if _norm(existing.text) == _norm(text):
+                while existing.merged_into and existing.merged_into in by_id:
+                    existing = by_id[existing.merged_into]  # follow the merge chain to its end
                 pro = list(dict.fromkeys([*existing.supporting, *supporting]))
                 con = list(dict.fromkeys([*existing.contradicting, *contradicting]))
+                changed = (pro, con) != (existing.supporting, existing.contradicting)
                 existing.supporting, existing.contradicting = pro, con
                 existing.status = self._status(ctx, sources, pro, con)
-                await self._commit(ctx, [self._updated(existing, node_id)])
+                if changed:
+                    await self._commit(ctx, [self._updated(existing, node_id)])
                 return existing
         claim = Claim(
             uuid.uuid4().hex, ctx.investigation_id, node_id, text,
@@ -282,16 +306,17 @@ class EvidenceService:
                 [self._updated(other, ctx.node_id), self._updated(claim, ctx.node_id, other.id)],
             )
             return
-        drafts = [
-            EventDraft(
-                type="claim.contradiction_recorded",
-                actor="node",
-                node_id=ctx.node_id,
-                data={"claim_ids": [claim.id, other.id]},
+        drafts: list[EventDraft] = []
+        if await self._judge(ctx, claim, other, sources):
+            # Recorded only once the Strong judgement confirms it.
+            drafts.append(
+                EventDraft(
+                    type="claim.contradiction_recorded",
+                    actor="node",
+                    node_id=ctx.node_id,
+                    data={"claim_ids": [claim.id, other.id]},
+                )
             )
-        ]
-        verdict = await self._judge(ctx, claim, other, sources)
-        if verdict:
             claim.contradicting = list(dict.fromkeys([*claim.contradicting, *other.supporting]))
             other.contradicting = list(dict.fromkeys([*other.contradicting, *claim.supporting]))
             for c in (claim, other):
@@ -306,22 +331,22 @@ class EvidenceService:
             urls = ", ".join(sources[i].url for i in c.supporting if i in sources)
             return f"<data>{c.text}\n(sources: {urls})</data>"
 
-        try:
-            resp = await call_model(
-                ctx,
-                ModelRequest(
-                    purpose="evidence.contradiction", tier="strong", model="",
-                    system=_JUDGE_SYSTEM,
-                    messages=[Message(role="user", content=(
-                        f"Claim A:\n{describe(a)}\n\nClaim B:\n{describe(b)}\n\n"
-                        "Do A and B contradict each other?"
-                    ))],
-                    response_schema=_JUDGE_SCHEMA, node_ref=ctx.node_id,
-                ),
-            )  # fmt: skip
-        except ModelMalformed:
-            return False
-        return bool((resp.parsed or {}).get("contradicts"))
+        req = ModelRequest(
+            purpose="evidence.contradiction", tier="strong", model="", system=_JUDGE_SYSTEM,
+            messages=[Message(role="user", content=(
+                f"Claim A:\n{describe(a)}\n\nClaim B:\n{describe(b)}\n\n"
+                "Do A and B contradict each other?"
+            ))],
+            response_schema=_JUDGE_SCHEMA, node_ref=ctx.node_id,
+        )  # fmt: skip
+        for attempt in range(1, JUDGE_ATTEMPTS + 1):
+            try:
+                resp = await call_model(ctx, req)
+            except ModelMalformed:
+                log.info("evidence.contradiction attempt %d malformed", attempt)
+                continue
+            return bool((resp.parsed or {}).get("contradicts"))
+        return False  # still malformed: nothing is recorded
 
     async def set_premise_outcome(
         self, ctx: CallContext, premise_id: str, outcome: PremiseOutcomeName

@@ -123,7 +123,7 @@ Every durable event, in the database, on the stream and in `contract/`:
 | `source.recorded` | `source_id`, `url`, `title`, `page_version_id`, `credibility`, `published_at`, `origin_key` | 4 |
 | `page.unobtainable` | `url`, `attempts` | 4 |
 | `claim.added` | `claim_id`, `text`, `status`, `supporting`, `contradicting` | 4 |
-| `claim.updated` | `claim_id`, `status`, `supporting`, `contradicting` | 4 |
+| `claim.updated` | `claim_id`, `status`, `supporting`, `contradicting`, `merged_into` (optional: the claim it was merged into) | 4 |
 | `claim.contradiction_recorded` | `claim_ids` | 4 |
 | `claim.withdrawn` | `claim_ids`, `cause` (`rerun`) | 6 |
 | `spend.recorded` | `tier`, `model`, `amount_usd`, `approximate`, `tokens_in`, `tokens_out` | 3 |
