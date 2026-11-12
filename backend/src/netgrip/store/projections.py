@@ -444,3 +444,11 @@ async def _concluding(tx: Tx, event: Event) -> None:
         "UPDATE investigations SET cut_short_by = ? WHERE id = ?",
         [event.data.get("cut_short_by"), event.investigation_id],
     )
+
+
+@projector("limit.changed")
+async def _limit_changed(tx: Tx, event: Event) -> None:
+    await tx.execute(
+        "UPDATE investigations SET spending_limit_usd = ? WHERE id = ?",
+        [float(event.data["spending_limit_usd"]), event.investigation_id],
+    )

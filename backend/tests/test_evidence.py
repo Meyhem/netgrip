@@ -1,3 +1,4 @@
+import asyncio
 from datetime import UTC, datetime
 
 import pytest
@@ -325,3 +326,18 @@ async def test_reconciled_claim_is_not_reconciled_again(svc, db):
     await svc.reconcile(ctx2, again)
     assert [c.purpose for c in ctx2.client.calls] == ["evidence.match", "evidence.contradiction"]
     assert await db.read("SELECT type FROM events ORDER BY seq") == before
+
+
+async def test_concurrent_reconcile_of_one_claim_runs_once(svc, db):
+    ctx1 = make_ctx({}, node_id="n1")
+    s1 = await source(svc, ctx1, "a.org")
+    a = await svc.add_claim(ctx1, "n1", "The wall is visible from space", [s1.id], [])
+    unrelated = {"evidence.match": [{"parsed": {"relation": "unrelated", "claim_id": None}}]}
+    ctx2, ctx3 = make_ctx(unrelated, node_id="n2"), make_ctx(unrelated, node_id="n3")
+    s2 = await source(svc, ctx2, "b.org")
+    b = await svc.add_claim(ctx2, "n2", "Astronauts photographed the wall", [s2.id], [])
+    # Two parallel nodes reconcile the same claim at the same moment (one process).
+    await asyncio.gather(svc.reconcile(ctx2, b), svc.reconcile(ctx3, b))
+    calls = [c.purpose for c in ctx2.client.calls + ctx3.client.calls]
+    assert calls == ["evidence.match"]
+    assert a.id != b.id

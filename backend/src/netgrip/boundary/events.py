@@ -355,3 +355,27 @@ register_event("node.rejected", 1, NodeRejected)
 register_event("node.off_topic", 1, NodeOffTopic)
 register_event("investigation.concluding", 1, InvestigationConcluding)
 register_event("page.unobtainable", 1, PageUnobtainable)
+
+
+# --- Phase 4: runtime ------------------------------------------------------------------------
+
+
+class ScheduleUpdated(_Data):
+    order: list[str]
+    reasons: dict[str, str]
+    slots: int
+
+
+class LimitChanged(_Data):
+    spending_limit_usd: float
+
+
+class ReportCreated(_Data):
+    report_id: str
+    ended_early: bool
+    cut_short_by: str | None = None
+
+
+register_event("schedule.updated", 1, ScheduleUpdated)
+register_event("limit.changed", 1, LimitChanged)
+register_event("report.created", 1, ReportCreated)

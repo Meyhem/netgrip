@@ -12,6 +12,7 @@ import asyncio
 import logging
 import re
 import uuid
+import weakref
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -72,6 +73,10 @@ def _tokens(text: str) -> set[str]:
 
 def _norm(text: str) -> str:
     return " ".join(text.lower().split())
+
+
+# Held only while in use (weak values): one lock per claim being reconciled.
+_reconcile_locks: weakref.WeakValueDictionary = weakref.WeakValueDictionary()
 
 
 class EvidenceService:
@@ -279,7 +284,18 @@ class EvidenceService:
     async def reconcile(self, ctx: CallContext, claim: Claim) -> None:
         """Compare `claim` with the investigation's other claims (one Fast call). Same: merge
         into the known claim. Contradicts: record it and have a Strong call judge it, which
-        sets the stances and so the statuses. No other claims: no model call."""
+        sets the stances and so the statuses. No other claims: no model call.
+
+        Serialised per claim, so parallel nodes in one process reconcile a claim once: the
+        second waits, then sees the `reconciled_claims` mark."""
+        key = (ctx.investigation_id, claim.id)
+        lock = _reconcile_locks.get(key)
+        if lock is None:
+            lock = _reconcile_locks[key] = asyncio.Lock()
+        async with lock:
+            await self._reconcile(ctx, claim)
+
+    async def _reconcile(self, ctx: CallContext, claim: Claim) -> None:
         done = await self.db.read(
             "SELECT 1 FROM reconciled_claims WHERE investigation_id = ? AND claim_id = ?",
             [ctx.investigation_id, claim.id],

@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 
 from netgrip.adapters.fetcher import FetchAttempt
 from netgrip.adapters.model import Message, ModelMalformed, ModelRequest
+from netgrip.engine import limiter
 from netgrip.engine.agent import NodeContext
 from netgrip.engine.brief import render_brief
 from netgrip.engine.budget import call_model
@@ -294,10 +295,11 @@ async def aggregate(ctx: NodeContext, _: Any) -> Next:
 async def search(ctx: NodeContext, query: str) -> Next:
     await _activity(ctx, "Searching", "search", query)
     st = ctx.investigation.settings
-    hits = await ctx.deps.search.search(
-        query, max_results=SEARCH_RESULTS, exclude_domains=list(st.get("excluded_domains", [])),
-        prefer=st.get("prefer", "none"),
-    )  # fmt: skip
+    async with limiter.search:  # shared by every runtime (D-05)
+        hits = await ctx.deps.search.search(
+            query, max_results=SEARCH_RESULTS,
+            exclude_domains=list(st.get("excluded_domains", [])), prefer=st.get("prefer", "none"),
+        )  # fmt: skip
     s = ctx.state
     s.queries.append(query)
     new = [h.url for h in hits if h.url not in s.seen and h.url not in s.unobtainable]

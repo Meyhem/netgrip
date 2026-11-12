@@ -6,17 +6,23 @@ import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from uuid import UUID
 
+from netgrip.adapters.fetcher import Fetcher
 from netgrip.adapters.model import ModelClient
+from netgrip.adapters.search import Search
 from netgrip.boundary.bus import Ephemeral, EventBus
 from netgrip.boundary.commands import Command, CommandAck, CommandRejected
 from netgrip.boundary.events import Event, EventDraft, utc_now_iso
 from netgrip.config import Config
 from netgrip.engine.budget import allocate_budget
+from netgrip.engine.clock import Clock
+from netgrip.engine.limiter import resize_limiters
 from netgrip.engine.planner import draft_plan, replan
 from netgrip.engine.planning_queue import PlanningQueue
 from netgrip.engine.recovery import recover_planning
+from netgrip.engine.runtime import InvestigationRuntime
 from netgrip.store import eventlog
 from netgrip.store.db import Database, Tx
+from netgrip.store.pages import PageStore
 from netgrip.store.projections import ID_COLUMNS, STATE_TABLES, append_and_project_in_tx
 from netgrip.store.rebuild import rebuild, verify
 from netgrip.store.settings import Effort, get_settings, resolve_investigation_settings
@@ -50,13 +56,27 @@ async def _record_command(tx: Tx, command_id: str, investigation_id: str, type: 
 
 class Engine:
     def __init__(
-        self, db: Database, config: Config, bus: EventBus, model_client: ModelClient | None = None
+        self,
+        db: Database,
+        config: Config,
+        bus: EventBus,
+        model_client: ModelClient | None = None,
+        *,
+        search: Search | None = None,
+        fetcher: Fetcher | None = None,
+        clock: Clock | None = None,
+        pages: PageStore | None = None,
     ) -> None:
         self.db = db
         self.config = config
         self.bus = bus
         self.model_client = model_client
+        self.search = search
+        self.fetcher = fetcher
+        self.clock = clock
+        self.pages = pages
         self.planning = PlanningQueue()
+        self.runtimes: dict[str, InvestigationRuntime] = {}
 
     async def start(self) -> None:
         mismatched = await verify(self.db)
@@ -64,9 +84,31 @@ class Engine:
             log.warning("state of investigation %s disagrees with its log; rebuilding", inv)
             await rebuild(self.db, inv)
         await recover_planning(self)
+        resize_limiters((await get_settings(self.db)).capacity)
 
     async def stop(self) -> None:
         await self.planning.stop()
+        for rt in list(self.runtimes.values()):
+            await rt.stop(abandon=True)
+
+    @property
+    def can_research(self) -> bool:
+        """Research needs the web adapters; without them (Phase 7 adds the real ones) an
+        approved plan stays Running with no runtime."""
+        return (
+            self.model_client is not None and self.search is not None and self.fetcher is not None
+        )
+
+    def start_runtime(self, investigation_id: str) -> "InvestigationRuntime | None":
+        """Start (or continue) the investigation's runtime. Not async: safe in after_commit."""
+        if not self.can_research:
+            log.warning("no web adapters configured; %s will not run", investigation_id)
+            return None
+        rt = self.runtimes.get(investigation_id)
+        if rt is None:
+            rt = self.runtimes[investigation_id] = InvestigationRuntime(self, investigation_id)
+        rt.resume()
+        return rt
 
     async def submit(self, cmd: Command) -> CommandAck:
         async with self.db.tx() as tx:
@@ -332,6 +374,7 @@ async def _approve_plan(engine: Engine, tx: Tx, cmd: Command) -> list[EventDraft
         " AND status = 'Proposed' ORDER BY seq",
         [inv],
     )
+    tx.after_commit(lambda: engine.start_runtime(inv) and None)
     return [
         *(
             EventDraft(
@@ -348,3 +391,70 @@ async def _approve_plan(engine: Engine, tx: Tx, cmd: Command) -> list[EventDraft
             data={"from": "Planning", "to": "Running", "origin": "user"},
         ),
     ]
+
+
+# --- Running (Phase 4) -----------------------------------------------------------------------
+
+
+async def _state_of(tx: Tx, inv: str) -> str:
+    return (await tx.fetchone("SELECT state FROM investigations WHERE id = ?", [inv]))["state"]
+
+
+def _state_changed(frm: str, to: str, **extra: object) -> EventDraft:
+    return EventDraft(
+        type="investigation.state_changed",
+        actor="user",
+        data={"from": frm, "to": to, "origin": "user", **extra},
+    )
+
+
+@handles("pause")
+async def _pause(engine: Engine, tx: Tx, cmd: Command) -> list[EventDraft]:
+    """No new step starts; running steps finish; then Paused (origin user). Without a live
+    runtime nothing is in flight, so Paused is recorded at once."""
+    inv = cmd.investigation_id
+    rt = engine.runtimes.get(inv)
+    if await _state_of(tx, inv) != "Running" or (rt is not None and rt.pausing):
+        raise CommandRejected("wrong_state", "Only a running investigation can be paused")
+    if rt is not None and rt.active:
+        tx.after_commit(lambda: rt.request_pause("user", None, "user"))
+        return []
+    return [_state_changed("Running", "Paused", cause="user", detail=None)]
+
+
+@handles("resume")
+async def _resume(engine: Engine, tx: Tx, cmd: Command) -> list[EventDraft]:
+    """Paused or Stopped -> Running; nodes stopped at a boundary continue from their next
+    step. Task 7 adds the spending-limit refusal."""
+    inv = cmd.investigation_id
+    current = await _state_of(tx, inv)
+    if current not in ("Paused", "Stopped"):
+        raise CommandRejected("wrong_state", "Only a paused or stopped investigation resumes")
+    tx.after_commit(lambda: engine.start_runtime(inv) and None)
+    return [_state_changed(current, "Running")]
+
+
+@handles("stop")
+async def _stop(engine: Engine, tx: Tx, cmd: Command) -> list[EventDraft]:
+    """Running or Paused -> Stopped. Everything is kept; steps in flight finish and commit;
+    `resume` continues."""
+    inv = cmd.investigation_id
+    current = await _state_of(tx, inv)
+    if current not in ("Running", "Paused"):
+        raise CommandRejected("wrong_state", "Only a running or paused investigation stops")
+    rt = engine.runtimes.get(inv)
+    if rt is not None:
+        tx.after_commit(rt.request_stop)
+    return [_state_changed(current, "Stopped")]
+
+
+@handles("raise_limit")
+async def _raise_limit(engine: Engine, tx: Tx, cmd: Command) -> list[EventDraft]:
+    """Set a new spending limit (`limit.changed`). It does not resume by itself."""
+    inv = cmd.investigation_id
+    value = cmd.payload.get("spending_limit_usd")
+    if isinstance(value, bool) or not isinstance(value, int | float) or value <= 0:
+        raise CommandRejected("invalid_limit", "The spending limit must be a positive amount")
+    if await _state_of(tx, inv) in ("Draft", "Completed"):
+        raise CommandRejected("wrong_state", "The limit can not be changed now")
+    return [EventDraft(type="limit.changed", actor="user", data={"spending_limit_usd": value})]

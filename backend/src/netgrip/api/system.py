@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 
 from netgrip.api.deps import get_db, get_engine
+from netgrip.engine import limiter
 from netgrip.engine.engine import Engine
 from netgrip.store.db import Database
 from netgrip.store.rebuild import rebuild
@@ -23,9 +24,10 @@ def _size(path: Path) -> int:
 @router.get("/pools")
 async def pools(db: Annotated[Database, Depends(get_db)]) -> dict:
     cap = (await get_settings(db)).capacity
+    limiter.resize_limiters(cap)  # settings may have changed since the last look
     return {
-        "models": {"in_use": 0, "limit": cap.model_calls},
-        "search": {"in_use": 0, "limit": cap.searches},
+        "models": {"in_use": limiter.model.in_use, "limit": cap.model_calls},
+        "search": {"in_use": limiter.search.in_use, "limit": cap.searches},
         "browsers": {"in_use": 0, "limit": cap.browser_pages},
         "today_usd": 0,
     }

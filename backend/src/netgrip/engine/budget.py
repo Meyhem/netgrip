@@ -11,6 +11,7 @@ from netgrip.adapters.model import (
     Usage,
 )
 from netgrip.boundary.events import EventDraft
+from netgrip.engine import limiter
 from netgrip.store.settings import Effort, ModelPrice
 
 MILLION = Decimal(1_000_000)
@@ -51,7 +52,8 @@ async def call_model(ctx: CallContext, req: ModelRequest) -> ModelResponse:
     model = ctx.settings["tiers"][req.tier]
     req = req.model_copy(update={"model": model})
     try:
-        resp = await ctx.client.complete(req)
+        async with limiter.model:  # shared by every runtime (D-05)
+            resp = await ctx.client.complete(req)
     except ModelMalformed as e:
         if e.usage is not None:
             _record(ctx, req.tier, model, e.usage)
