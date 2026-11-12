@@ -1,0 +1,74 @@
+/* Netgrip — generated from tokens.json */
+:root, [data-theme="dark"] {
+  --bg: #0f1318;
+  --surface: #161b22;
+  --raised: #1d232c;
+  --sunken: #0b0e12;
+  --line: #2a323d;
+  --line-strong: #5f6b7c;
+  --ink: #e8edf3;
+  --ink-muted: #a3aebc;
+  --ink-faint: #8793a2;
+  --steer: #ff7ac0;
+  --on-steer: #2a0a1b;
+  --steer-wash: #3a1a2c;
+  --live: #5cc8f0;
+  --live-wash: #12303d;
+  --ok: #3ecfb2;
+  --ok-wash: #10332c;
+  --warn: #f2b84b;
+  --warn-wash: #3a2c10;
+  --danger: #ff8566;
+  --danger-wash: #3d1c14;
+  --focus: #5cc8f0;
+  --scrim: rgba(5,8,12,0.6);
+  --shadow-pop: 0 8px 24px rgba(0,0,0,0.5);
+}
+[data-theme="light"] {
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --raised: #ffffff;
+  --sunken: #e9edf1;
+  --line: #d5dbe2;
+  --line-strong: #7b8694;
+  --ink: #141a22;
+  --ink-muted: #4a5564;
+  --ink-faint: #5c6877;
+  --steer: #b0186c;
+  --on-steer: #ffffff;
+  --steer-wash: #fbe4f0;
+  --live: #0a6a94;
+  --live-wash: #dff1f9;
+  --ok: #0b7663;
+  --ok-wash: #dcf3ee;
+  --warn: #8a5a00;
+  --warn-wash: #faecc8;
+  --danger: #b3360f;
+  --danger-wash: #fbe3da;
+  --focus: #0a6a94;
+  --scrim: rgba(20,26,34,0.35);
+  --shadow-pop: 0 8px 24px rgba(20,26,34,0.14);
+}
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-pill: 999px;
+  --font-sans: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+.display { font-family: var(--font-sans); font-size: 28px; line-height: 34px; font-weight: 600; letter-spacing: -0.01em; }
+.title { font-family: var(--font-sans); font-size: 20px; line-height: 26px; font-weight: 600; }
+.heading { font-family: var(--font-sans); font-size: 15px; line-height: 22px; font-weight: 600; }
+.body { font-family: var(--font-sans); font-size: 14px; line-height: 20px; font-weight: 400; }
+.small { font-family: var(--font-sans); font-size: 13px; line-height: 18px; font-weight: 400; }
+.label { font-family: var(--font-sans); font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: 0.06em; }
+.mono { font-family: var(--font-mono); font-size: 12px; line-height: 18px; font-weight: 400; }
+.mono-sm { font-family: var(--font-mono); font-size: 11px; line-height: 16px; font-weight: 500; }

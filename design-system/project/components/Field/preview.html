@@ -1,0 +1,21 @@
+<!-- @dsCard group="Actions" height=330 -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Field</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"><style>html,body{margin:0}</style></head>
+<body class="ng ng-pad">
+<div class="ng-col ng-col--loose" style="max-width:640px">
+ <div class="ng-field"><label class="ng-field__label" for="f1">Spending limit</label>
+  <input id="f1" class="ng-input ng-input--mono" value="$5.00" style="max-width:140px">
+  <span class="ng-field__hint">Reaching it pauses the investigation and asks you what to do.</span></div>
+ <div class="ng-field"><span class="ng-field__label">Effort</span>
+  <div class="ng-row"><div class="ng-seg"><button class="ng-seg__opt">Low</button><button class="ng-seg__opt is-on">Medium</button><button class="ng-seg__opt">High</button></div>
+  <span class="ng-mono ng-muted">depth 4 · 40 nodes · 8 sources/node · 2 independent sources to confirm</span></div></div>
+ <div class="ng-field"><span class="ng-field__label">OpenRouter API key</span>
+  <div class="ng-keyfield"><span class="ng-pill ng-pill--ok"><i>✓</i>Key set</span><span class="ng-mono ng-faint ng-grow">Stored on this machine. It cannot be shown again.</span><button class="ng-btn ng-btn--sm">Replace</button></div></div>
+ <div class="ng-field"><label class="ng-field__label" for="f2">Excluded domains</label>
+  <input id="f2" class="ng-input ng-input--mono is-error" value="reddit.com, quora" >
+  <span class="ng-field__hint is-error">"quora" is not a domain. Write it as quora.com.</span></div>
+ <label class="ng-toggle is-on"><span class="ng-toggle__track"></span>Always fetch pages again for this investigation</label>
+</div>
+</body>
+</html>

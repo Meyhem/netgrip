@@ -1,0 +1,49 @@
+<!-- @dsCard group="Graph" height=400 -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>GraphCanvas</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"><style>html,body{margin:0}</style></head>
+<body class="ng ng-pad">
+<div class="ng-col">
+<div id="g" class="ng-canvas" style="height:330px;border:1px solid var(--line);border-radius:var(--radius-md)"></div>
+<div class="ng-legend">
+ <span><svg viewBox="0 0 36 8"><path class="ng-edge" d="M0 4H36"/></svg>Decomposition: parent split its question</span>
+ <span><svg viewBox="0 0 36 8"><path class="ng-edge ng-edge--dep" d="M0 4H36"/></svg>Dependency: waits for, and receives, the result</span>
+ <span><svg viewBox="0 0 36 8"><path class="ng-edge ng-edge--live" d="M0 4H36"/></svg>Path to running work</span>
+ <span><svg viewBox="0 0 36 8"><path class="ng-edge ng-edge--off" d="M0 4H36"/></svg>Excluded branch</span>
+</div></div>
+<script>
+function ngGraph(el, nodes, edges){
+  var W=172, ns={}, h='';
+  nodes.forEach(function(n){ ns[n.id]=n; n.h=n.sub?84:66; });
+  var svg='<svg><defs><marker id="ar" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="ng-edge-arrow" d="M0 0L8 4L0 8z"/></marker></defs>';
+  edges.forEach(function(e){
+    var a=ns[e[0]], b=ns[e[1]], t=e[2]||'', dep=t.indexOf('dep')>=0, cls='ng-edge'+(t?' ng-edge--'+t.split(' ').join(' ng-edge--'):'');
+    if(dep && a.x===b.x){ var x=a.x+W/2; svg+='<path class="'+cls+'" marker-end="url(#ar)" d="M'+x+' '+(a.y+a.h)+'L'+x+' '+(b.y-2)+'"/>'; }
+    else { var x1=a.x+W, y1=a.y+a.h/2, x2=b.x-(dep?2:0), y2=b.y+b.h/2, m=(x1+x2)/2;
+      svg+='<path class="'+cls+'"'+(dep?' marker-end="url(#ar)"':'')+' d="M'+x1+' '+y1+'C'+m+' '+y1+' '+m+' '+y2+' '+x2+' '+y2+'"/>'; }
+  });
+  svg+='</svg>';
+  nodes.forEach(function(n){
+    h+='<div class="ng-node ng-node--'+n.s+(n.sel?' is-selected':'')+'" style="left:'+n.x+'px;top:'+n.y+'px;height:'+n.h+'px">'
+     +(n.mark?'<span class="ng-node__mark">'+n.mark+'</span>':'')
+     +'<div class="ng-node__top"><span class="ng-node__kind">'+n.k+'</span><span>'+n.id+'</span><span class="ng-node__state">'+n.st+'</span></div>'
+     +'<div class="ng-node__q">'+n.q+'</div>'
+     +(n.sub?'<div class="ng-node__sub">'+n.sub+'</div>':'')
+     +(n.fold?'<span class="ng-node__fold">'+n.fold+'</span>':'')+'</div>';
+  });
+  el.innerHTML=svg+h;
+}
+
+ngGraph(document.getElementById('g'), [
+ {id:'R', k:'SYN', s:'waiting', st:'◔ Waiting', q:'Why is the Great Wall visible from space?', x:16, y:124, sub:'3 of 5 children complete'},
+ {id:'P1', k:'PRM', s:'done', st:'✓ Completed', q:'Visible to the naked eye from low Earth orbit', x:236, y:12, sub:'Premise refuted · high'},
+ {id:'D2', k:'DEEP', s:'waiting', st:'◔ Waiting', q:'What astronauts report', x:236, y:112, sub:'1 of 2 children complete', mark:'✎︎ 1', fold:'−'},
+ {id:'D3', k:'DEEP', s:'done', st:'✓ Completed', q:'What limits visibility', x:236, y:212, fold:'+3'},
+ {id:'D2a', k:'DEEP', s:'done', st:'✓ Completed', q:'Yang Liwei, 2003', x:456, y:60},
+ {id:'D2b', k:'DEEP', s:'running', st:'● Running', q:'Leroy Chiao photograph, 2004', x:456, y:138, sub:'EXTRACTING 4 claims · nasa.gov'},
+ {id:'D2x', k:'DEEP', s:'excluded', st:'↺ Superseded', q:'Space-agency press releases', x:456, y:238},
+ {id:'V1', k:'VER', s:'pending', st:'○ Pending', q:'Re-check resolution at 400 km', x:676, y:212}
+],[['R','P1'],['R','D2','live'],['R','D3'],['D2','D2a'],['D2','D2b','live'],['D2','D2x','off'],['D3','V1','dep']]);
+</script>
+</body>
+</html>

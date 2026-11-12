@@ -1,0 +1,50 @@
+<!-- @dsCard height=288 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Netgrip</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;600;700&display=swap">
+<style>
+  html, body { margin:0; height:100%; }
+  body { background:var(--bg); color:var(--ink); font-family:var(--font-sans); overflow:hidden; }
+  .cover { position:relative; width:960px; height:288px; overflow:hidden; }
+  .art { position:absolute; top:0; left:480px; width:480px; height:288px; overflow:hidden; }
+  .art svg { display:block; width:480px; height:288px; }
+  .steer { fill:var(--steer); } .live { fill:var(--live); } .ok { fill:var(--ok); }
+  .tint { fill:var(--steer-wash); } .deep { fill:var(--ink); } .warn { fill:var(--warn); }
+  .blk { rx:var(--radius-md); }
+  .dot { fill:var(--line-strong); }
+  .words { position:absolute; left:var(--space-6); bottom:var(--space-6); max-width:440px; }
+  .name { margin:0; font-size:104px; line-height:.92; font-weight:600; letter-spacing:-.03em; color:var(--ink); }
+  .tag { margin:var(--space-4) 0 0 4px; font-size:14px; line-height:20px; color:var(--ink-muted); }
+</style>
+</head>
+<body>
+<div class="cover">
+<div class="art" aria-hidden="true">
+<svg viewBox="0 0 480 288" width="480" height="288">
+<!--
+  blocks      steer 144x112 (the user's hand, largest) · live 128x64 and ok 128x48 (agents at work, settled) · steer-wash 128x96 (the tint) · ink 160 wide bleeding off the top and right · warn 64x32 once (a state colour, kept small)
+  arrangement three staggered columns read left to right like the task graph's depth, space-4 and space-6 gutters, bottoms uneven
+  pattern     dot grid, from "The graph ground is a 16px dot grid in line": line-strong dots at a space-4 pitch filling the gap under the first column, 40 dots
+  scales      sides in space-4 multiples; gutters space-4 and space-6; dot pitch space-4; corners radius-md
+-->
+<rect class="steer blk" x="16" y="64" width="144" height="112" rx="6"/>
+<rect class="live blk" x="192" y="24" width="128" height="64" rx="6"/>
+<rect class="ok blk" x="192" y="104" width="128" height="48" rx="6"/>
+<rect class="tint blk" x="192" y="168" width="128" height="96" rx="6"/>
+<rect class="deep blk" x="352" y="-16" width="160" height="192" rx="6"/>
+<rect class="warn blk" x="352" y="192" width="64" height="32" rx="6"/>
+<g class="dot" id="dots"></g>
+</svg>
+</div>
+<div class="words"><h1 class="name">Netgrip</h1><p class="tag">Web research you can watch, steer and check.</p></div>
+</div>
+<script>
+  var g = document.getElementById('dots'), s = '';
+  for (var r = 0; r < 4; r++) for (var c = 0; c < 10; c++) s += '<circle cx="' + (24 + c * 16) + '" cy="' + (208 + r * 16) + '" r="1.5"/>';
+  g.innerHTML = s;
+</script>
+</body>
+</html>

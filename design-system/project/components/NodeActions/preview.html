@@ -1,0 +1,23 @@
+<!-- @dsCard group="Steering" height=440 -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>NodeActions</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"><style>html,body{margin:0}</style></head>
+<body class="ng ng-pad">
+<div class="ng-row" style="align-items:flex-start;gap:var(--space-5)">
+<div class="ng-menu">
+ <div class="ng-menu__item is-hover"><b>Add instruction</b><span class="ng-kbd">I</span><small>Guide this node and its 4 descendants.</small></div>
+ <div class="ng-menu__item"><b>Go deeper</b><span class="ng-kbd">D</span><small>Grant this branch more budget.</small></div>
+ <div class="ng-menu__item"><b>Run only this branch</b><span class="ng-kbd">F</span><small>The rest of the graph waits.</small></div>
+ <div class="ng-menu__item"><b>Pause branch</b><span class="ng-kbd">Space</span><small>Running steps finish first.</small></div>
+ <div class="ng-menu__sep"></div>
+ <div class="ng-menu__item"><b>Ignore branch</b><span class="ng-kbd">X</span><small>Stops it and keeps its findings out of the report. You can restore it.</small></div>
+ <div class="ng-menu__item is-disabled"><b>Re-run node</b><span class="ng-kbd">R</span><small>Available once the node has completed or failed.</small></div>
+</div>
+<div class="ng-col" style="width:300px">
+ <span class="ng-label">Same menu on an ignored node</span>
+ <div class="ng-menu"><div class="ng-menu__item is-hover"><b>Restore branch</b><span class="ng-kbd">X</span><small>Brings back this node and its 2 descendants with the results they already had.</small></div></div>
+ <span class="ng-label" style="margin-top:var(--space-3)">Re-run asks once, inline</span>
+ <div class="ng-banner ng-banner--danger"><span class="ng-banner__g">!</span><div class="ng-col ng-grow"><span class="ng-banner__t">Re-run D1a?</span><span class="ng-small">Its verdict and 4 claims are discarded. Fetched pages are reused.</span><div class="ng-row"><button class="ng-btn ng-btn--sm ng-btn--danger">Re-run node</button><button class="ng-btn ng-btn--sm ng-btn--quiet">Keep result</button></div></div></div>
+</div></div>
+</body>
+</html>

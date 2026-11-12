@@ -1,0 +1,27 @@
+<!-- @dsCard group="Board" height=420 -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>ClaimCard</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"><style>html,body{margin:0}</style></head>
+<body class="ng ng-pad">
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:var(--space-4);align-items:start">
+<div class="ng-claim">
+ <div class="ng-row"><span class="ng-pill ng-pill--ok"><i>✓✓</i>Confirmed</span><span class="ng-mono ng-faint ng-right">C-031 · from D2a</span></div>
+ <div class="ng-claim__text">Yang Liwei said he did not see the Great Wall from orbit during Shenzhou 5.</div>
+ <div class="ng-col" style="gap:2px"><span class="ng-label">Supports · 2 independent</span>
+  <div class="ng-src"><span class="ng-tag ng-tag--solid">PRIMARY</span><span class="ng-src__url">nasa.gov/vision/space/workinginspace/great_wall.html</span><span>2005-05-09</span></div>
+  <div class="ng-src"><span class="ng-tag">REPUTABLE</span><span class="ng-src__url">chinadaily.com.cn/en/doc/2003-10/17/…</span><span>2003-10-17</span></div>
+  <div class="ng-src ng-src--lost"><span class="ng-tag ng-tag--dashed">LOST</span><span class="ng-src__url">xinhuanet.com/english/2003-10/…</span><span>unobtainable</span></div></div>
+</div>
+<div class="ng-claim">
+ <div class="ng-row"><span class="ng-pill ng-pill--warn"><i>⇄</i>Contested</span><span class="ng-mono ng-faint ng-right">C-044 · from D2c</span></div>
+ <div class="ng-claim__text">A 2004 ESA Proba satellite image shows the Great Wall.</div>
+ <div class="ng-col" style="gap:2px"><span class="ng-label">Supports · 1</span>
+  <div class="ng-src"><span class="ng-tag ng-tag--solid">PRIMARY</span><span class="ng-src__url">esa.int/…/Great_Wall_of_China_seen_from_space</span><span>2004-05-11</span></div>
+  <span class="ng-label" style="margin-top:var(--space-1)">Contradicts · 1</span>
+  <div class="ng-src ng-src--against"><span class="ng-tag ng-tag--solid">PRIMARY</span><span class="ng-src__url">esa.int/…/Great_Wall_correction</span><span>2004-05-19</span></div></div>
+ <p class="ng-small ng-muted">The later page says the line in the image is a river. Published 8 days apart; the newer one is not stale.</p>
+ <div class="ng-row"><span class="ng-mono ng-faint">also contradicts C-012 in D1b</span><button class="ng-btn ng-btn--sm ng-right">Verify this claim</button></div>
+</div>
+</div>
+</body>
+</html>

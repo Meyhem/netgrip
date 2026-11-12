@@ -1,0 +1,31 @@
+<!-- @dsCard group="Steering" height=560 -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>InstructionComposer</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"><style>html,body{margin:0}</style></head>
+<body class="ng ng-pad">
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:var(--space-4);align-items:start">
+<div class="ng-col"><span class="ng-label">Aimed at a coordinator</span>
+ <div class="ng-composer"><div class="ng-composer__head">✎︎ Instruct D2 <span>· What astronauts report · reaches 4 nodes</span></div>
+ <textarea id="c1" aria-label="Instruction for D2">Only first-hand statements from people who were in orbit. Skip agency press releases.</textarea>
+ <div class="ng-composer__foot"><span class="ng-grow">Takes effect at each node's next step. D2 will re-plan its children.</span><span class="ng-kbd">⌘↵</span><button class="ng-btn ng-btn--sm ng-btn--steer">Send instruction</button></div></div>
+</div>
+<div class="ng-col"><span class="ng-label">It reads like a conclusion</span>
+ <div class="ng-composer"><div class="ng-composer__head">✎︎ Instruct P1 <span>· Visible from low Earth orbit · reaches 1 node</span></div>
+ <textarea id="c2" aria-label="Instruction for P1">The wall is obviously visible, just confirm it.</textarea>
+ <div class="ng-composer__foot"><span class="ng-grow ng-warn">You can change what is investigated, not what is concluded. Netgrip will check this as a hypothesis.</span><button class="ng-btn ng-btn--sm ng-btn--steer">Send anyway</button></div></div>
+</div>
+<div class="ng-col"><span class="ng-label">Sent, waiting for the step to end</span>
+ <div class="ng-instr ng-instr--queued"><div class="ng-instr__meta"><span>You · 14:02:11</span><span>queued · applies when D2b finishes READING</span></div><div class="ng-instr__text">Only first-hand statements from people who were in orbit. Skip agency press releases.</div></div>
+</div>
+<div class="ng-col"><span class="ng-label">Applied: what the re-plan changed</span>
+ <div class="ng-instr"><div class="ng-instr__meta"><span>You · 14:02:11</span><span>applied 14:02:19 · #0412</span></div><div class="ng-instr__text">Only first-hand statements from people who were in orbit. Skip agency press releases.</div>
+ <div class="ng-diff" style="margin-top:var(--space-2)"><span class="ng-diff__k">= kept        D2a Yang Liwei, 2003 (result kept)</span><span class="ng-diff__k">= kept        D2b Leroy Chiao photograph, 2004</span><span class="ng-diff__s">↺ superseded  D2x Space-agency press releases</span><span class="ng-diff__n">+ proposed    D2c ESA Proba image, 2004: who identified it</span></div>
+ <div class="ng-row" style="margin-top:var(--space-2)"><button class="ng-btn ng-btn--sm">Restore D2x</button><button class="ng-btn ng-btn--sm ng-btn--quiet">Show in graph</button></div></div>
+</div>
+<div class="ng-col"><span class="ng-label">Locked: the root, after research has started</span>
+ <div class="ng-composer is-locked"><div class="ng-composer__head">✎︎ Instruct R <span>· the whole investigation</span></div>
+ <div class="ng-composer__foot"><span class="ng-grow">The root goal cannot be re-planned once research is running. Instruct a branch, or stop and start a new investigation.</span></div></div>
+</div>
+</div>
+</body>
+</html>

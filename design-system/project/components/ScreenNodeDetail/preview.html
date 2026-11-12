@@ -1,0 +1,56 @@
+<!-- @dsCard group="Screens" page width=1240 height=980 -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>ScreenNodeDetail</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"><style>html,body{margin:0}</style></head>
+<body class="ng ng-pad">
+<div style="display:flex;flex-wrap:wrap;gap:var(--space-5);align-items:flex-start">
+ <div class="ng-col" style="width:364px"><span class="ng-label">Claims tab</span><div class="ng-panel ng-col" style="padding:var(--space-3);gap:var(--space-3)">
+ <div class="ng-row ng-row--tight"><span class="ng-tag ng-tag--solid">All 3</span><span class="ng-tag">Confirmed 1</span><span class="ng-tag">Contested 1</span><span class="ng-tag">Unverified 1</span></div>
+ <div class="ng-claim"><div class="ng-row"><span class="ng-pill ng-pill--ok"><i>✓✓</i>Confirmed</span><span class="ng-mono ng-faint ng-right">C-040</span></div><div class="ng-claim__text">Leroy Chiao photographed a section of the Wall from the ISS on 24 November 2004.</div>
+  <div class="ng-col" style="gap:2px"><span class="ng-label">Supports · 2 independent</span><div class="ng-src"><span class="ng-tag ng-tag--solid">PRIMARY</span><span class="ng-src__url">nasa.gov/vision/space/workinginspace/great_wall.html</span><span>2005-05-09</span></div><div class="ng-src"><span class="ng-tag">REPUTABLE</span><span class="ng-src__url">space.com/…/great-wall-china-photo</span><span>2005-04-19</span></div></div></div>
+ <div class="ng-claim"><div class="ng-row"><span class="ng-pill ng-pill--warn"><i>⇄</i>Contested</span><span class="ng-mono ng-faint ng-right">C-042</span></div><div class="ng-claim__text">Chiao could see the Wall with his own eyes while taking the photo.</div>
+  <div class="ng-col" style="gap:2px"><span class="ng-label">Supports · 1</span><div class="ng-src"><span class="ng-tag ng-tag--dashed">WEAK</span><span class="ng-src__url">travelblog.example/great-wall-from-space</span><span>2011-03-02</span></div><span class="ng-label">Contradicts · 1</span><div class="ng-src ng-src--against"><span class="ng-tag ng-tag--solid">PRIMARY</span><span class="ng-src__url">nasa.gov/vision/space/workinginspace/great_wall.html</span><span>2005-05-09</span></div></div><button class="ng-btn ng-btn--sm" style="align-self:flex-start">Verify this claim</button></div>
+</div></div>
+ <div class="ng-col" style="width:364px"><span class="ng-label">Trail tab · the node's steps, with live text on the open step</span><div class="ng-panel ng-col" style="padding:var(--space-3);gap:var(--space-3)">
+ <div class="ng-col" style="gap:2px">
+  <div class="ng-well"><span class="ng-faint">step 1 · 14:01:16 · </span><span class="ng-live">PLANNING</span> find the photo's own caption, then one independent report</div>
+  <div class="ng-well"><span class="ng-faint">step 2 · 14:01:21 · </span><span class="ng-live">SEARCHING</span> "Leroy Chiao" "Great Wall" photograph 180mm · 8 results</div>
+  <div class="ng-well"><span class="ng-faint">step 3 · 14:01:30 · </span><span class="ng-live">READING</span> nasa.gov/vision/space/… · simple fetch · 4.1 KB of text <a href="#">stored page</a></div>
+  <div class="ng-well"><span class="ng-faint">step 4 · 14:01:52 · </span><span class="ng-warn">RETRYING 2 OF 3</span> space.com timed out · full browser · ok</div>
+  <div class="ng-well" style="border-color:var(--steer)"><span class="ng-steer">— instruction from D2 applied here, between step 4 and step 5 —</span></div>
+  <div class="ng-well" style="border-color:var(--live)"><span class="ng-faint">step 5 · 14:02:20 · </span><span class="ng-live">EXTRACTING</span> 4 claims<div class="ng-faint" style="font-style:italic;margin-top:4px">…the caption says the photo was taken with a 180 mm lens, so it is not a naked-eye observation. Chiao himself was not sure▍</div><div class="ng-faint" style="margin-top:4px">live text · shown while this node is open · not stored</div></div>
+ </div>
+</div></div>
+ <div class="ng-col" style="width:364px"><span class="ng-label">Instructions tab</span><div class="ng-panel ng-col" style="padding:var(--space-3);gap:var(--space-3)">
+ <span class="ng-label">In the order the agent reads them</span>
+ <div class="ng-instr ng-instr--inherited"><div class="ng-instr__meta"><span>Inherited from R · plan review</span><span>You · 13:48:40</span></div><div class="ng-instr__text">Leave out tourism marketing. Include where the claim came from.</div></div>
+ <div class="ng-instr ng-instr--inherited"><div class="ng-instr__meta"><span>Inherited from D2</span><span>You · 14:02:11 · #0412</span></div><div class="ng-instr__text">Only first-hand statements from people who were in orbit. Skip agency press releases.</div></div>
+ <span class="ng-small ng-muted">No instruction has been given to D2b itself. Write one below.</span>
+</div></div>
+ <div class="ng-col" style="width:364px"><span class="ng-label">Brief tab</span><div class="ng-panel ng-col" style="padding:var(--space-3);gap:var(--space-3)">
+<dl class="ng-brief" style="margin:0">
+ <dt>Root goal</dt><dd>Why is the Great Wall of China visible from space with the naked eye?</dd>
+ <dt>Path</dt><dd class="ng-col" style="gap:2px"><span class="ng-muted">R → answer the question as asked</span><span class="ng-muted">D2 → first-hand reports decide whether the premise holds</span><span>D2b → the one photograph often cited as proof</span></dd>
+ <dt>Task</dt><dd>Establish who took the photo, with what lens, and what it shows.</dd>
+ <dt>Out of scope</dt><dd class="ng-muted">Satellite and radar imagery. Other structures.</dd>
+ <dt>Done when</dt><dd class="ng-muted">Lens and date are confirmed by a primary source.</dd>
+ <dt>Known</dt><dd><span class="ng-mono ng-muted">C-031, C-027 · result of D2a</span></dd>
+ <dt>Budget</dt><dd><span class="ng-mono">$0.14 / $0.30 · 3 / 8 sources</span></dd>
+</dl></div></div>
+ <div class="ng-col" style="width:364px"><span class="ng-label">Overview · completed node (D2a)</span><div class="ng-panel ng-col" style="padding:var(--space-3);gap:var(--space-3)">
+ <div class="ng-row"><span class="ng-label">Verdict</span><span class="ng-conf ng-right"><span class="ng-conf__bars"><b class="is-on"></b><b class="is-on"></b><b class="is-on"></b></span>High confidence</span></div>
+ <p>Yang Liwei said after his October 2003 flight that he looked for the Wall and could not see it.</p>
+ <div class="ng-row ng-mono ng-muted"><span>3 claims · 2 independent sources · $0.21 · 1 page unobtainable</span></div>
+ <div class="ng-col"><span class="ng-label">Open questions</span><span class="ng-small ng-muted">Whether later Chinese astronauts reported differently.</span></div>
+ <div class="ng-col"><span class="ng-label">Follow-ups it proposed</span><div class="ng-row"><span class="ng-small ng-grow">Statements by Shenzhou 6 and 7 crews</span><span class="ng-pill ng-pill--ghost"><i>◌</i>Proposed</span></div></div>
+ <div class="ng-row"><button class="ng-btn ng-btn--sm">Re-run node</button><button class="ng-btn ng-btn--sm ng-btn--quiet">Ignore branch</button></div>
+</div></div>
+ <div class="ng-col" style="width:364px"><span class="ng-label">Overview · ignored node (D4)</span><div class="ng-panel ng-col" style="padding:var(--space-3);gap:var(--space-3)">
+ <div class="ng-row"><span class="ng-pill ng-pill--steer ng-pill--hollow"><i>⦸</i>Ignored by you</span><span class="ng-mono ng-faint">14:00:02 · #0398</span></div>
+ <p class="ng-small ng-muted">This branch is stopped. Its 1 claim is kept out of the report, and the report will list the branch as excluded.</p>
+ <div class="ng-well">1 node · $0.04 spent · 1 claim kept in storage</div>
+ <button class="ng-btn ng-btn--sm ng-btn--steer" style="align-self:flex-start">Restore branch</button>
+</div></div>
+</div>
+</body>
+</html>

@@ -1,0 +1,16 @@
+<!-- @dsCard group="Steering" height=420 -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>SystemPause</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"><style>html,body{margin:0}</style></head>
+<body class="ng ng-pad">
+<div class="ng-col ng-col--loose" style="max-width:760px">
+ <div class="ng-banner ng-banner--warn"><span class="ng-banner__g">‖</span><div class="ng-col ng-grow"><span class="ng-banner__t">Paused: the spending limit of $5.00 was reached</span><span class="ng-small">9 of 16 nodes are complete. Nothing is lost. Choose how to continue.</span>
+  <div class="ng-row"><label class="ng-row ng-row--tight ng-small" for="cap">New limit <input id="cap" class="ng-input ng-input--mono" value="$8.00" style="width:84px"></label><button class="ng-btn ng-btn--sm ng-btn--steer">Raise limit and resume</button><button class="ng-btn ng-btn--sm">Finish now</button><button class="ng-btn ng-btn--sm ng-btn--quiet">Stop</button></div></div></div>
+ <div class="ng-banner ng-banner--warn"><span class="ng-banner__g">‖</span><div class="ng-col ng-grow"><span class="ng-banner__t">Paused: the model service stopped responding</span><span class="ng-small">OpenRouter returned errors for 6 minutes from 02:14. Netgrip stopped retrying so it would not spend without progress.</span>
+  <div class="ng-row"><button class="ng-btn ng-btn--sm ng-btn--steer">Resume</button><button class="ng-btn ng-btn--sm ng-btn--quiet">Show the errors in the log</button></div></div></div>
+ <div class="ng-banner ng-banner--danger"><span class="ng-banner__g">✕</span><div class="ng-col ng-grow"><span class="ng-banner__t">Paused: the search API key was rejected</span><span class="ng-small">Tavily answered "invalid key". Replace the key, then resume.</span>
+  <div class="ng-row"><button class="ng-btn ng-btn--sm ng-btn--steer">Open Settings → Keys</button><button class="ng-btn ng-btn--sm" disabled>Resume</button></div></div></div>
+ <div class="ng-banner"><span class="ng-banner__g ng-live">↻</span><div class="ng-col ng-grow"><span style="font-weight:600">Picked up where it stopped</span><span class="ng-small ng-muted">Netgrip was shut down at 23:40 with 8 nodes running. They are running again and reuse the pages already fetched.</span></div><button class="ng-btn ng-btn--sm ng-btn--quiet">Dismiss</button></div>
+</div>
+</body>
+</html>

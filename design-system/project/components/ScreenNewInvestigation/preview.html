@@ -1,0 +1,42 @@
+<!-- @dsCard group="Screens" page width=1280 height=1130 -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>ScreenNewInvestigation</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"><style>html,body{margin:0}</style></head>
+<body class="ng">
+<div class="ng-app" style="height:1130px;width:1280px"><header class="ng-top"><span class="ng-brand">net<i>grip</i></span><nav class="ng-nav"><a href="#" class="is-on">Investigations</a><a href="#" class="">Settings</a></nav><div class="ng-pools"><span>models <b>5</b>/8</span><span>search <b>1</b>/4</span><span>browsers <b>4</b>/6</span><span>today <b>$3.12</b></span></div></header>
+<main class="ng-page"><div class="ng-page__in" style="max-width:1120px;display:grid;grid-template-columns:1fr 340px;gap:var(--space-6);align-items:start">
+ <div class="ng-col ng-col--loose">
+  <div class="ng-col"><span class="ng-mono ng-muted">Investigations / New</span><h1 class="ng-display">What should Netgrip find out?</h1></div>
+  <div class="ng-field"><label class="ng-field__label" for="prompt">Your question or claim</label>
+   <textarea id="prompt" class="ng-textarea" style="min-height:104px;font-size:15px;line-height:22px">Why is the Great Wall of China visible from space with the naked eye?</textarea>
+   <span class="ng-field__hint">Kept word for word. Anything you assume here is checked first, and you are told if it is wrong.</span></div>
+  <div class="ng-field"><span class="ng-field__label">Effort</span>
+   <div class="ng-row"><div class="ng-seg"><button class="ng-seg__opt">Low</button><button class="ng-seg__opt is-on">Medium</button><button class="ng-seg__opt">High</button></div><span class="ng-mono ng-muted">depth 4 · 40 nodes · 8 sources/node · 4 in parallel · 2 independent sources to confirm</span></div>
+   <span class="ng-field__hint">These values are provisional. Change them in Settings → Effort.</span></div>
+  <div class="ng-field"><span class="ng-field__label">Models</span>
+   <div class="ng-row"><div class="ng-seg"><button class="ng-seg__opt">Economy</button><button class="ng-seg__opt is-on">Balanced</button><button class="ng-seg__opt">Maximum quality</button></div><span class="ng-small ng-muted">Preset from Settings. Override any tier for this run.</span></div>
+   <div class="ng-panel"><table class="ng-table"><thead><tr><th>Tier</th><th>Model</th><th style="text-align:right">Share of cost</th></tr></thead><tbody>
+    <tr><td><span class="ng-heading">Strong</span><div class="ng-small ng-muted">Orchestrator, final synthesis, judging contradictions</div></td><td><select class="ng-select ng-input--mono" aria-label="Strong model"><option>anthropic/claude-opus-5.5</option></select></td><td class="is-num">≈ 25%</td></tr>
+    <tr><td><span class="ng-heading">Standard</span><div class="ng-small ng-muted">The agent inside each node</div></td><td><select class="ng-select ng-input--mono" aria-label="Standard model"><option>anthropic/claude-sonnet-5.5</option></select></td><td class="is-num">≈ 45%</td></tr>
+    <tr><td><span class="ng-heading">Fast</span><div class="ng-small ng-muted">Reading pages, extracting claims</div></td><td><select class="ng-select ng-input--mono" aria-label="Fast model"><option>anthropic/claude-haiku-5.5</option></select></td><td class="is-num">≈ 25%</td></tr>
+    <tr><td><span class="ng-heading">Verifier</span><div class="ng-small ng-muted">Independent re-check of important claims</div></td><td><select class="ng-select ng-input--mono" aria-label="Verifier model"><option>openai/gpt-5.2</option></select><div class="ng-field__hint">A different model family from Strong, so it does not repeat the same mistake.</div></td><td class="is-num">≈ 5%</td></tr>
+   </tbody></table></div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4)">
+   <div class="ng-field"><label class="ng-field__label" for="excl">Exclude domains</label><input id="excl" class="ng-input ng-input--mono" value="reddit.com, quora.com"><span class="ng-field__hint">Listed in the report as a limit.</span></div>
+   <div class="ng-field"><label class="ng-field__label" for="pref">Prefer</label><select id="pref" class="ng-select"><option>No preference</option><option>Primary sources only</option></select></div>
+   <div class="ng-field"><label class="ng-field__label" for="fresh">Reuse fetched pages up to</label><select id="fresh" class="ng-select"><option>1 day old (default)</option><option>Always fetch again</option></select><span class="ng-field__hint">Choose "Always fetch again" for questions about current events.</span></div>
+   <div class="ng-field"><label class="ng-field__label" for="cap">Spending limit</label><input id="cap" class="ng-input ng-input--mono" value="$5.00"><span class="ng-field__hint">Reaching it pauses and asks you. Planning counts towards it.</span></div>
+  </div>
+ </div>
+ <aside class="ng-panel" style="position:sticky;top:0"><div class="ng-panel__head"><span class="ng-label">Before you start</span></div><div class="ng-panel__body ng-col ng-col--loose">
+  <div class="ng-col"><span class="ng-label">Estimated cost</span><span class="ng-display ng-num">$1.60 – $4.20</span><span class="ng-small ng-muted">Medium effort, Balanced models. An estimate, not a quote: run length is not known in advance.</span></div>
+  <div class="ng-col" style="gap:2px"><div class="ng-row ng-mono"><span class="ng-muted ng-grow">Strong</span><span>$0.40 – $1.05</span></div><div class="ng-row ng-mono"><span class="ng-muted ng-grow">Standard</span><span>$0.72 – $1.89</span></div><div class="ng-row ng-mono"><span class="ng-muted ng-grow">Fast</span><span>$0.40 – $1.05</span></div><div class="ng-row ng-mono"><span class="ng-muted ng-grow">Verifier</span><span>$0.08 – $0.21</span></div></div>
+  <hr class="ng-hr">
+  <div class="ng-col"><span class="ng-label">What happens next</span><p class="ng-small">Netgrip drafts a plan: the root goal, the assumptions it found in your question, and a first split into lines of inquiry. No web research runs until you approve it.</p></div>
+  <button class="ng-btn ng-btn--steer" style="justify-content:center">Draft the plan</button>
+  <button class="ng-btn ng-btn--quiet" style="justify-content:center">Save as draft</button>
+ </div></aside>
+</div></main>
+</div>
+</body>
+</html>

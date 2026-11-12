@@ -1,0 +1,25 @@
+<!-- @dsCard group="Actions" height=150 -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Button</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"><style>html,body{margin:0}</style></head>
+<body class="ng ng-pad">
+<div class="ng-col ng-col--loose">
+ <div class="ng-row">
+  <button class="ng-btn ng-btn--steer">Approve plan</button>
+  <button class="ng-btn">Pause</button>
+  <button class="ng-btn">Finish now</button>
+  <button class="ng-btn ng-btn--quiet">Cancel</button>
+  <button class="ng-btn ng-btn--danger">Delete investigation</button>
+  <button class="ng-btn" disabled>Resume</button>
+  <button class="ng-btn is-sent">Pausing…</button>
+ </div>
+ <div class="ng-row">
+  <button class="ng-btn ng-btn--sm ng-btn--steer">Instruct</button>
+  <button class="ng-btn ng-btn--sm">Ignore branch <span class="ng-kbd">X</span></button>
+  <button class="ng-btn ng-btn--sm">Go deeper <span class="ng-kbd">D</span></button>
+  <button class="ng-btn ng-btn--sm ng-btn--quiet">Fit graph</button>
+ </div>
+ <p class="ng-small ng-muted">One steer button per view. <span class="ng-mono">is-sent</span> is the state between the click and the event that confirms it.</p>
+</div>
+</body>
+</html>

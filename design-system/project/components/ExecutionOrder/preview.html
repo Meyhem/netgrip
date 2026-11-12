@@ -1,0 +1,28 @@
+<!-- @dsCard group="Board" height=700 width=320 -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>ExecutionOrder</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"><style>html,body{margin:0}</style></head>
+<body class="ng ng-pad">
+<div class="ng-panel" style="width:284px;overflow:hidden">
+<div class="ng-queue__head"><span class="ng-label ng-live">Now</span><span class="ng-queue__count">4 running · 6 slots</span></div>
+<div class="ng-qrow "><span class="ng-qrow__n"><span class="ng-live ng-pulse">●</span></span><span class="ng-qrow__q">D1b Textbook and media repetition</span><span class="ng-qrow__side">2:41</span><span class="ng-qrow__meta"><span class="ng-live">READING</span> britannica.com/topic/Great-Wall-of-China</span></div>
+<div class="ng-qrow is-selected"><span class="ng-qrow__n"><span class="ng-live ng-pulse">●</span></span><span class="ng-qrow__q">D2b Leroy Chiao photograph, 2004</span><span class="ng-qrow__side">1:12</span><span class="ng-qrow__meta"><span class="ng-live">EXTRACTING</span> 4 claims · nasa.gov</span></div>
+<div class="ng-qrow "><span class="ng-qrow__n"><span class="ng-warn">●</span></span><span class="ng-qrow__q">D2c ESA Proba image, 2004</span><span class="ng-qrow__side">0:48</span><span class="ng-qrow__meta"><span class="ng-warn">RETRYING 2 OF 3</span> esa.int timed out</span></div>
+<div class="ng-qrow "><span class="ng-qrow__n"><span class="ng-live ng-pulse">●</span></span><span class="ng-qrow__q">D3 What limits visibility</span><span class="ng-qrow__side">0:09</span><span class="ng-qrow__meta"><span class="ng-live">SEARCHING</span> "visual acuity" arcminute 400 km</span></div>
+<div class="ng-queue__head"><span class="ng-label">Next</span><span class="ng-queue__count">3 in order</span></div>
+<div class="ng-qrow "><span class="ng-qrow__n">1</span><span class="ng-qrow__q">V1 Re-check resolution at 400 km</span><span class="ng-qrow__side"></span><span class="ng-qrow__meta">○ waits for D3 (dependency)</span></div>
+<div class="ng-qrow "><span class="ng-qrow__n">2</span><span class="ng-qrow__q">N1 School textbooks, 1950–2000</span><span class="ng-qrow__side"></span><span class="ng-qrow__meta">◌ proposed by D1b · awaiting the orchestrator</span></div>
+<div class="ng-qrow "><span class="ng-qrow__n">3</span><span class="ng-qrow__q">R Synthesis</span><span class="ng-qrow__side"></span><span class="ng-qrow__meta">◔ waits for D1, D2, D3, V1</span></div>
+<div class="ng-queue__head"><span class="ng-label ng-ok">Done</span><span class="ng-queue__count">6 · newest first</span></div>
+<div class="ng-qrow "><span class="ng-qrow__n"><span class="ng-ok">✓</span></span><span class="ng-qrow__q">D2a Yang Liwei, 2003</span><span class="ng-qrow__side">13:58</span><span class="ng-qrow__meta">Said he could not see it · high</span></div>
+<div class="ng-qrow "><span class="ng-qrow__n"><span class="ng-ok">✓</span></span><span class="ng-qrow__q">D1a Pre-spaceflight origins</span><span class="ng-qrow__side">13:57</span><span class="ng-qrow__meta">Claim predates spaceflight by 180 years · medium</span></div>
+<div class="ng-qrow "><span class="ng-qrow__n"><span class="ng-ok">✓</span></span><span class="ng-qrow__q">D1 Where does the claim come from?</span><span class="ng-qrow__side">13:54</span><span class="ng-qrow__meta">Split into 2 lines of inquiry</span></div>
+<div class="ng-qrow "><span class="ng-qrow__n"><span class="ng-danger">✕</span></span><span class="ng-qrow__q">P2 Visible from the Moon</span><span class="ng-qrow__side">13:53</span><span class="ng-qrow__meta">Premise refuted · high</span></div>
+<div class="ng-qrow "><span class="ng-qrow__n"><span class="ng-danger">✕</span></span><span class="ng-qrow__q">P1 Visible from low Earth orbit</span><span class="ng-qrow__side">13:52</span><span class="ng-qrow__meta">Premise refuted · high</span></div>
+<div class="ng-queue__head"><span class="ng-label">Not running</span><span class="ng-queue__count">3</span></div>
+<div class="ng-qrow is-off"><span class="ng-qrow__n">⦸</span><span class="ng-qrow__q">D4 Other structures visible from orbit</span><span class="ng-qrow__side"></span><span class="ng-qrow__meta">Ignored by you · 14:00 · Restore</span></div>
+<div class="ng-qrow is-off"><span class="ng-qrow__n">↺</span><span class="ng-qrow__q">D2x Space-agency press releases</span><span class="ng-qrow__side"></span><span class="ng-qrow__meta">Superseded by your instruction on D2 · Restore</span></div>
+<div class="ng-qrow is-off"><span class="ng-qrow__n">⊘</span><span class="ng-qrow__q">N2 History of the Wall's construction</span><span class="ng-qrow__side"></span><span class="ng-qrow__meta">Rejected: does not help answer the root goal</span></div>
+</div>
+</body>
+</html>

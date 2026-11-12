@@ -1,0 +1,125 @@
+<!-- @dsCard group="Screens" page width=1440 height=970 -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>ScreenControlBoard</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"><style>html,body{margin:0}</style></head>
+<body class="ng">
+<div class="ng-app" style="height:970px;width:1440px"><header class="ng-top"><span class="ng-brand">net<i>grip</i></span><nav class="ng-nav"><a href="#" class="is-on">Investigations</a><a href="#" class="">Settings</a></nav><div class="ng-pools"><span>models <b>5</b>/8</span><span>search <b>1</b>/4</span><span>browsers <b>4</b>/6</span><span>today <b>$3.12</b></span></div></header>
+<div class="ng-board">
+ <div class="ng-board__head">
+  <button class="ng-btn ng-btn--sm ng-btn--quiet" aria-label="Back to investigations">←</button>
+  <div class="ng-col ng-grow" style="gap:2px"><div class="ng-row ng-row--nowrap"><span class="ng-pill ng-pill--live"><i><span class="ng-pulse">●</span></i>Running</span><span class="ng-mono ng-muted">Medium · Balanced · 0:22:10 · 4 running</span><span class="ng-pill ng-pill--danger"><i>✕</i>2 premises refuted</span></div><h1 class="ng-title ng-clip">Why is the Great Wall of China visible from space with the naked eye?</h1></div>
+  <div class="ng-meter " style="width:130px"><div class="ng-meter__top"><span class="ng-label">Spend</span><span class="ng-meter__val">$1.84 <span>/ $5.00</span></span></div><div class="ng-meter__track"><div class="ng-meter__fill" style="width:37%"></div></div></div><div class="ng-meter " style="width:100px"><div class="ng-meter__top"><span class="ng-label">Nodes</span><span class="ng-meter__val">16 <span>/ 40</span></span></div><div class="ng-meter__track"><div class="ng-meter__fill" style="width:40%"></div></div></div><div class="ng-meter " style="width:84px"><div class="ng-meter__top"><span class="ng-label">Depth</span><span class="ng-meter__val">3 <span>/ 4</span></span></div><div class="ng-meter__track"><div class="ng-meter__fill" style="width:75%"></div></div></div>
+  <div class="ng-row ng-row--nowrap"><button class="ng-btn">‖ Pause</button><button class="ng-btn">Finish now</button><button class="ng-btn ng-btn--quiet">Stop</button><button class="ng-btn ng-btn--quiet" aria-label="More">⋯</button></div>
+ </div>
+ <div class="ng-board__body">
+  <aside class="ng-pane ng-pane--left"><div class="ng-pane__scroll">
+<div class="ng-queue__head"><span class="ng-label ng-live">Now</span><span class="ng-queue__count">4 running · 6 slots</span></div>
+<div class="ng-qrow "><span class="ng-qrow__n"><span class="ng-live ng-pulse">●</span></span><span class="ng-qrow__q">D1b Textbook and media repetition</span><span class="ng-qrow__side">2:41</span><span class="ng-qrow__meta"><span class="ng-live">READING</span> britannica.com/topic/Great-Wall-of-China</span></div>
+<div class="ng-qrow is-selected"><span class="ng-qrow__n"><span class="ng-live ng-pulse">●</span></span><span class="ng-qrow__q">D2b Leroy Chiao photograph, 2004</span><span class="ng-qrow__side">1:12</span><span class="ng-qrow__meta"><span class="ng-live">EXTRACTING</span> 4 claims · nasa.gov</span></div>
+<div class="ng-qrow "><span class="ng-qrow__n"><span class="ng-warn">●</span></span><span class="ng-qrow__q">D2c ESA Proba image, 2004</span><span class="ng-qrow__side">0:48</span><span class="ng-qrow__meta"><span class="ng-warn">RETRYING 2 OF 3</span> esa.int timed out</span></div>
+<div class="ng-qrow "><span class="ng-qrow__n"><span class="ng-live ng-pulse">●</span></span><span class="ng-qrow__q">D3 What limits visibility</span><span class="ng-qrow__side">0:09</span><span class="ng-qrow__meta"><span class="ng-live">SEARCHING</span> "visual acuity" arcminute 400 km</span></div>
+<div class="ng-queue__head"><span class="ng-label">Next</span><span class="ng-queue__count">3 in order</span></div>
+<div class="ng-qrow "><span class="ng-qrow__n">1</span><span class="ng-qrow__q">V1 Re-check resolution at 400 km</span><span class="ng-qrow__side"></span><span class="ng-qrow__meta">○ waits for D3 (dependency)</span></div>
+<div class="ng-qrow "><span class="ng-qrow__n">2</span><span class="ng-qrow__q">N1 School textbooks, 1950–2000</span><span class="ng-qrow__side"></span><span class="ng-qrow__meta">◌ proposed by D1b · awaiting the orchestrator</span></div>
+<div class="ng-qrow "><span class="ng-qrow__n">3</span><span class="ng-qrow__q">R Synthesis</span><span class="ng-qrow__side"></span><span class="ng-qrow__meta">◔ waits for D1, D2, D3, V1</span></div>
+<div class="ng-queue__head"><span class="ng-label ng-ok">Done</span><span class="ng-queue__count">6 · newest first</span></div>
+<div class="ng-qrow "><span class="ng-qrow__n"><span class="ng-ok">✓</span></span><span class="ng-qrow__q">D2a Yang Liwei, 2003</span><span class="ng-qrow__side">13:58</span><span class="ng-qrow__meta">Said he could not see it · high</span></div>
+<div class="ng-qrow "><span class="ng-qrow__n"><span class="ng-ok">✓</span></span><span class="ng-qrow__q">D1a Pre-spaceflight origins</span><span class="ng-qrow__side">13:57</span><span class="ng-qrow__meta">Claim predates spaceflight by 180 years · medium</span></div>
+<div class="ng-qrow "><span class="ng-qrow__n"><span class="ng-ok">✓</span></span><span class="ng-qrow__q">D1 Where does the claim come from?</span><span class="ng-qrow__side">13:54</span><span class="ng-qrow__meta">Split into 2 lines of inquiry</span></div>
+<div class="ng-qrow "><span class="ng-qrow__n"><span class="ng-danger">✕</span></span><span class="ng-qrow__q">P2 Visible from the Moon</span><span class="ng-qrow__side">13:53</span><span class="ng-qrow__meta">Premise refuted · high</span></div>
+<div class="ng-qrow "><span class="ng-qrow__n"><span class="ng-danger">✕</span></span><span class="ng-qrow__q">P1 Visible from low Earth orbit</span><span class="ng-qrow__side">13:52</span><span class="ng-qrow__meta">Premise refuted · high</span></div>
+<div class="ng-queue__head"><span class="ng-label">Not running</span><span class="ng-queue__count">3</span></div>
+<div class="ng-qrow is-off"><span class="ng-qrow__n">⦸</span><span class="ng-qrow__q">D4 Other structures visible from orbit</span><span class="ng-qrow__side"></span><span class="ng-qrow__meta">Ignored by you · 14:00 · Restore</span></div>
+<div class="ng-qrow is-off"><span class="ng-qrow__n">↺</span><span class="ng-qrow__q">D2x Space-agency press releases</span><span class="ng-qrow__side"></span><span class="ng-qrow__meta">Superseded by your instruction on D2 · Restore</span></div>
+<div class="ng-qrow is-off"><span class="ng-qrow__n">⊘</span><span class="ng-qrow__q">N2 History of the Wall's construction</span><span class="ng-qrow__side"></span><span class="ng-qrow__meta">Rejected: does not help answer the root goal</span></div>
+</div></aside>
+  
+  <div class="ng-center">
+   <div class="ng-toolbar"><span class="ng-label">Graph</span><span class="ng-mono ng-muted">16 nodes · 4 running · 3 excluded</span><button class="ng-btn ng-btn--sm ng-btn--quiet ng-right">Fit</button><button class="ng-btn ng-btn--sm ng-btn--quiet">Collapse completed</button><label class="ng-toggle is-on"><span class="ng-toggle__track"></span>Show excluded</label><label class="ng-toggle is-on"><span class="ng-toggle__track"></span>Follow active</label></div>
+   <div id="g" class="ng-canvas"></div>
+   <div class="ng-dock"><div class="ng-panel__head" style="min-height:34px;padding-block:4px"><span class="ng-label">Event log</span><div class="ng-row ng-row--tight"><span class="ng-tag ng-tag--solid">All</span><span class="ng-tag ng-tag--steer">You 7</span><span class="ng-tag">Orchestrator</span><span class="ng-tag">Selected node</span><span class="ng-tag">Claims</span><span class="ng-tag">Problems 2</span></div><span class="ng-right ng-mono ng-faint">current to #0419</span><button class="ng-btn ng-btn--sm ng-btn--quiet">Follow ●</button><button class="ng-btn ng-btn--sm ng-btn--quiet" aria-label="Collapse log">▾</button></div>
+   <div class="ng-log" style="height:166px;overflow:hidden;padding:var(--space-1) 0">
+<div class="ng-log__row"><span class="ng-log__t">14:02:31</span><span class="ng-log__seq">#0419</span><span class="ng-log__who">D2c</span><span><span class="ng-warn">RETRYING 2 OF 3</span> esa.int timed out after 30 s · full browser next</span></div>
+<div class="ng-log__row ng-log__row--eph"><span class="ng-log__t">14:02:30</span><span class="ng-log__seq">live</span><span class="ng-log__who">D2b</span><span>…the caption says the photo was taken with a 180 mm lens, so it is not a naked-eye</span></div>
+<div class="ng-log__row"><span class="ng-log__t">14:02:27</span><span class="ng-log__seq">#0418</span><span class="ng-log__who">D2b</span><span>claim added · "Chiao photographed a section of the Wall from the ISS in November 2004" · Supported</span></div>
+<div class="ng-log__row ng-log__row--orc"><span class="ng-log__t">14:02:22</span><span class="ng-log__seq">#0416</span><span class="ng-log__who">Orchestrator</span><span>approved D2c · "ESA Proba image, 2004: who identified it" · budget $0.30</span></div>
+<div class="ng-log__row ng-log__row--orc"><span class="ng-log__t">14:02:20</span><span class="ng-log__seq">#0414</span><span class="ng-log__who">Orchestrator</span><span>rejected N2 · "History of the Wall's construction" · does not help answer the root goal</span></div>
+<div class="ng-log__row"><span class="ng-log__t">14:02:19</span><span class="ng-log__seq">#0413</span><span class="ng-log__who">D2</span><span>re-planned · kept D2a, D2b · superseded D2x · proposed D2c</span></div>
+<div class="ng-log__row ng-log__row--you"><span class="ng-log__t">14:02:11</span><span class="ng-log__seq">#0412</span><span class="ng-log__who">You</span><span>instructed D2 · "Only first-hand statements from people who were in orbit. Skip agency press releases."</span></div>
+<div class="ng-log__row ng-log__row--you"><span class="ng-log__t">14:00:02</span><span class="ng-log__seq">#0398</span><span class="ng-log__who">You</span><span>ignored branch D4 · 1 node · $0.04 spent</span></div>
+<div class="ng-log__row ng-log__row--sys"><span class="ng-log__t">13:59:40</span><span class="ng-log__seq">#0395</span><span class="ng-log__who">Netgrip</span><span>page unobtainable · xinhuanet.com/english/2003-10/… · 3 attempts · D2a continued with another source</span></div>
+<div class="ng-log__row"><span class="ng-log__t">13:58:51</span><span class="ng-log__seq">#0391</span><span class="ng-log__who">D2a</span><span>completed · verdict: Yang said he looked and could not see it · high · $0.21</span></div>
+</div></div>
+  </div>
+  
+  <aside class="ng-pane ng-pane--right">
+   <div class="ng-col" style="padding:var(--space-3) var(--space-3) var(--space-2);gap:var(--space-2)">
+    <div class="ng-row ng-row--nowrap"><span class="ng-tag">DEEP</span><span class="ng-mono ng-faint">D2b · depth 2</span><span class="ng-pill ng-pill--live"><i><span class="ng-pulse">●</span></i>Running</span><button class="ng-btn ng-btn--sm ng-btn--quiet ng-right" aria-label="Node actions">⋯</button></div>
+    <h2 class="ng-heading">Leroy Chiao photograph, 2004</h2>
+    <p class="ng-small ng-muted"><span class="ng-label">Why </span>If the photo needed a long lens, it does not support naked-eye visibility.</p>
+    <div class="ng-row ng-row--tight"><button class="ng-btn ng-btn--sm">Go deeper</button><button class="ng-btn ng-btn--sm">Run only this</button><button class="ng-btn ng-btn--sm">Pause</button><button class="ng-btn ng-btn--sm">Ignore</button></div>
+   </div>
+   <div class="ng-tabs"><button class="ng-tab is-on">Overview</button><button class="ng-tab">Claims<span class="ng-mono-sm">3</span></button><button class="ng-tab">Brief</button><button class="ng-tab">Trail</button><button class="ng-tab">Instructions<span class="ng-mono-sm">2</span></button></div>
+   <div class="ng-pane__scroll ng-col" style="padding:var(--space-3);gap:var(--space-3)">
+ <div class="ng-col"><span class="ng-label">Now</span><div class="ng-well"><div class="ng-activity"><span class="ng-activity__verb">Extracting</span><span class="ng-activity__what">4 claims · nasa.gov/vision/space/workinginspace/great_wall.html</span></div><div class="ng-faint" style="margin-top:4px">step 5 · 1:12 in this run · 3 of 8 sources read</div></div></div>
+ <div class="ng-col"><div class="ng-row"><span class="ng-label">Verdict</span><span class="ng-small ng-faint ng-right">not yet · appears here the moment it exists</span></div></div>
+ <div class="ng-col"><span class="ng-label">Claims so far</span>
+  <div class="ng-claim" style="padding:var(--space-2) var(--space-3)"><div class="ng-row"><span class="ng-pill ng-pill--ok ng-pill--hollow"><i>✓</i>Supported</span><span class="ng-mono ng-faint ng-right">C-040</span></div><span class="ng-small">Chiao photographed a section of the Wall from the ISS in November 2004.</span></div>
+  <div class="ng-claim" style="padding:var(--space-2) var(--space-3)"><div class="ng-row"><span class="ng-pill"><i>?</i>Unverified</span><span class="ng-mono ng-faint ng-right">C-041</span></div><span class="ng-small">The photo was taken with a 180 mm lens.</span></div></div>
+ <div class="ng-row" style="gap:var(--space-4)"><div class="ng-meter " style="width:120px"><div class="ng-meter__top"><span class="ng-label">Spend</span><span class="ng-meter__val">$0.14 <span>/ $0.30</span></span></div><div class="ng-meter__track"><div class="ng-meter__fill" style="width:47%"></div></div></div><div class="ng-meter " style="width:100px"><div class="ng-meter__top"><span class="ng-label">Sources</span><span class="ng-meter__val">3 <span>/ 8</span></span></div><div class="ng-meter__track"><div class="ng-meter__fill" style="width:38%"></div></div></div></div>
+ <div class="ng-col"><span class="ng-label">Inherited instruction</span>
+  <div class="ng-instr ng-instr--inherited"><div class="ng-instr__meta"><span>From D2</span><span>You · 14:02:11</span></div><div class="ng-instr__text">Only first-hand statements from people who were in orbit. Skip agency press releases.</div></div></div>
+</div>
+   <div style="padding:var(--space-3);border-top:1px solid var(--line)">
+    <div class="ng-composer"><div class="ng-composer__head">✎︎ Instruct D2b <span>· reaches 1 node</span></div>
+    <textarea id="instr" aria-label="Instruction for D2b" placeholder="Narrow, redirect or add a constraint…" style="min-height:44px"></textarea>
+    <div class="ng-composer__foot"><span class="ng-grow">Takes effect at this node's next step.</span><span class="ng-kbd">⌘↵</span><button class="ng-btn ng-btn--sm ng-btn--steer">Send instruction</button></div></div>
+   </div>
+  </aside>
+ </div>
+</div>
+<script>
+function ngGraph(el, nodes, edges){
+  var W=172, ns={}, h='';
+  nodes.forEach(function(n){ ns[n.id]=n; n.h=n.sub?84:66; });
+  var svg='<svg><defs><marker id="ar" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="ng-edge-arrow" d="M0 0L8 4L0 8z"/></marker></defs>';
+  edges.forEach(function(e){
+    var a=ns[e[0]], b=ns[e[1]], t=e[2]||'', dep=t.indexOf('dep')>=0, cls='ng-edge'+(t?' ng-edge--'+t.split(' ').join(' ng-edge--'):'');
+    if(dep && a.x===b.x){ var x=a.x+W/2; svg+='<path class="'+cls+'" marker-end="url(#ar)" d="M'+x+' '+(a.y+a.h)+'L'+x+' '+(b.y-2)+'"/>'; }
+    else { var x1=a.x+W, y1=a.y+a.h/2, x2=b.x-(dep?2:0), y2=b.y+b.h/2, m=(x1+x2)/2;
+      svg+='<path class="'+cls+'"'+(dep?' marker-end="url(#ar)"':'')+' d="M'+x1+' '+y1+'C'+m+' '+y1+' '+m+' '+y2+' '+x2+' '+y2+'"/>'; }
+  });
+  svg+='</svg>';
+  nodes.forEach(function(n){
+    h+='<div class="ng-node ng-node--'+n.s+(n.sel?' is-selected':'')+'" style="left:'+n.x+'px;top:'+n.y+'px;height:'+n.h+'px">'
+     +(n.mark?'<span class="ng-node__mark">'+n.mark+'</span>':'')
+     +'<div class="ng-node__top"><span class="ng-node__kind">'+n.k+'</span><span>'+n.id+'</span><span class="ng-node__state">'+n.st+'</span></div>'
+     +'<div class="ng-node__q">'+n.q+'</div>'
+     +(n.sub?'<div class="ng-node__sub">'+n.sub+'</div>':'')
+     +(n.fold?'<span class="ng-node__fold">'+n.fold+'</span>':'')+'</div>';
+  });
+  el.innerHTML=svg+h;
+}
+
+ngGraph(document.getElementById('g'), [
+ {id:'R', k:'SYN', s:'waiting', st:'◔ Waiting', q:'Why is the Great Wall visible from space with the naked eye?', x:12, y:242, sub:'3 of 6 children complete'},
+ {id:'P1', k:'PRM', s:'done', st:'✓ Completed', q:'Visible to the naked eye from low Earth orbit', x:212, y:8, sub:'Premise refuted · high'},
+ {id:'P2', k:'PRM', s:'done', st:'✓ Completed', q:'Visible from the Moon', x:212, y:100, sub:'Premise refuted · high'},
+ {id:'D1', k:'DIV', s:'waiting', st:'◔ Waiting', q:'Where does the claim come from?', x:212, y:192},
+ {id:'D2', k:'DEEP', s:'waiting', st:'◔ Waiting', q:'What astronauts report', x:212, y:268, sub:'1 of 3 children complete', mark:'✎︎ 1', fold:'−'},
+ {id:'D3', k:'DEEP', s:'running', st:'● Running', q:'What limits visibility: width, contrast, acuity', x:212, y:362, sub:'SEARCHING "visual acuity" arcminute'},
+ {id:'V1', k:'VER', s:'pending', st:'○ Pending', q:'Re-check naked-eye resolution at 400 km', x:212, y:466},
+ {id:'D4', k:'DIV', s:'excluded', st:'⦸ Ignored', q:'Other structures visible from orbit', x:212, y:542},
+ {id:'D1a', k:'DEEP', s:'done', st:'✓ Completed', q:'Pre-spaceflight origins, 1754–1932', x:412, y:40, sub:'4 claims · medium'},
+ {id:'D1b', k:'DEEP', s:'running', st:'● Running', q:'Textbook and media repetition', x:412, y:134, sub:'READING britannica.com/topic/…'},
+ {id:'D2a', k:'DEEP', s:'done', st:'✓ Completed', q:'Yang Liwei, 2003', x:412, y:228, sub:'3 claims · high'},
+ {id:'D2b', k:'DEEP', s:'running', st:'● Running', q:'Leroy Chiao photograph, 2004', x:412, y:322, sub:'EXTRACTING 4 claims · nasa.gov', sel:1},
+ {id:'D2c', k:'DEEP', s:'running', st:'● Retrying', q:'ESA Proba image, 2004: who identified it', x:412, y:416, sub:'RETRYING 2 OF 3 · esa.int'},
+ {id:'D2x', k:'DEEP', s:'excluded', st:'↺ Superseded', q:'Space-agency press releases', x:412, y:510},
+ {id:'N1', k:'DEEP', s:'proposed', st:'◌ Proposed', q:'School textbooks, 1950–2000', x:612, y:100},
+ {id:'N2', k:'DEEP', s:'rejected', st:'⊘ Rejected', q:"History of the Wall's construction", x:612, y:184}
+], [['R','P1'],['R','P2'],['R','D1','live'],['R','D2','live'],['R','D3','live'],['R','V1'],['R','D4','off'],['D1','D1a'],['D1','D1b','live'],['D2','D2a'],['D2','D2b','live'],['D2','D2c','live'],['D2','D2x','off'],['D1b','N1'],['D1b','N2','off'],['D3','V1','dep']]);
+</script>
+</div>
+</body>
+</html>
