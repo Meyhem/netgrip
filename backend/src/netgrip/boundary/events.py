@@ -327,6 +327,19 @@ class NodeOffTopic(_Data):
     reason: str
 
 
+class NodeRelevanceChecked(_Data):
+    """The relevance gate kept the node's result (on-topic, or no usable answer). With
+    `node.off_topic` it records durably that the gate ran, so recovery knows what is owed."""
+
+    reason: str | None = None
+
+
+class SystemRecovered(_Data):
+    """A restart found the investigation Running: these nodes were Running and are Pending."""
+
+    reset_node_ids: list[str]
+
+
 class InvestigationConcluding(_Data):
     """The orchestrator decided to conclude; synthesis follows (O3)."""
 
@@ -353,6 +366,8 @@ register_event("node.failed", 1, NodeFailed)
 register_event("node.reset", 1, NodeReset)
 register_event("node.rejected", 1, NodeRejected)
 register_event("node.off_topic", 1, NodeOffTopic)
+register_event("node.relevance_checked", 1, NodeRelevanceChecked)
+register_event("system.recovered", 1, SystemRecovered)
 register_event("investigation.concluding", 1, InvestigationConcluding)
 register_event("page.unobtainable", 1, PageUnobtainable)
 

@@ -143,6 +143,13 @@ class InvestigationRuntime:
             return
         self._loop = asyncio.create_task(self._run(), name=f"runtime:{self.id}")
 
+    def owe(self, node_ids: list[str]) -> None:
+        """Return work a killed process left undone (recovery): run it first, steps skipped."""
+        for nid in node_ids:
+            if nid not in self._owed:
+                self._owed.add(nid)
+                self._suspended.append(nid)
+
     def resume(self) -> None:
         self._launch()
 

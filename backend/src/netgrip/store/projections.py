@@ -437,7 +437,16 @@ async def _node_rejected(tx: Tx, event: Event) -> None:
 @projector("node.off_topic")
 async def _node_off_topic(tx: Tx, event: Event) -> None:
     await tx.execute(
-        "UPDATE nodes SET off_topic = 1, updated_at = ? WHERE id = ?", [event.at, event.node_id]
+        "UPDATE nodes SET off_topic = 1, relevance_checked = 1, updated_at = ? WHERE id = ?",
+        [event.at, event.node_id],
+    )
+
+
+@projector("node.relevance_checked")
+async def _node_relevance_checked(tx: Tx, event: Event) -> None:
+    await tx.execute(
+        "UPDATE nodes SET relevance_checked = 1, updated_at = ? WHERE id = ?",
+        [event.at, event.node_id],
     )
 
 

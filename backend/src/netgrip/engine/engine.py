@@ -18,13 +18,12 @@ from netgrip.engine.clock import Clock
 from netgrip.engine.limiter import resize_limiters
 from netgrip.engine.planner import draft_plan, replan
 from netgrip.engine.planning_queue import PlanningQueue
-from netgrip.engine.recovery import recover_planning
+from netgrip.engine.recovery import recover
 from netgrip.engine.runtime import InvestigationRuntime
 from netgrip.store import eventlog
 from netgrip.store.db import Database, Tx
 from netgrip.store.pages import PageStore
 from netgrip.store.projections import ID_COLUMNS, STATE_TABLES, append_and_project_in_tx
-from netgrip.store.rebuild import rebuild, verify
 from netgrip.store.settings import Effort, get_settings, resolve_investigation_settings
 
 log = logging.getLogger(__name__)
@@ -79,12 +78,8 @@ class Engine:
         self.runtimes: dict[str, InvestigationRuntime] = {}
 
     async def start(self) -> None:
-        mismatched = await verify(self.db)
-        for inv in mismatched:
-            log.warning("state of investigation %s disagrees with its log; rebuilding", inv)
-            await rebuild(self.db, inv)
-        await recover_planning(self)
         resize_limiters((await get_settings(self.db)).capacity)
+        await recover(self)
 
     async def stop(self) -> None:
         await self.planning.stop()

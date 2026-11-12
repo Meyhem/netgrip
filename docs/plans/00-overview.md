@@ -114,6 +114,7 @@ Every durable event, in the database, on the stream and in `contract/`:
 | `node.failed` | `reason`, `auto_retry_used` | 4 |
 | `node.reset` | `reason` (`recovery`/`rerun`/`auto_retry`/`outage`: the node's step was interrupted by a provider error and the system paused; back to Pending), `hint` (optional: the different approach for an auto retry, shown in the brief) | 4 |
 | `node.off_topic` | `reason` (the relevance gate found the result off-topic; its claims are kept out of synthesis, E3. A follow-up event so the node commits its own completion) | 4 |
+| `node.relevance_checked` | `reason` (or null: no usable answer). The relevance gate kept a Completed node's result. With `node.off_topic` it is the durable record that the gate ran (`nodes.relevance_checked`); recovery redoes the gate for a Completed node without either | 4 |
 | `node.paused`, `node.resumed` | `node_ids` | 6 |
 | `node.inclusion_changed` | `node_ids`, `inclusion`, `by` (`user`/`replan`), `instruction_id` | 3 |
 | `node.budget_changed` | `budget`, `cause` | 6 |
@@ -130,7 +131,7 @@ Every durable event, in the database, on the stream and in `contract/`:
 | `spend.recorded` | `tier`, `model`, `amount_usd`, `approximate`, `tokens_in`, `tokens_out` | 3 |
 | `limit.changed` | `spending_limit_usd` | 4 |
 | `investigation.concluding` | `cut_short_by` (`budget` or null; the orchestrator decided to conclude, O3; feeds `report.created.cut_short_by`) | 4 |
-| `system.recovered` | `reset_node_ids` | 4 |
+| `system.recovered` | `reset_node_ids` (emitted at start for every Running investigation, after its `node.reset {reason: "recovery"}` events; may be empty) | 4 |
 | `report.created` | `report_id`, `ended_early`, `cut_short_by` | 8 |
 
 `diff` is `{"kept": [node_id], "superseded": [node_id], "proposed": [node_id], "notes": [str]}`.

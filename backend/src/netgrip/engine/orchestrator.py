@@ -319,7 +319,11 @@ async def on_node_returned(ctx: OrchestratorContext, node: NodeRef) -> bool:
         ),
     )
     off = answer is not None and not answer["relevant"]
-    drafts = [_draft("node.off_topic", {"reason": answer["reason"]}, nid)] if off else []
+    reason = answer["reason"] if answer is not None else None
+    # Either event records that the gate ran (recovery redoes it otherwise).
+    drafts = [
+        _draft("node.off_topic" if off else "node.relevance_checked", {"reason": reason}, nid)
+    ]
     await _commit(ctx, call, drafts)
     return off
 
