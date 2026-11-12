@@ -154,7 +154,7 @@ function Form({ settings, draft }: { settings: Settings; draft?: Snapshot["inves
                           ? <div className="ng-field__hint ng-warn">Same model family as Strong. It may repeat the same mistake instead of catching it.</div>
                           : <div className="ng-field__hint">A different model family from Strong, so it does not repeat the same mistake.</div>)}
                       </td>
-                      <td className="is-num">{estimate ? `≈ ${Math.round(estimate.per_tier[t].share * 100)}%` : "–"}</td>
+                      <td className="is-num">{estimate && !unpriced.has(c.tiers[t]) ? `≈ ${Math.round(estimate.per_tier[t].share * 100)}%` : "–"}</td>
                     </tr>
                   ))}
                 </tbody>

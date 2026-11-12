@@ -3,11 +3,11 @@ html, body, #root { height: 100%; margin: 0; }
 
 /* ScreenInvestigations: the prompt column takes the rest; a long prompt never widens the table. */
 .investigations-table { table-layout: fixed; }
-.investigations-table .w-state { width: 220px; }
-.investigations-table .w-effort { width: 84px; }
-.investigations-table .w-num { width: 92px; }
-.investigations-table .w-spend { width: 132px; }
-.investigations-table .w-action { width: 230px; }
+.investigations-table .w-state { width: 210px; }
+.investigations-table .w-effort { width: 76px; }
+.investigations-table .w-num { width: 76px; }
+.investigations-table .w-spend { width: 124px; }
+.investigations-table .w-action { width: 200px; }
 .investigations-table th.num { text-align: right; }
 .investigations-table tr.clickable { cursor: pointer; }
 .investigations-table tbody tr:hover td { background: var(--raised); }
