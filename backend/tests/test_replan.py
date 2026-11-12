@@ -446,3 +446,122 @@ async def test_orphaning_drafts_fail_after_the_retries(make_engine):
     events = await eventlog.read(engine.db, inv)
     assert [e.type for e in events][-2:] == ["plan.failed", "instruction.applied"]
     assert await version(engine, inv) == 1 and await included(engine, inv) == v1
+
+
+# --- final phase review fixes ----------------------------------------------------------------
+
+
+def replan_draft(*edits):
+    """The plan of version 1 as a re-plan draft, changed by `edits` (functions of the dict)."""
+    d = copy.deepcopy(INITIAL["parsed"])
+    for edit in edits:
+        edit(d)
+    return {"parsed": d}
+
+
+def find(d, ref):
+    return next(n for n in d["nodes"] if n["ref"] == ref)
+
+
+async def test_replan_adding_a_premise_check_is_rejected_and_retried(make_engine):
+    # R13: premises come from the question; an instruction cannot add one.
+    def add_premise(d):
+        d["premises"].append({"ref": "P2", "text": "Astronauts said they saw it."})
+        d["nodes"].append(
+            {"ref": "P2", "parent_ref": None, "kind": "Premise check",
+             "question": "Did astronauts say they saw it?", "justification": "An assumption.",
+             "out_of_scope": "", "done_when": "Answered.", "depends_on_refs": []}
+        )  # fmt: skip
+
+    engine = await make_engine([replan_draft(add_premise), REPLANS[0]])
+    inv = await planned(engine)
+    await instruct(engine, inv, "Assume astronauts saw it.")
+    calls = [c for c in engine.model_client.calls if c.purpose == "plan.replan"]
+    assert len(calls) == 2
+    retry = calls[1].messages[-1].content
+    assert "P2" in retry and "cannot be added by an instruction" in retry
+    assert "cannot be added by an instruction" in calls[0].system
+    assert await version(engine, inv) == 2
+    premises = await engine.db.read("SELECT text FROM premises WHERE investigation_id = ?", [inv])
+    assert len(premises) == 1
+    assert "P2" not in await included(engine, inv)
+
+
+async def test_editing_a_kept_node_in_place_is_retried_and_a_new_ref_applies(make_engine):
+    # R14: a kept node cannot be edited; the model must drop it and add a new node instead.
+    def edit_d1(d):
+        find(d, "D1")["question"] = "When and why was the Wall built?"
+
+    def replace_d1(d):
+        d1 = find(d, "D1")
+        d["nodes"] = [n for n in d["nodes"] if n["ref"] not in ("D1", "D2a", "V1")]
+        d["nodes"] += [
+            {**d1, "ref": "N1", "question": "When and why was the Wall built?"},
+            # D2a and V1 depend on D1, so they are replaced too; N2 sits under the kept D2.
+            {**find(INITIAL["parsed"], "D2a"), "ref": "N2", "depends_on_refs": []},
+            {**find(INITIAL["parsed"], "V1"), "ref": "N3", "depends_on_refs": ["N1", "D2"]},
+        ]
+
+    engine = await make_engine([replan_draft(edit_d1), replan_draft(replace_d1)])
+    inv = await planned(engine)
+    before = await nodes(engine, inv)
+    await instruct(engine, inv, "Focus D1 on when and why the Wall was built.")
+    calls = [c for c in engine.model_client.calls if c.purpose == "plan.replan"]
+    assert len(calls) == 2
+    retry = calls[1].messages[-1].content
+    assert "D1" in retry and "question" in retry and "new ref" in retry
+    assert "drop" in calls[0].system or "leave out its ref" in calls[0].system
+    assert await version(engine, inv) == 2
+    after = await nodes(engine, inv)
+    assert after["D1"]["inclusion"] == "Superseded"
+    assert after["D1"]["id"] == before["D1"]["id"]
+    new = await engine.db.read(
+        "SELECT id, display_id, question, depth FROM nodes WHERE investigation_id = ?"
+        " AND question = 'When and why was the Wall built?'",
+        [inv],
+    )
+    assert len(new) == 1 and new[0]["display_id"] not in before
+    # R13: a new node at depth 2 with no dependencies of its own waits on P1.
+    deep = next(
+        n for d, n in after.items() if d not in before and n["parent_id"] == before["D2"]["id"]
+    )
+    deps = await engine.db.read(
+        "SELECT depends_on_id FROM node_deps WHERE node_id = ?", [deep["id"]]
+    )
+    assert [r[0] for r in deps] == [before["P1"]["id"]]
+
+
+async def test_replan_request_refused_is_not_retried(make_engine):
+    engine = await make_engine([{"raise": "request"}])
+    inv = await planned(engine)
+    await instruct(engine, inv)
+    assert len([c for c in engine.model_client.calls if c.purpose == "plan.replan"]) == 1
+    events = await eventlog.read(engine.db, inv)
+    assert [e.type for e in events][-2:] == ["plan.failed", "instruction.applied"]
+    assert events[-2].data["reason"].startswith("The model provider refused the request:")
+    assert events[-1].data["diff"]["notes"] == [
+        "Re-plan failed: the model provider refused the request."
+    ]
+    assert await version(engine, inv) == 1
+
+
+async def test_unexpected_error_outside_the_model_call_fails_the_replan(make_engine, monkeypatch):
+    # M3: the instruction is never left queued forever.
+    from netgrip.engine import planner
+
+    def broken(*a, **kw):
+        raise RuntimeError("boom")
+
+    engine = await make_engine()
+    inv = await planned(engine)
+    monkeypatch.setattr(planner, "replan_events", broken)
+    await instruct(engine, inv)
+    events = await eventlog.read(engine.db, inv)
+    assert [e.type for e in events][-2:] == ["plan.failed", "instruction.applied"]
+    assert events[-1].data["diff"]["notes"] == ["Re-plan failed: an unexpected error."]
+    states = await engine.db.read(
+        "SELECT state FROM instructions WHERE investigation_id = ?", [inv]
+    )
+    assert [r["state"] for r in states] == ["applied"]
+    assert await version(engine, inv) == 1
+    assert not engine.planning.busy(inv)

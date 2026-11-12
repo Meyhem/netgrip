@@ -52,6 +52,17 @@
       "v": 1
     },
     {
+      "actor": "user",
+      "at": "2026-01-01T00:00:02.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {},
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 3,
+      "type": "plan.draft_requested",
+      "v": 1
+    },
+    {
       "actor": "orchestrator",
       "at": "2026-01-01T00:00:03.000Z",
       "command_id": "00000000-0000-4000-9000-000000000001",
@@ -65,26 +76,26 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": null,
-      "seq": 3,
+      "seq": 4,
       "type": "spend.recorded",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:03.000Z",
+      "at": "2026-01-01T00:00:04.000Z",
       "command_id": "00000000-0000-4000-9000-000000000001",
       "data": {
         "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists."
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": null,
-      "seq": 4,
+      "seq": 5,
       "type": "investigation.root_goal_set",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:03.000Z",
+      "at": "2026-01-01T00:00:04.000Z",
       "command_id": "00000000-0000-4000-9000-000000000001",
       "data": {
         "node_id": "00000000-0000-4000-8000-000000000002",
@@ -93,13 +104,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": null,
-      "seq": 5,
+      "seq": 6,
       "type": "premise.extracted",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:03.000Z",
+      "at": "2026-01-01T00:00:04.000Z",
       "command_id": "00000000-0000-4000-9000-000000000001",
       "data": {
         "depends_on": [],
@@ -115,13 +126,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": "00000000-0000-4000-8000-000000000001",
-      "seq": 6,
+      "seq": 7,
       "type": "node.proposed",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:03.000Z",
+      "at": "2026-01-01T00:00:04.000Z",
       "command_id": "00000000-0000-4000-9000-000000000001",
       "data": {
         "depends_on": [],
@@ -137,13 +148,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": "00000000-0000-4000-8000-000000000002",
-      "seq": 7,
+      "seq": 8,
       "type": "node.proposed",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:03.000Z",
+      "at": "2026-01-01T00:00:04.000Z",
       "command_id": "00000000-0000-4000-9000-000000000001",
       "data": {
         "depends_on": [
@@ -161,13 +172,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": "00000000-0000-4000-8000-000000000003",
-      "seq": 8,
+      "seq": 9,
       "type": "node.proposed",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:03.000Z",
+      "at": "2026-01-01T00:00:04.000Z",
       "command_id": "00000000-0000-4000-9000-000000000001",
       "data": {
         "depends_on": [
@@ -185,17 +196,18 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": "00000000-0000-4000-8000-000000000004",
-      "seq": 9,
+      "seq": 10,
       "type": "node.proposed",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:03.000Z",
+      "at": "2026-01-01T00:00:04.000Z",
       "command_id": "00000000-0000-4000-9000-000000000001",
       "data": {
         "depends_on": [
-          "00000000-0000-4000-8000-000000000003"
+          "00000000-0000-4000-8000-000000000003",
+          "00000000-0000-4000-8000-000000000002"
         ],
         "depth": 2,
         "display_id": "D2a",
@@ -209,13 +221,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": "00000000-0000-4000-8000-000000000005",
-      "seq": 10,
+      "seq": 11,
       "type": "node.proposed",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:03.000Z",
+      "at": "2026-01-01T00:00:04.000Z",
       "command_id": "00000000-0000-4000-9000-000000000001",
       "data": {
         "depends_on": [
@@ -233,13 +245,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": "00000000-0000-4000-8000-000000000006",
-      "seq": 11,
+      "seq": 12,
       "type": "node.proposed",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:03.000Z",
+      "at": "2026-01-01T00:00:04.000Z",
       "command_id": "00000000-0000-4000-9000-000000000001",
       "data": {
         "depends_on": [
@@ -259,13 +271,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": "00000000-0000-4000-8000-000000000007",
-      "seq": 12,
+      "seq": 13,
       "type": "node.proposed",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:03.000Z",
+      "at": "2026-01-01T00:00:04.000Z",
       "command_id": "00000000-0000-4000-9000-000000000001",
       "data": {
         "diff": {
@@ -287,13 +299,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": null,
-      "seq": 13,
+      "seq": 14,
       "type": "plan.version_created",
       "v": 1
     },
     {
       "actor": "user",
-      "at": "2026-01-01T00:00:04.000Z",
+      "at": "2026-01-01T00:00:05.000Z",
       "command_id": "00000000-0000-4000-9000-000000000002",
       "data": {
         "instruction_id": "00000000-0000-4000-8000-000000000009",
@@ -302,13 +314,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": "00000000-0000-4000-8000-000000000001",
-      "seq": 14,
+      "seq": 15,
       "type": "instruction.queued",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:05.000Z",
+      "at": "2026-01-01T00:00:06.000Z",
       "command_id": "00000000-0000-4000-9000-000000000002",
       "data": {
         "amount_usd": "0.01",
@@ -320,13 +332,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": null,
-      "seq": 15,
+      "seq": 16,
       "type": "spend.recorded",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:05.000Z",
+      "at": "2026-01-01T00:00:07.000Z",
       "command_id": "00000000-0000-4000-9000-000000000002",
       "data": {
         "depends_on": [
@@ -344,13 +356,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": "00000000-0000-4000-8000-000000000010",
-      "seq": 16,
+      "seq": 17,
       "type": "node.proposed",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:05.000Z",
+      "at": "2026-01-01T00:00:07.000Z",
       "command_id": "00000000-0000-4000-9000-000000000002",
       "data": {
         "depends_on": [
@@ -368,13 +380,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": "00000000-0000-4000-8000-000000000011",
-      "seq": 17,
+      "seq": 18,
       "type": "node.proposed",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:05.000Z",
+      "at": "2026-01-01T00:00:07.000Z",
       "command_id": "00000000-0000-4000-9000-000000000002",
       "data": {
         "by": "replan",
@@ -386,13 +398,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": null,
-      "seq": 18,
+      "seq": 19,
       "type": "node.inclusion_changed",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:05.000Z",
+      "at": "2026-01-01T00:00:07.000Z",
       "command_id": "00000000-0000-4000-9000-000000000002",
       "data": {
         "at_step": null,
@@ -417,13 +429,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": "00000000-0000-4000-8000-000000000001",
-      "seq": 19,
+      "seq": 20,
       "type": "instruction.applied",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:05.000Z",
+      "at": "2026-01-01T00:00:07.000Z",
       "command_id": "00000000-0000-4000-9000-000000000002",
       "data": {
         "diff": {
@@ -448,13 +460,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": null,
-      "seq": 20,
+      "seq": 21,
       "type": "plan.version_created",
       "v": 1
     },
     {
       "actor": "user",
-      "at": "2026-01-01T00:00:06.000Z",
+      "at": "2026-01-01T00:00:08.000Z",
       "command_id": "00000000-0000-4000-9000-000000000003",
       "data": {
         "by": "replan",
@@ -467,13 +479,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": null,
-      "seq": 21,
+      "seq": 22,
       "type": "node.inclusion_changed",
       "v": 1
     },
     {
       "actor": "user",
-      "at": "2026-01-01T00:00:06.000Z",
+      "at": "2026-01-01T00:00:08.000Z",
       "command_id": "00000000-0000-4000-9000-000000000003",
       "data": {
         "by": "replan",
@@ -485,13 +497,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": null,
-      "seq": 22,
+      "seq": 23,
       "type": "node.inclusion_changed",
       "v": 1
     },
     {
       "actor": "user",
-      "at": "2026-01-01T00:00:06.000Z",
+      "at": "2026-01-01T00:00:08.000Z",
       "command_id": "00000000-0000-4000-9000-000000000003",
       "data": {
         "instruction_id": "00000000-0000-4000-8000-000000000009",
@@ -499,13 +511,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": null,
-      "seq": 23,
+      "seq": 24,
       "type": "plan.reverted",
       "v": 1
     },
     {
       "actor": "user",
-      "at": "2026-01-01T00:00:07.000Z",
+      "at": "2026-01-01T00:00:09.000Z",
       "command_id": "00000000-0000-4000-9000-000000000004",
       "data": {
         "instruction_id": "00000000-0000-4000-8000-000000000012",
@@ -514,13 +526,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": "00000000-0000-4000-8000-000000000001",
-      "seq": 24,
+      "seq": 25,
       "type": "instruction.queued",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:08.000Z",
+      "at": "2026-01-01T00:00:10.000Z",
       "command_id": "00000000-0000-4000-9000-000000000004",
       "data": {
         "amount_usd": "0.01",
@@ -532,13 +544,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": null,
-      "seq": 25,
+      "seq": 26,
       "type": "spend.recorded",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:08.000Z",
+      "at": "2026-01-01T00:00:11.000Z",
       "command_id": "00000000-0000-4000-9000-000000000004",
       "data": {
         "depends_on": [
@@ -556,13 +568,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": "00000000-0000-4000-8000-000000000013",
-      "seq": 26,
+      "seq": 27,
       "type": "node.proposed",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:08.000Z",
+      "at": "2026-01-01T00:00:11.000Z",
       "command_id": "00000000-0000-4000-9000-000000000004",
       "data": {
         "depends_on": [
@@ -573,20 +585,20 @@
         "done_when": "Each photograph is matched to its equipment and altitude.",
         "justification": "Separates what the naked eye sees from what cameras with long lenses record.",
         "kind": "Deep-dive",
-        "out_of_scope": "Photographs of other structures. Anything about the Moon.",
+        "out_of_scope": "Photographs of other structures.",
         "parent_id": "00000000-0000-4000-8000-000000000001",
         "proposed_by": "planner",
         "question": "Which photographs of the Wall from orbit exist, and what was needed to take them?"
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": "00000000-0000-4000-8000-000000000014",
-      "seq": 27,
+      "seq": 28,
       "type": "node.proposed",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:08.000Z",
+      "at": "2026-01-01T00:00:11.000Z",
       "command_id": "00000000-0000-4000-9000-000000000004",
       "data": {
         "by": "replan",
@@ -599,13 +611,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": null,
-      "seq": 28,
+      "seq": 29,
       "type": "node.inclusion_changed",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:08.000Z",
+      "at": "2026-01-01T00:00:11.000Z",
       "command_id": "00000000-0000-4000-9000-000000000004",
       "data": {
         "at_step": null,
@@ -630,13 +642,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": "00000000-0000-4000-8000-000000000001",
-      "seq": 29,
+      "seq": 30,
       "type": "instruction.applied",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:08.000Z",
+      "at": "2026-01-01T00:00:11.000Z",
       "command_id": "00000000-0000-4000-9000-000000000004",
       "data": {
         "diff": {
@@ -661,13 +673,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": null,
-      "seq": 30,
+      "seq": 31,
       "type": "plan.version_created",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:09.000Z",
+      "at": "2026-01-01T00:00:12.000Z",
       "command_id": "00000000-0000-4000-9000-000000000005",
       "data": {
         "budget": {
@@ -677,13 +689,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": "00000000-0000-4000-8000-000000000001",
-      "seq": 31,
+      "seq": 32,
       "type": "node.approved",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:09.000Z",
+      "at": "2026-01-01T00:00:12.000Z",
       "command_id": "00000000-0000-4000-9000-000000000005",
       "data": {
         "budget": {
@@ -693,13 +705,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": "00000000-0000-4000-8000-000000000002",
-      "seq": 32,
+      "seq": 33,
       "type": "node.approved",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:09.000Z",
+      "at": "2026-01-01T00:00:12.000Z",
       "command_id": "00000000-0000-4000-9000-000000000005",
       "data": {
         "budget": {
@@ -709,13 +721,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": "00000000-0000-4000-8000-000000000003",
-      "seq": 33,
+      "seq": 34,
       "type": "node.approved",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:09.000Z",
+      "at": "2026-01-01T00:00:12.000Z",
       "command_id": "00000000-0000-4000-9000-000000000005",
       "data": {
         "budget": {
@@ -725,13 +737,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": "00000000-0000-4000-8000-000000000004",
-      "seq": 34,
+      "seq": 35,
       "type": "node.approved",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:09.000Z",
+      "at": "2026-01-01T00:00:12.000Z",
       "command_id": "00000000-0000-4000-9000-000000000005",
       "data": {
         "budget": {
@@ -741,13 +753,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": "00000000-0000-4000-8000-000000000007",
-      "seq": 35,
+      "seq": 36,
       "type": "node.approved",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:09.000Z",
+      "at": "2026-01-01T00:00:12.000Z",
       "command_id": "00000000-0000-4000-9000-000000000005",
       "data": {
         "budget": {
@@ -757,13 +769,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": "00000000-0000-4000-8000-000000000013",
-      "seq": 36,
+      "seq": 37,
       "type": "node.approved",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:00:09.000Z",
+      "at": "2026-01-01T00:00:12.000Z",
       "command_id": "00000000-0000-4000-9000-000000000005",
       "data": {
         "budget": {
@@ -773,13 +785,13 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": "00000000-0000-4000-8000-000000000014",
-      "seq": 37,
+      "seq": 38,
       "type": "node.approved",
       "v": 1
     },
     {
       "actor": "user",
-      "at": "2026-01-01T00:00:09.000Z",
+      "at": "2026-01-01T00:00:12.000Z",
       "command_id": "00000000-0000-4000-9000-000000000005",
       "data": {
         "cause": null,
@@ -790,7 +802,7 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": null,
-      "seq": 38,
+      "seq": 39,
       "type": "investigation.state_changed",
       "v": 1
     }
@@ -799,7 +811,7 @@
     "focus_node_id": null,
     "instructions": [
       {
-        "applied_seq": 19,
+        "applied_seq": 20,
         "diff": {
           "kept": [
             "00000000-0000-4000-8000-000000000002",
@@ -819,13 +831,13 @@
         },
         "id": "00000000-0000-4000-8000-000000000009",
         "node_id": "00000000-0000-4000-8000-000000000001",
-        "queued_seq": 14,
+        "queued_seq": 15,
         "state": "undone",
         "text": "Drop the marketing angle; look at origins and photos.",
         "undone": true
       },
       {
-        "applied_seq": 29,
+        "applied_seq": 30,
         "diff": {
           "kept": [
             "00000000-0000-4000-8000-000000000002",
@@ -845,7 +857,7 @@
         },
         "id": "00000000-0000-4000-8000-000000000012",
         "node_id": "00000000-0000-4000-8000-000000000001",
-        "queued_seq": 24,
+        "queued_seq": 25,
         "state": "applied",
         "text": "Add a check of astronaut accounts.",
         "undone": false
@@ -855,7 +867,7 @@
       "disk_bytes": 0,
       "effort": "Medium",
       "id": "00000000-0000-4000-8000-000000000000",
-      "last_activity_at": "2026-01-01T00:00:09.000Z",
+      "last_activity_at": "2026-01-01T00:00:12.000Z",
       "nodes_max": 40,
       "nodes_total": 0,
       "pause_cause": null,
@@ -1001,6 +1013,7 @@
         "brief": null,
         "budget": null,
         "depends_on": [
+          "00000000-0000-4000-8000-000000000002",
           "00000000-0000-4000-8000-000000000003"
         ],
         "depth": 2,
@@ -1166,7 +1179,7 @@
         "instruction_count": 0,
         "justification": "Separates what the naked eye sees from what cameras with long lenses record.",
         "kind": "Deep-dive",
-        "out_of_scope": "Photographs of other structures. Anything about the Moon.",
+        "out_of_scope": "Photographs of other structures.",
         "parent_id": "00000000-0000-4000-8000-000000000001",
         "plan_version_added": 2,
         "proposed_by": "planner",
@@ -1191,6 +1204,6 @@
       "reasons": {},
       "slots": 0
     },
-    "seq": 38
+    "seq": 39
   }
 }

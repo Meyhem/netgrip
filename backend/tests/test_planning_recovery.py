@@ -1,6 +1,7 @@
 """Plan review survives a kill and restart (Phase 3, Task 6)."""
 
 import asyncio
+import copy
 import json
 import uuid
 
@@ -129,5 +130,36 @@ async def test_draft_killed_before_plan_arrives_is_redrafted(tmp_path):
         assert snap["investigation"]["state"] == "Planning"
         assert snap["plan_failed"] is None
         assert (await types(eng, inv)).count("plan.version_created") == 1
+    finally:
+        await kill(eng)
+
+
+async def test_restart_during_a_redraft_drafts_again(tmp_path):
+    # R16: plan.draft_requested clears the earlier failure, so recovery resumes the re-draft.
+    bad = copy.deepcopy(GREAT_WALL["plan.initial"][0]["parsed"])
+    next(n for n in bad["nodes"] if n["ref"] == "D1")["depends_on_refs"] = ["V1"]  # a cycle
+    eng = await open_engine(tmp_path, FakeModelClient({"plan.initial": [{"parsed": bad}] * 3}))
+    inv = await planned(eng)
+    assert (await snapshot(inv, eng.db))["plan_failed"]
+    await kill(eng)
+
+    client = Hanging(script(), {"plan.initial"})
+    eng = await open_engine(tmp_path, client)
+    await eng.planning.idle(inv)
+    assert not client.calls  # a failed draft is not retried by itself
+    await eng.submit(cmd(inv, "draft_plan"))
+    await client.entered.wait()
+    snap = await snapshot(inv, eng.db)
+    assert snap["plan_failed"] is None and snap["plan_version"] == 0
+    await kill(eng)
+
+    eng = await open_engine(tmp_path, FakeModelClient(script()))
+    try:
+        await eng.planning.idle(inv)
+        snap = await snapshot(inv, eng.db)
+        assert snap["plan_version"] == 1 and snap["plan_failed"] is None
+        all_types = await types(eng, inv)
+        assert all_types.count("plan.draft_requested") == 2
+        assert all_types.count("plan.version_created") == 1
     finally:
         await kill(eng)

@@ -309,3 +309,62 @@ async def test_fake_mode_wires_fake_client_and_valid_key(tmp_path):
         async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
             r = await c.post("/api/settings/keys/model/check")
             assert r.json()["status"] == "set"
+
+
+# --- final phase review fixes ----------------------------------------------------------------
+
+
+@pytest.mark.parametrize("status", [400, 404, 413, 422])
+async def test_other_4xx_raise_rejected_request_with_the_providers_message(status):
+    # R17: not a malformed answer (no answer arrived) and not a key problem.
+    body = {"error": {"message": "This model's maximum context length is 200000 tokens."}}
+    client = client_for(lambda r: httpx.Response(status, json=body))
+    with pytest.raises(ModelRejected) as e:
+        await client.complete(req())
+    assert e.value.kind == "request"
+    assert e.value.message == "This model's maximum context length is 200000 tokens."
+
+
+async def test_check_model_key_does_not_blame_the_key_for_a_refused_request():
+    body = {"error": {"message": "No such route"}}
+    status = await check_model_key(client_for(lambda r: httpx.Response(404, json=body)))
+    assert status.status == "set"
+    assert status.message == "Not checked: No such route"
+
+
+async def test_provider_messages_are_redacted():
+    # M5: some providers echo the key back in the error message.
+    body = {"error": {"message": f"Invalid key {SECRET} (token abcdefghijklmnopqrstuvwxyz0123)"}}
+    status = await check_model_key(client_for(lambda r: httpx.Response(401, json=body)))
+    assert status.status == "rejected"
+    assert SECRET not in status.message and "abcdefghijklmnopqrstuvwxyz0123" not in status.message
+    assert status.message.startswith("Invalid key [redacted]")
+    client = client_for(lambda r: httpx.Response(402, json=body))
+    with pytest.raises(ModelRejected) as e:
+        await client.complete(req())
+    assert SECRET not in e.value.message and SECRET not in str(e.value)
+
+
+async def test_stored_key_message_is_redacted(tmp_path):
+    from netgrip.store.db import open_db
+    from netgrip.store.settings import key_status, mark_key
+
+    db = await open_db(tmp_path / "k.sqlite")
+    try:
+        await set_key(db, "model", SECRET)
+        await mark_key(db, "model", "rejected", f"bad key {SECRET}")
+        rows = await db.read("SELECT message FROM secrets WHERE name = 'model'")
+        assert SECRET not in rows[0]["message"]
+        assert SECRET not in (await key_status(db, "model")).message
+    finally:
+        await db.close()
+
+
+@pytest.mark.parametrize("cost", ["abc", "NaN", "Infinity", [1], {"usd": 1}, True])
+async def test_odd_provider_cost_is_treated_as_no_cost(cost):
+    # M8: never an InvalidOperation; the price table or an approximate amount is used instead.
+    usage = {"prompt_tokens": 10, "completion_tokens": 5, "cost": cost}
+    client = client_for(lambda r: httpx.Response(200, json=completion("hi", usage)))
+    resp = await client.complete(req())
+    assert resp.usage.cost_usd is None
+    assert (resp.usage.tokens_in, resp.usage.tokens_out) == (10, 5)

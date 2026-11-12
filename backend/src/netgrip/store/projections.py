@@ -281,3 +281,12 @@ async def _plan_failed(tx: Tx, event: Event) -> None:
         "UPDATE investigations SET plan_failed_reason = ? WHERE id = ?",
         [event.data["reason"], event.investigation_id],
     )
+
+
+@projector("plan.draft_requested")
+async def _plan_draft_requested(tx: Tx, event: Event) -> None:
+    # A new draft is under way: the last failure no longer stands.
+    await tx.execute(
+        "UPDATE investigations SET plan_failed_reason = NULL WHERE id = ?",
+        [event.investigation_id],
+    )

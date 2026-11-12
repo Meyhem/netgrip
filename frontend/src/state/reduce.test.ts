@@ -33,6 +33,17 @@ describe("reduce", () => {
     expect(fold(mid, events.slice(20))).toStrictEqual(snapshot);
   });
 
+  it("plan.draft_requested clears an earlier plan.failed, as the backend projector does", () => {
+    const start = fold(emptySnapshot(snapshot.investigation.id), events.slice(0, 3));
+    expect(events[2].type).toBe("plan.draft_requested");
+    const failed = reduce(start, { ...events[2], seq: 4, type: "plan.failed", data: { reason: "No plan." } });
+    expect(failed.plan_failed).toBe("No plan.");
+    const again = reduce(failed, { ...events[2], seq: 5 });
+    expect(again.plan_failed).toBeNull();
+    expect(again.plan_version).toBe(0);
+    expect(again.investigation.state).toBe("Planning");
+  });
+
   it("unknown event types only advance seq", () => {
     const end = fold(emptySnapshot(snapshot.investigation.id), events);
     const next = reduce(end, { ...events[0], seq: end.seq + 1, type: "node.something_new", data: {} });

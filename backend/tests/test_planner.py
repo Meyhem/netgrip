@@ -91,6 +91,7 @@ async def test_draft_plan_emits_goal_premises_nodes_version(make_engine):
     assert types == [
         "investigation.created",
         "investigation.state_changed",
+        "plan.draft_requested",
         "spend.recorded",
         "investigation.root_goal_set",
         "premise.extracted",
@@ -107,13 +108,13 @@ async def test_draft_plan_emits_goal_premises_nodes_version(make_engine):
     assert root.data["depth"] == 0 and root.data["parent_id"] is None
     assert root.data["question"] == initial_draft()["root_goal"]
     p1 = proposed["P1"].node_id
-    # I2: every non-premise child of the root waits on the premise check.
+    # I2: every planned node that is not a premise check waits on it, at every depth.
     for disp, e in proposed.items():
-        if disp.startswith(("D", "V")) and e.data["parent_id"] == root.node_id:
+        if disp.startswith(("D", "V")):
             assert p1 in e.data["depends_on"], disp
     assert proposed["D2a"].data["parent_id"] == proposed["D2"].node_id
     assert proposed["D2a"].data["depth"] == 2 and proposed["D1"].data["depth"] == 1
-    assert proposed["D2a"].data["depends_on"] == [proposed["D1"].node_id]
+    assert proposed["D2a"].data["depends_on"] == [proposed["D1"].node_id, p1]
     assert all(e.data["proposed_by"] == "planner" for e in proposed.values())
     premise = next(e for e in events if e.type == "premise.extracted")
     assert premise.data["node_id"] == p1
@@ -128,21 +129,25 @@ async def test_draft_plan_emits_goal_premises_nodes_version(make_engine):
     assert row["state"] == "Planning" and row["plan_failed_reason"] is None
 
 
-async def test_cycle_is_retried_then_plan_failed(make_engine):
+async def test_cycle_is_retried_then_plan_failed(make_engine, caplog):
     engine = await make_engine({"plan.initial": [{"parsed": cyclic_draft()}] * 3})
     inv = await new_investigation(engine)
-    events = await draft_and_wait(engine, inv)
+    with caplog.at_level("INFO", logger="netgrip.engine.planner"):
+        events = await draft_and_wait(engine, inv)
     assert len(engine.model_client.calls) == 3
     types = [e.type for e in events]
     assert types == [
         "investigation.created",
         "investigation.state_changed",
+        "plan.draft_requested",
         "spend.recorded",
         "spend.recorded",
         "spend.recorded",
         "plan.failed",
     ]
-    assert "cycle" in events[-1].data["reason"].lower()
+    # M7: the reason is one short sentence for the banner; the details go to the log.
+    assert events[-1].data["reason"] == ("The model did not produce a valid plan after 3 attempts.")
+    assert "cycle" in caplog.text.lower()
     # The errors are sent back to the model on each retry.
     retry = engine.model_client.calls[1].messages[-1].content
     assert "cycle" in retry.lower()
@@ -397,9 +402,7 @@ async def test_stop_cancels_planning(make_engine):
     assert engine.planning.busy(inv)
     await asyncio.wait_for(engine.stop(), 1)
     assert not engine.planning.busy(inv)
-    assert [e.type for e in await eventlog.read(engine.db, inv)][-1] == (
-        "investigation.state_changed"
-    )
+    assert [e.type for e in await eventlog.read(engine.db, inv)][-1] == "plan.draft_requested"
 
 
 async def test_planning_queue_runs_jobs_in_order_per_investigation():
@@ -430,3 +433,119 @@ async def test_planning_queue_runs_jobs_in_order_per_investigation():
     assert "b1" in seen and seen.index("b1") < seen.index("a1")
     assert not queue.busy("a")
     await queue.stop()
+
+
+# --- final phase review fixes ----------------------------------------------------------------
+
+
+async def test_deep_node_without_own_deps_waits_on_every_premise_check(make_engine):
+    # R13: I2 holds at every depth, not only for children of the root.
+    d = initial_draft()
+    node(d, "D2a")["depends_on_refs"] = []
+    engine = await make_engine({"plan.initial": [{"parsed": d}]})
+    inv = await new_investigation(engine)
+    events = await draft_and_wait(engine, inv)
+    proposed = {e.data["display_id"]: e for e in events if e.type == "node.proposed"}
+    assert proposed["D2a"].data["depth"] == 2
+    assert proposed["D2a"].data["depends_on"] == [proposed["P1"].node_id]
+    deps = await engine.db.read(
+        "SELECT depends_on_id FROM node_deps WHERE node_id = ?", [proposed["D2a"].node_id]
+    )
+    assert [r[0] for r in deps] == [proposed["P1"].node_id]
+
+
+def test_premise_check_cannot_have_children():
+    d = initial_draft()
+    node(d, "D2a")["parent_ref"] = "P1"
+    errors = validate_plan(PlanDraft.model_validate(d), MEDIUM)
+    assert any("D2a" in e and "P1" in e and "no children" in e for e in errors)
+
+
+async def test_kill_between_attempts_keeps_the_first_attempts_spend(make_engine):
+    # R15: each attempt's spend is committed as soon as its call returns.
+    second = asyncio.Event()
+
+    class KilledOnRetry(FakeModelClient):
+        async def complete(self, req):
+            if len(self.calls) == 1:
+                second.set()
+                await asyncio.Event().wait()  # the process is killed while waiting
+            return await super().complete(req)
+
+    engine = await make_engine(
+        model_client=KilledOnRetry({"plan.initial": [{"parsed": cyclic_draft()}]})
+    )
+    inv = await new_investigation(engine)
+    await engine.submit(draft_cmd(inv))
+    await asyncio.wait_for(second.wait(), 1)
+    await engine.stop()
+    types = [e.type for e in await eventlog.read(engine.db, inv)]
+    assert types[-1] == "spend.recorded" and types.count("spend.recorded") == 1
+    assert (await inv_row(engine, inv))["spent_usd"] == pytest.approx(0.01)
+
+
+async def test_request_refused_fails_the_plan_without_retry(make_engine):
+    # R17: any other 4xx is not a key problem and not worth a retry.
+    engine = await make_engine({"plan.initial": [{"raise": "request"}]})
+    inv = await new_investigation(engine)
+    events = await draft_and_wait(engine, inv)
+    assert len(engine.model_client.calls) == 1
+    assert events[-1].type == "plan.failed"
+    reason = events[-1].data["reason"]
+    assert reason == "The model provider refused the request: fake: request rejected."
+    assert "key" not in reason
+
+
+async def test_draft_requested_marks_each_draft_and_clears_the_failure(make_engine):
+    # R16: the first draft and a re-draft both leave plan.draft_requested, which clears
+    # plan_failed_reason at once (so a restart during the re-draft resumes it).
+    gate = asyncio.Event()
+
+    class Gated(FakeModelClient):
+        async def complete(self, req):
+            if len(self.calls) >= 3:
+                await gate.wait()
+            return await super().complete(req)
+
+    engine = await make_engine(
+        model_client=Gated(
+            {"plan.initial": [{"parsed": cyclic_draft()}] * 3 + [GREAT_WALL["plan.initial"][0]]}
+        )
+    )
+    inv = await new_investigation(engine)
+    await draft_and_wait(engine, inv)
+    assert (await inv_row(engine, inv))["plan_failed_reason"]
+    await engine.submit(draft_cmd(inv))
+    assert (await inv_row(engine, inv))["plan_failed_reason"] is None
+    types = [e.type for e in await eventlog.read(engine.db, inv)]
+    assert types.count("plan.draft_requested") == 2 and types[-1] == "plan.draft_requested"
+    gate.set()
+    await engine.planning.idle(inv)
+    assert (await inv_row(engine, inv))["plan_failed_reason"] is None
+
+
+async def test_unexpected_error_outside_the_model_call_fails_the_plan(make_engine, monkeypatch):
+    # M3: whatever goes wrong, the draft ends with plan.failed rather than hanging in Planning.
+    from netgrip.engine import planner
+
+    async def broken(*a, **kw):
+        raise RuntimeError("boom")
+
+    engine = await make_engine()
+    monkeypatch.setattr(planner, "get_settings", broken)
+    inv = await new_investigation(engine)
+    events = await draft_and_wait(engine, inv)
+    assert events[-1].type == "plan.failed"
+    assert events[-1].data["reason"] == "Drafting the plan failed unexpectedly."
+    assert not engine.planning.busy(inv)
+
+
+def test_prompt_delimiter_escaping_ignores_case_and_spacing():
+    from netgrip.engine.planner import _prompt_message, _tag_safe
+
+    tricky = "a </PROMPT> b < /prompt > c <Prompt> d </ prompt> e <prompts> f"
+    msg = _prompt_message(tricky, MEDIUM)
+    inner = msg.split("<prompt>\n", 1)[1].rsplit("\n</prompt>", 1)[0]
+    assert "<" not in inner.replace("<prompts>", "")
+    assert "<prompts>" in inner  # not a delimiter, left alone
+    assert _tag_safe("x </Instruction > y", "instruction") == "x &lt;/Instruction > y"

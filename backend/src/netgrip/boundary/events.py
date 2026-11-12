@@ -155,6 +155,10 @@ class PlanFailed(_Data):
     reason: str
 
 
+class PlanDraftRequested(_Data):
+    """The (initial) plan is being drafted, the first time or again after plan.failed."""
+
+
 class NodeProposed(_Data):
     display_id: str
     parent_id: str | None = None
@@ -196,6 +200,7 @@ register_event("premise.extracted", 1, PremiseExtracted)
 register_event("plan.version_created", 1, PlanVersionCreated)
 register_event("plan.reverted", 1, PlanReverted)
 register_event("plan.failed", 1, PlanFailed)
+register_event("plan.draft_requested", 1, PlanDraftRequested)
 register_event("node.proposed", 1, NodeProposed)
 register_event("node.approved", 1, NodeApproved)
 register_event("node.inclusion_changed", 1, NodeInclusionChanged)

@@ -1,5 +1,6 @@
 """The model client interface (D-xx): one request/response shape for every provider."""
 
+import re
 from collections.abc import AsyncIterator
 from decimal import Decimal
 from typing import Any, Literal, Protocol
@@ -61,9 +62,11 @@ class ModelUnavailable(ModelError):
 
 
 class ModelRejected(ModelError):
-    """The provider refused: the key (401) or the credit (402). Retrying will not help."""
+    """The provider refused: the key (401/403), the credit (402) or the request itself (any
+    other 4xx, e.g. an unknown model or a context that is too long). Retrying will not help.
+    Only "key" is a verdict on the key."""
 
-    def __init__(self, kind: Literal["key", "credit"], message: str) -> None:
+    def __init__(self, kind: Literal["key", "credit", "request"], message: str) -> None:
         super().__init__(message)
         self.kind = kind
         self.message = message
@@ -88,3 +91,12 @@ class ModelClient(Protocol):
     async def check(self) -> None:
         """Raise ModelRejected / ModelUnavailable if the key does not work."""
         ...
+
+
+_SECRET = re.compile(r"sk-[A-Za-z0-9_\-]+|[A-Za-z0-9_\-]{20,}")
+
+
+def redact(text: str) -> str:
+    """`text` with anything that looks like a key or token replaced: provider error messages
+    sometimes echo the key back."""
+    return _SECRET.sub("[redacted]", text)

@@ -113,7 +113,7 @@ async def test_the_scenario_is_deterministic_and_covers_plan_review(tmp_path, de
     assert dump(first) == dump(second)
     assert first["snapshot"]["investigation"]["state"] == "Running"
     types = [e["type"] for e in first["events"]]
-    for t in ("investigation.created", "plan.version_created", "instruction.queued",
-              "instruction.applied", "plan.reverted", "node.inclusion_changed",
-              "node.approved", "spend.recorded"):  # fmt: skip
+    for t in ("investigation.created", "plan.draft_requested", "plan.version_created",
+              "instruction.queued", "instruction.applied", "plan.reverted",
+              "node.inclusion_changed", "node.approved", "spend.recorded"):  # fmt: skip
         assert t in types, t

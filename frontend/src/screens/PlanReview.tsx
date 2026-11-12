@@ -94,7 +94,9 @@ function Review({ id, s, reconnecting }: { id: string; s: Snapshot; reconnecting
   // Also derived from the snapshot: a re-plan recovered after a restart has no command id.
   const replanning = queued.length > 0 || isSent("instruct");
   const draftFailed = v === 0 && s.plan_failed != null;
-  const drafting = v === 0 && (!draftFailed || isSent("draft"));
+  // From the snapshot (plan.draft_requested clears plan_failed), so a re-draft recovered after a
+  // restart reads as drafting too; isSent only covers the moment before that event arrives.
+  const drafting = v === 0 && ((inv.state === "Planning" && !draftFailed) || isSent("draft"));
   const busy = replanning || drafting;
   const canApprove = inv.state === "Planning" && v > 0 && !busy && !isSent("undo");
 

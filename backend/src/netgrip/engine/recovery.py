@@ -17,7 +17,8 @@ log = logging.getLogger(__name__)
 
 async def recover_planning(engine: "Engine") -> None:
     """For every investigation in Planning: draft again if the plan never arrived (no version
-    and no `plan.failed`), then re-queue each still-queued instruction in the order queued."""
+    and no `plan.failed` since the last `plan.draft_requested`, which clears it), then re-queue
+    each still-queued instruction in the order queued."""
     if engine.model_client is None:
         return
     rows = await engine.db.read(

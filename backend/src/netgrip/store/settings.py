@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from netgrip.adapters.model import redact
 from netgrip.boundary.events import utc_now_iso
 from netgrip.store.db import Database
 
@@ -189,7 +190,8 @@ async def key_status(db: Database, name: KeyName) -> KeyStatus:
     if not rows:
         return KeyStatus(set=False, status="none")
     r = rows[0]
-    return KeyStatus(set=True, status=r["status"], checked_at=r["checked_at"], message=r["message"])
+    message = None if r["message"] is None else redact(r["message"])
+    return KeyStatus(set=True, status=r["status"], checked_at=r["checked_at"], message=message)
 
 
 async def mark_key(
@@ -199,7 +201,7 @@ async def mark_key(
     async with db.tx() as tx:
         await tx.execute(
             "UPDATE secrets SET status = ?, checked_at = ?, message = ? WHERE name = ?",
-            [status, utc_now_iso(), message, name],
+            [status, utc_now_iso(), None if message is None else redact(message), name],
         )
 
 

@@ -102,6 +102,7 @@ Every durable event, in the database, on the stream and in `contract/`:
 | `plan.version_created` | `version`, `instruction_id`, `diff` | 3 |
 | `plan.reverted` | `to_version`, `instruction_id` | 3 |
 | `plan.failed` | `reason` | 3 |
+| `plan.draft_requested` | none (the plan is being drafted, first time or again after `plan.failed`; clears the failure) | 3 |
 | `node.proposed` | `display_id`, `parent_id`, `kind`, `question`, `justification`, `out_of_scope`, `done_when`, `depends_on`, `depth`, `proposed_by` | 3 |
 | `node.approved` | `budget` | 3 |
 | `node.rejected` | `reason`, `duplicate_of` | 4 |

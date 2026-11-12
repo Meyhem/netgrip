@@ -160,6 +160,9 @@ const cases: Record<string, Case> = {
   }),
 
   "plan.failed": (s, _ev, d) => ({ ...s, plan_failed: d.reason }),
+
+  // A new draft is under way (first time or again after plan.failed): the failure no longer stands.
+  "plan.draft_requested": (s) => ({ ...s, plan_failed: null }),
 };
 
 /** Apply one durable event. Events at or below `state.seq` are ignored (returns `state`

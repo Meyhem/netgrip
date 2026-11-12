@@ -171,10 +171,12 @@ async def _has_model_key(engine: Engine, tx: Tx) -> bool:
 
 @handles("draft_plan")
 async def _draft_plan(engine: Engine, tx: Tx, cmd: Command) -> list[EventDraft]:
-    """Draft → Planning now; the draft itself runs on the planning queue after commit (R4).
+    """Draft → Planning now, then plan.draft_requested; the draft itself runs on the planning
+    queue after commit (R4).
 
     Also allowed after `plan.failed` (Planning, no plan version yet, nothing queued), so the
-    user can ask again; then no state change is emitted."""
+    user can ask again; then only plan.draft_requested is emitted, which clears the failure,
+    so a restart during the re-draft resumes it (R16)."""
     inv = cmd.investigation_id
     row = await tx.fetchone(
         "SELECT state, plan_failed_reason,"
@@ -209,6 +211,7 @@ async def _draft_plan(engine: Engine, tx: Tx, cmd: Command) -> list[EventDraft]:
                 data={"from": "Draft", "to": "Planning", "origin": "user"},
             )
         )
+    drafts.append(EventDraft(type="plan.draft_requested", actor="user", data={}))
     command_id = str(cmd.id)
     tx.after_commit(
         lambda: engine.planning.enqueue(inv, lambda: draft_plan(engine, inv, command_id), "draft")

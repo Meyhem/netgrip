@@ -6,7 +6,7 @@ never put in an exception message, never kept on the client."""
 import json
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 import httpx
@@ -20,6 +20,7 @@ from netgrip.adapters.model import (
     ModelUnavailable,
     ToolCall,
     Usage,
+    redact,
 )
 from netgrip.boundary.events import utc_now_iso
 from netgrip.store.settings import KeyStatus
@@ -31,13 +32,25 @@ TIMEOUT_SECONDS = 120.0
 BaseUrl = str | Callable[[], Awaitable[str]]
 
 
+def _cost(raw) -> Decimal | None:
+    """The provider's cost, or None if it gave none or something that is not a finite number
+    (then the price table or an approximate amount is used instead)."""
+    if raw is None or isinstance(raw, bool):
+        return None
+    try:
+        cost = Decimal(str(raw))
+    except (InvalidOperation, ValueError):
+        log.warning("ignoring an unreadable usage.cost from the model provider")
+        return None
+    return cost if cost.is_finite() else None
+
+
 def _usage(raw: dict | None) -> Usage:
     raw = raw or {}
-    cost = raw.get("cost")
     return Usage(
         tokens_in=int(raw.get("prompt_tokens") or 0),
         tokens_out=int(raw.get("completion_tokens") or 0),
-        cost_usd=Decimal(str(cost)) if cost is not None else None,
+        cost_usd=_cost(raw.get("cost")),
     )
 
 
@@ -47,7 +60,7 @@ def _error_message(resp: httpx.Response) -> str:
         msg = err.get("message") if isinstance(err, dict) else err
     except (ValueError, AttributeError):
         msg = None
-    return str(msg) if msg else f"HTTP {resp.status_code}"
+    return redact(str(msg))[:300] if msg else f"HTTP {resp.status_code}"
 
 
 def _raise_for_status(resp: httpx.Response) -> None:
@@ -60,7 +73,7 @@ def _raise_for_status(resp: httpx.Response) -> None:
         raise ModelRejected("credit", _error_message(resp))
     if code in (408, 429) or code >= 500:
         raise ModelUnavailable(_error_message(resp))
-    raise ModelMalformed(f"request refused: {_error_message(resp)}")
+    raise ModelRejected("request", _error_message(resp))
 
 
 def _message_to_wire(m) -> dict:
@@ -231,14 +244,27 @@ class OpenAICompatClient:
 
 
 async def check_model_key(client) -> KeyStatus:
-    """Ask the provider whether the key works. A rejection is a verdict on the key; an
-    unreachable provider is not, so the key stays as it was."""
+    """Ask the provider whether the key works. A rejection of the key or the credit is a
+    verdict on the key; an unreachable provider or a refused request is not, so the key stays
+    as it was. Messages are redacted: providers sometimes echo the key back."""
     try:
         await client.check()
     except ModelRejected as e:
-        return KeyStatus(set=True, status="rejected", checked_at=utc_now_iso(), message=e.message)
+        if e.kind == "request":
+            return KeyStatus(
+                set=True,
+                status="set",
+                checked_at=utc_now_iso(),
+                message=f"Not checked: {redact(e.message)}",
+            )
+        return KeyStatus(
+            set=True, status="rejected", checked_at=utc_now_iso(), message=redact(e.message)
+        )
     except ModelUnavailable as e:
         return KeyStatus(
-            set=True, status="set", checked_at=utc_now_iso(), message=f"Not checked: {e}"
+            set=True,
+            status="set",
+            checked_at=utc_now_iso(),
+            message=f"Not checked: {redact(str(e))}",
         )
     return KeyStatus(set=True, status="set", checked_at=utc_now_iso())

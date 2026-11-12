@@ -237,7 +237,7 @@
             "kind": "Deep-dive",
             "question": "Which photographs of the Wall from orbit exist, and what was needed to take them?",
             "justification": "Separates what the naked eye sees from what cameras with long lenses record.",
-            "out_of_scope": "Photographs of other structures. Anything about the Moon.",
+            "out_of_scope": "Photographs of other structures.",
             "done_when": "Each photograph is matched to its equipment and altitude.",
             "depends_on_refs": []
           }
@@ -313,7 +313,7 @@
             "kind": "Deep-dive",
             "question": "Which photographs of the Wall from orbit exist, and what was needed to take them?",
             "justification": "Separates what the naked eye sees from what cameras with long lenses record.",
-            "out_of_scope": "Photographs of other structures. Anything about the Moon.",
+            "out_of_scope": "Photographs of other structures.",
             "done_when": "Each photograph is matched to its equipment and altitude.",
             "depends_on_refs": []
           },

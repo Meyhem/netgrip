@@ -22,9 +22,9 @@ SCENARIOS = Path(__file__).parent / "fake_scenarios"
 
 class FakeModelClient:
     """`script` maps a purpose (or "purpose:node_ref") to a queue of entries. An entry is
-    `{"raise": "unavailable"|"malformed"|"key"|"credit"}` or a response with any of `text`,
-    `parsed`, `tool_calls`, `usage`. A "malformed" entry with `usage`, or an answer that fails
-    the request's `response_schema`, raises ModelMalformed carrying that usage. With
+    `{"raise": "unavailable"|"malformed"|"key"|"credit"|"request"}` or a response with any of
+    `text`, `parsed`, `tool_calls`, `usage`. A "malformed" entry with `usage`, or an answer that
+    fails the request's `response_schema`, raises ModelMalformed carrying that usage. With
     `repeat_last`, an exhausted queue repeats its last entry; otherwise asking again raises
     LookupError."""
 
@@ -65,7 +65,7 @@ class FakeModelClient:
                 raise ModelMalformed(
                     "fake: malformed", Usage(**usage) if "usage" in entry else None
                 )
-            case "key" | "credit" as kind:
+            case "key" | "credit" | "request" as kind:
                 raise ModelRejected(kind, f"fake: {kind} rejected")
             case other:
                 raise ValueError(f"unknown fake failure {other!r}")
