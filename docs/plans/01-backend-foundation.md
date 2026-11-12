@@ -92,7 +92,7 @@
 - `Ephemeral(investigation_id, node_id, kind, data)`.
 - `EventBus.publish(item: Event | Ephemeral)`; `EventBus.subscribe(investigation_id) -> AsyncIterator`.
 - `class Engine: __init__(db, config, bus)`, `async start()`, `async stop()`, `async submit(cmd: Command) -> CommandAck`, `async create_investigation(id: UUID, prompt: str, settings: dict) -> CommandAck`, `async delete_investigation(id: str)`, `subscribe(investigation_id: str, after_seq: int) -> AsyncIterator[Event | Ephemeral]`.
-- `@handles("type")` decorator registering `async fn(engine, cmd)`; later phases add handlers without touching `submit`.
+- `@handles("type")` decorator registering `async fn(engine, tx, cmd) -> list[EventDraft]`; the handler runs inside the command's transaction, raises `CommandRejected` when the command is not allowed, and returns the events it causes. Later phases add handlers without touching `submit`.
 
 `submit` inserts into `commands` and appends the resulting events in one transaction; a primary-key conflict on `commands.id` means duplicate. `subscribe` reads the log after `after_seq`, then continues from the bus, dropping any event whose `seq` it has already yielded.
 

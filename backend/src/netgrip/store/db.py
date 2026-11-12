@@ -1,6 +1,7 @@
 """SQLite access: one writer connection behind a lock, one reader connection (WAL)."""
 
 import asyncio
+import logging
 import re
 import sqlite3
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
@@ -9,6 +10,8 @@ from pathlib import Path
 from typing import Any
 
 import aiosqlite
+
+log = logging.getLogger(__name__)
 
 MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 _MIGRATION_NAME = re.compile(r"^(\d{4})_[a-z0-9_]+\.sql$")
@@ -62,10 +65,15 @@ class Database:
                 await self._writer.execute("ROLLBACK")
                 raise
             await self._writer.execute("COMMIT")
-        for fn in tx._after_commit:
-            result = fn()
-            if result is not None:
-                await result
+            # Still under the writer lock, so callbacks of successive transactions run in
+            # commit order (the bus relies on this to publish events in seq order).
+            for fn in tx._after_commit:
+                try:
+                    result = fn()
+                    if result is not None:
+                        await result
+                except Exception:
+                    log.exception("after-commit callback failed")
 
     async def read(self, sql: str, params: Iterable[Any] = ()) -> list[Row]:
         cur = await self._reader.execute(sql, tuple(params))
