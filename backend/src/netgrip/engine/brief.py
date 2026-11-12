@@ -106,20 +106,13 @@ async def build_brief(db: Database, node_id: str, evidence: EvidenceService | No
 
     # Verdicts of the declared dependencies that completed. Only these; never siblings.
     deps = await db.read(
-        "SELECT n.id, n.display_id FROM node_deps d JOIN nodes n ON n.id = d.depends_on_id"
-        " WHERE d.node_id = ? AND n.inclusion = 'Included' ORDER BY n.seq",
+        "SELECT n.display_id, n.verdict FROM node_deps d JOIN nodes n ON n.id = d.depends_on_id"
+        " WHERE d.node_id = ? AND n.inclusion = 'Included' AND n.status = 'Completed'"
+        " ORDER BY n.seq",
         [node_id],
     )
-    results: list[DependencyResult] = []
-    for dep in deps:
-        done = await db.read(
-            "SELECT data FROM events WHERE investigation_id = ? AND node_id = ?"
-            " AND type = 'node.completed' ORDER BY seq DESC LIMIT 1",
-            [inv, dep["id"]],
-        )
-        if done:
-            verdict = json.loads(done[0]["data"]).get("verdict")
-            results.append(DependencyResult(display_id=dep["display_id"], verdict=verdict))
+    results = [DependencyResult(display_id=d["display_id"], verdict=_load(d["verdict"]))
+               for d in deps]  # fmt: skip
 
     # Known claims: those sharing words with the question, best first, capped.
     svc = evidence or EvidenceService(db)

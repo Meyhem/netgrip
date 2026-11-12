@@ -71,7 +71,7 @@ async def test_path_lists_ancestors_root_first(graph):
 
 
 async def test_dependency_results_included(graph):
-    verdict = {"summary": "It was long", "confidence": "high"}
+    verdict = {"text": "It was long", "confidence": "high"}
     await complete(graph, "n-1", verdict)
     b = await build_brief(graph, "n-2")
     assert [(d.display_id, d.verdict) for d in b.known.dependency_results] == [("D1", verdict)]
@@ -84,7 +84,7 @@ async def test_dependency_not_completed_is_absent(graph):
 
 
 async def test_sibling_outputs_absent(graph):
-    secret = {"summary": "SIBLING-SECRET"}
+    secret = {"text": "SIBLING-SECRET", "confidence": "low"}
     await complete(graph, "n-3", secret)
     await complete(graph, "n-1", secret)
     b = await build_brief(graph, "n-2")  # D3 is a sibling and not a dependency
@@ -97,16 +97,8 @@ async def test_sibling_outputs_absent(graph):
 
 
 async def complete(db, node_id, verdict):
-    """node.completed is registered by Task 4; until then write the row the way it will look."""
-    async with db.tx() as tx:
-        row = await tx.fetchone(
-            "SELECT MAX(seq) + 1 AS s FROM events WHERE investigation_id = ?", [INV]
-        )
-        await tx.execute(
-            "INSERT INTO events(investigation_id, seq, type, v, at, actor, node_id, data)"
-            " VALUES (?, ?, 'node.completed', 1, '2026-01-01T00:00:00Z', 'node', ?, ?)",
-            [INV, row["s"], node_id, json.dumps({"verdict": verdict})],
-        )
+    data = {"verdict": verdict, "open_questions": [], "off_topic": False}
+    await append_and_project(db, INV, [ev("node.completed", data, node_id=node_id, actor="node")])
 
 
 async def _instruct(db, iid, node_id, text, applied=True):

@@ -254,3 +254,82 @@ register_event("claim.added", 1, ClaimAdded)
 register_event("claim.updated", 1, ClaimUpdated)
 register_event("claim.contradiction_recorded", 1, ClaimContradictionRecorded)
 register_event("premise.outcome", 1, PremiseOutcome)
+
+
+# --- Phase 4 shapes: the node agent loop -----------------------------------------------------
+
+Activity = Literal[
+    "Planning", "Searching", "Reading", "Extracting", "Reasoning", "Aggregating",
+    "Waiting on children", "Retrying",
+]  # fmt: skip
+Confidence = Literal["low", "medium", "high"]
+
+
+class Retry(_Data):
+    n: int
+    m: int
+
+
+class NodeStarted(_Data):
+    attempt: int
+    brief: dict[str, Any]
+
+
+class NodeActivity(_Data):
+    activity: Activity
+    detail: str | None = None
+    step: str
+    retry: Retry | None = None
+
+
+class NodeStepCompleted(_Data):
+    step: str
+    kind: str
+    summary: str
+    route: str | None = None
+    page_version_id: str | None = None
+
+
+class NodeWaitingOnChildren(_Data):
+    pass
+
+
+class Verdict(_Data):
+    text: str
+    confidence: Confidence
+
+
+class NodeCompleted(_Data):
+    verdict: Verdict
+    open_questions: list[str] = Field(default_factory=list)
+    off_topic: bool = False
+
+
+class NodeFailed(_Data):
+    reason: str
+    auto_retry_used: bool = False
+
+
+class NodeReset(_Data):
+    reason: Literal["recovery", "rerun", "auto_retry"]
+
+
+class AttemptRecord(_Data):
+    route: str
+    outcome: str
+    error: str | None = None
+
+
+class PageUnobtainable(_Data):
+    url: str
+    attempts: list[AttemptRecord]
+
+
+register_event("node.started", 1, NodeStarted)
+register_event("node.activity", 1, NodeActivity)
+register_event("node.step_completed", 1, NodeStepCompleted)
+register_event("node.waiting_on_children", 1, NodeWaitingOnChildren)
+register_event("node.completed", 1, NodeCompleted)
+register_event("node.failed", 1, NodeFailed)
+register_event("node.reset", 1, NodeReset)
+register_event("page.unobtainable", 1, PageUnobtainable)

@@ -357,3 +357,56 @@ async def _premise_outcome(tx: Tx, event: Event) -> None:
         "UPDATE premises SET outcome = ? WHERE id = ?",
         [event.data["outcome"], event.data["premise_id"]],
     )
+
+
+# --- Phase 4 projectors: the node agent loop --------------------------------------------------
+
+
+async def _node_status(tx: Tx, event: Event, status: str, activity: str | None) -> None:
+    await tx.execute(
+        "UPDATE nodes SET status = ?, activity = ?, updated_at = ? WHERE id = ?",
+        [status, activity, event.at, event.node_id],
+    )
+
+
+@projector("node.started")
+async def _node_started(tx: Tx, event: Event) -> None:
+    await tx.execute(
+        "UPDATE nodes SET status = 'Running', activity = NULL, verdict = NULL, brief = ?,"
+        " updated_at = ? WHERE id = ?",
+        [_j(event.data["brief"]), event.at, event.node_id],
+    )
+
+
+@projector("node.activity")
+async def _node_activity(tx: Tx, event: Event) -> None:
+    # A node waiting on its children runs again when it aggregates.
+    await tx.execute(
+        "UPDATE nodes SET activity = ?, updated_at = ?, status = CASE WHEN status ="
+        " 'Waiting on children' THEN 'Running' ELSE status END WHERE id = ?",
+        [event.data["activity"], event.at, event.node_id],
+    )
+
+
+@projector("node.waiting_on_children")
+async def _node_waiting(tx: Tx, event: Event) -> None:
+    await _node_status(tx, event, "Waiting on children", "Waiting on children")
+
+
+@projector("node.completed")
+async def _node_completed(tx: Tx, event: Event) -> None:
+    await tx.execute(
+        "UPDATE nodes SET status = 'Completed', activity = NULL, verdict = ?, updated_at = ?"
+        " WHERE id = ?",
+        [_j(event.data["verdict"]), event.at, event.node_id],
+    )
+
+
+@projector("node.failed")
+async def _node_failed(tx: Tx, event: Event) -> None:
+    await _node_status(tx, event, "Failed", None)
+
+
+@projector("node.reset")
+async def _node_reset(tx: Tx, event: Event) -> None:
+    await _node_status(tx, event, "Pending", None)
