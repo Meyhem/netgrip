@@ -75,7 +75,7 @@ def _norm(text: str) -> str:
     return " ".join(text.lower().split())
 
 
-# Held only while in use (weak values): one lock per claim being reconciled.
+# Held only while in use (weak values): one lock per investigation reconciling.
 _reconcile_locks: weakref.WeakValueDictionary = weakref.WeakValueDictionary()
 
 
@@ -286,9 +286,10 @@ class EvidenceService:
         into the known claim. Contradicts: record it and have a Strong call judge it, which
         sets the stances and so the statuses. No other claims: no model call.
 
-        Serialised per claim, so parallel nodes in one process reconcile a claim once: the
-        second waits, then sees the `reconciled_claims` mark."""
-        key = (ctx.investigation_id, claim.id)
+        Serialised per investigation (read, match, commit), so parallel nodes in one process
+        reconcile a claim once (the second sees the `reconciled_claims` mark) and two
+        equivalent new claims always see each other, so they are merged."""
+        key = ctx.investigation_id
         lock = _reconcile_locks.get(key)
         if lock is None:
             lock = _reconcile_locks[key] = asyncio.Lock()

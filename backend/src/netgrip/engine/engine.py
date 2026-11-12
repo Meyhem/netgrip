@@ -428,6 +428,16 @@ async def _resume(engine: Engine, tx: Tx, cmd: Command) -> list[EventDraft]:
     step. Task 7 adds the spending-limit refusal."""
     inv = cmd.investigation_id
     current = await _state_of(tx, inv)
+    rt = engine.runtimes.get(inv)
+    if current == "Running":
+        # A pause still draining is cancelled; a runtime that ended on an internal error is
+        # restarted. Neither changes the state.
+        if (rt is not None and rt.pausing) or (
+            engine.can_research and (rt is None or not rt.active)
+        ):
+            tx.after_commit(lambda: engine.start_runtime(inv) and None)
+            return []
+        raise CommandRejected("wrong_state", "The investigation is already running")
     if current not in ("Paused", "Stopped"):
         raise CommandRejected("wrong_state", "Only a paused or stopped investigation resumes")
     tx.after_commit(lambda: engine.start_runtime(inv) and None)

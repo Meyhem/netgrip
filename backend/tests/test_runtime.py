@@ -357,3 +357,20 @@ async def test_run_reaches_completed(db, tmp_path):
     assert report["ended_early"] is False and report["cut_short_by"] is None
     relevance = [c for c in client.calls if c.purpose == "node.relevance"]
     assert len(relevance) == 3  # every Completed node checked before synthesis
+
+
+@pytest.mark.parametrize("first", ["stop", "pause"])
+async def test_quick_resume_while_draining_keeps_running(db, tmp_path, first):
+    await seed(db, [("n-1", proposed("D1")), ("n-2", proposed("D2"))])
+    gate = asyncio.Event()
+    client = TrackingClient(BASE_SCRIPT, gate=gate)
+    engine = make_engine(db, tmp_path, client)
+    engine.start_runtime(INV)
+    await client.entered.wait()
+    await engine.submit(cmd(first))  # a step is in flight
+    await engine.submit(cmd("resume"))  # at once, before the loop drained
+    gate.set()
+    await engine.runtimes[INV].wait()
+    assert await state(db) == "Completed"
+    st = await statuses(db)
+    assert st["n-1"] == st["n-2"] == "Completed"

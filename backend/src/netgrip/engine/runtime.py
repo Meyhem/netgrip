@@ -67,10 +67,11 @@ class InvestigationRuntime:
         self._launch()
 
     def _launch(self) -> None:
-        if self.active:
-            return
         self._stopping = False
         self._pause = None
+        if self.active:  # still draining a pause or stop: keep this loop going
+            self._wake.set()
+            return
         self._loop = asyncio.create_task(self._run(), name=f"runtime:{self.id}")
 
     def resume(self) -> None:
@@ -161,8 +162,10 @@ class InvestigationRuntime:
                 if self._stopping or self._pause is not None:
                     if not self._tasks:
                         if not self._stopping:
-                            await self._enter_paused()
-                        return
+                            await self._enter_paused(self._pause)
+                        if self._stopping or self._pause is not None:
+                            return
+                        continue  # resumed while draining
                 else:
                     if await self._state() != "Running":
                         if not self._tasks:
@@ -186,9 +189,14 @@ class InvestigationRuntime:
             for t in self._tasks.values():
                 t.cancel()
             raise
+        except (ModelError, SearchError) as e:
+            # An orchestrator call in the loop hit the provider: pause the system way.
+            log.warning("runtime of %s: provider error in the loop (%s)", self.id, e)
+            await self._enter_paused((self._cause(e), str(e), "system"))
         except Exception:
+            # Not a provider problem: log it; the investigation stays Running and `resume`
+            # restarts this runtime (the resume handler accepts Running with no live loop).
             log.exception("runtime of %s failed", self.id)
-            raise
 
     async def _graph(self) -> list[GraphNode]:
         busy = set(self._tasks) | set(self._suspended)
@@ -217,10 +225,15 @@ class InvestigationRuntime:
             wake.cancel()
         self._wake.clear()
         for nid in [n for n, t in self._tasks.items() if t.done()]:
-            self._tasks.pop(nid)
+            t = self._tasks.pop(nid)
+            exc = None if t.cancelled() else t.exception()
+            if isinstance(exc, ModelError | SearchError):
+                self._on_provider_error(nid, exc)  # from an orchestrator call after the node
+            elif exc is not None:
+                log.error("node task %s of %s failed", nid, self.id, exc_info=exc)
 
-    async def _enter_paused(self) -> None:
-        cause, detail, origin = self._pause
+    async def _enter_paused(self, pause: tuple[str, str | None, str]) -> None:
+        cause, detail, origin = pause
         async with self.engine.db.tx() as tx:
             row = await tx.fetchone("SELECT state FROM investigations WHERE id = ?", [self.id])
             if row["state"] != "Running":
@@ -262,7 +275,10 @@ class InvestigationRuntime:
                 type="node.failed", actor="node", node_id=nid,
                 data={"reason": f"internal error: {type(e).__name__}", "auto_retry_used": False},
             )], self.engine.bus)  # fmt: skip
-            await orchestrator.on_node_failed(self._octx, nid)
+            try:
+                await orchestrator.on_node_failed(self._octx, nid)
+            except Exception:
+                log.exception("retry decision for failed node %s of %s failed", nid, self.id)
             return
         if not ctx.state.done and ctx.node.status not in ("Completed", "Failed", "Rejected"):
             self._suspended.append(nid)  # returned at a boundary: continue it on resume
@@ -285,11 +301,13 @@ class InvestigationRuntime:
     def _on_provider_error(self, nid: str, exc: Exception) -> None:
         """Hook for Task 7 (retry with backoff, then pause). For now: pause at once with the
         matching cause; the node continues from its next step on resume."""
+        log.warning("node %s: provider error (%s); pausing %s", nid, exc, self.id)
+        self.request_pause(self._cause(exc), str(exc), "system")
+
+    @staticmethod
+    def _cause(exc: Exception) -> str:
         if isinstance(exc, ModelRejected | SearchRejected):
             cause = {"key": "key_rejected", "credit": "credit_exhausted"}.get(exc.kind)
-        else:
-            cause = None
-        if cause is None:
-            cause = "model_unavailable" if isinstance(exc, ModelError) else "search_unavailable"
-        log.warning("node %s: provider error (%s); pausing %s", nid, exc, self.id)
-        self.request_pause(cause, str(exc), "system")
+            if cause:
+                return cause
+        return "model_unavailable" if isinstance(exc, ModelError) else "search_unavailable"

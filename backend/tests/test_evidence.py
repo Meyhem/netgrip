@@ -341,3 +341,18 @@ async def test_concurrent_reconcile_of_one_claim_runs_once(svc, db):
     calls = [c.purpose for c in ctx2.client.calls + ctx3.client.calls]
     assert calls == ["evidence.match"]
     assert a.id != b.id
+
+
+async def test_equivalent_claims_from_parallel_nodes_are_merged(svc, db):
+    ctx1, ctx2 = make_ctx({}, node_id="n1"), make_ctx({}, node_id="n2")
+    s1 = await source(svc, ctx1, "a.org")
+    s2 = await source(svc, ctx2, "b.org")
+    a = await svc.add_claim(ctx1, "n1", "The wall is visible from orbit", [s1.id], [])
+    b = await svc.add_claim(ctx2, "n2", "From orbit the wall can be seen", [s2.id], [])
+    ctx1.client.queues["evidence.match"] = [{"parsed": {"relation": "same", "claim_id": b.id}}]
+    ctx2.client.queues["evidence.match"] = [{"parsed": {"relation": "same", "claim_id": a.id}}]
+    await asyncio.gather(svc.reconcile(ctx1, a), svc.reconcile(ctx2, b))
+    live = await svc.known_claims(INV, "")
+    assert len(live) == 1  # merged once, not into each other
+    assert sorted(live[0].supporting) == sorted([s1.id, s2.id])
+    assert len(ctx1.client.calls) + len(ctx2.client.calls) == 1
