@@ -205,6 +205,10 @@ class InvestigationRuntime:
         self._octx = OrchestratorContext(
             self.id, e.db, e.model_client, evidence, clock, e.bus, prices, self._limit_reached
         )
+        # Return work a killed process owed (or one that died while Paused): from durable state.
+        from netgrip.engine.recovery import owed_return_work
+
+        self.owe(await owed_return_work(e.db, self.id))
 
     async def _state(self) -> str:
         rows = await self.engine.db.read("SELECT state FROM investigations WHERE id = ?", [self.id])

@@ -5,12 +5,14 @@ closed, and a new Engine is built on the same data directory."""
 
 import asyncio
 import json
+import uuid
 from collections import Counter
 
 import pytest
 
 from netgrip.adapters.fakes import FakeFetcher, FakeModelClient, FakeSearch
 from netgrip.boundary.bus import EventBus
+from netgrip.boundary.commands import Command
 from netgrip.boundary.events import EventDraft
 from netgrip.config import Config
 from netgrip.engine.clock import FakeClock
@@ -210,7 +212,7 @@ async def test_running_nodes_reset_and_rerun(tmp_path):
     eng, client, _ = await restarted(tmp_path)
     resets = await events(eng.db, "node.reset")
     assert sorted(n for _, n, d in resets if d["reason"] == "recovery") == EIGHT
-    *_, (_, _, rec) = await events(eng.db, "system.recovered")  # the first: an empty start
+    [(_, _, rec)] = await events(eng.db, "system.recovered")  # none at the first, empty start
     assert sorted(rec["reset_node_ids"]) == EIGHT
     await finish(eng)
     st = await statuses(eng.db)
@@ -418,3 +420,77 @@ async def test_proposals_reviewed_after_kill(tmp_path):
     assert "Proposed" not in st.values()
     assert await state(eng.db) == "Completed"
     await eng.db.close()
+
+
+def cmd(type, **payload):
+    return Command(id=uuid.uuid4(), type=type, investigation_id=INV, payload=payload)
+
+
+async def test_limit_cut_node_of_paused_investigation_runs_after_restart(tmp_path):
+    """Cut off mid-step by the spending limit (status Running while Paused), then killed: the
+    restart resets it without starting a runtime, and it completes after resume."""
+    await one_node(tmp_path)
+    db = await open_db(tmp_path / "n.sqlite")
+    async with db.tx() as tx:  # each fake call costs 0.01
+        await tx.execute("UPDATE investigations SET spending_limit_usd = 0.01 WHERE id = ?", [INV])
+    await db.close()
+    client = Holding({"node.decide:n-1": [decide("search", query="wall"), conclude()]})
+    eng = await open_engine(tmp_path, client)
+    await finish_started(eng)
+    assert await state(eng.db) == "Paused"
+    assert (await statuses(eng.db))["n-1"] == "Running"
+    await kill(eng)
+    again = Holding({"node.decide:n-1": [conclude()]})
+    eng = await open_engine(tmp_path, again)
+    assert INV not in eng.runtimes
+    assert (await statuses(eng.db))["n-1"] == "Pending"
+    [(_, _, rec)] = await events(eng.db, "system.recovered")
+    assert rec["reset_node_ids"] == ["n-1"]
+    await eng.submit(cmd("raise_limit", spending_limit_usd=5.0))
+    await eng.submit(cmd("resume"))
+    await finish(eng)
+    assert (await statuses(eng.db))["n-1"] == "Completed"
+    assert await state(eng.db) == "Completed"
+
+
+async def finish_started(eng):
+    eng.start_runtime(INV)
+    await finish(eng)
+
+
+async def test_failure_decision_redone_after_kill(tmp_path):
+    """Killed after node.failed committed, before the retry decision: it is made on restart."""
+    await one_node(tmp_path)
+    db = await open_db(tmp_path / "n.sqlite")
+    await append_and_project(db, INV, [
+        ev("node.started", {"attempt": 1, "brief": {}}, node_id="n-1", actor="node"),
+        ev("node.failed", {"reason": "no route left"}, node_id="n-1", actor="node"),
+    ])  # fmt: skip
+    await db.close()
+    eng = await open_engine(tmp_path, Holding({}))
+    [(_, _, rec)] = await events(eng.db, "system.recovered")
+    assert rec["reset_node_ids"] == []
+    await finish(eng)
+    resets = [d["reason"] for _, n, d in await events(eng.db, "node.reset") if n == "n-1"]
+    assert resets == ["auto_retry"]
+    assert (await statuses(eng.db))["n-1"] == "Completed"
+
+
+async def test_left_failed_is_recorded_and_not_redone(tmp_path):
+    await one_node(tmp_path)
+    db = await open_db(tmp_path / "n.sqlite")
+    await append_and_project(db, INV, [
+        ev("node.started", {"attempt": 1, "brief": {}}, node_id="n-1", actor="node"),
+        ev("node.failed", {"reason": "x"}, node_id="n-1", actor="node"),
+        ev("node.reset", {"reason": "auto_retry", "hint": "h"}, node_id="n-1"),
+        ev("node.started", {"attempt": 2, "brief": {}}, node_id="n-1", actor="node"),
+        ev("node.failed", {"reason": "y"}, node_id="n-1", actor="node"),
+    ])  # fmt: skip
+    await db.close()
+    eng = await open_engine(tmp_path, Holding({}))
+    await finish(eng)
+    left = await events(eng.db, "node.left_failed")
+    assert [(n, d["reason"]) for _, n, d in left] == [("n-1", "auto_retry_used")]
+    await kill(eng)
+    eng = await open_engine(tmp_path, Holding({}))
+    assert len(await events(eng.db, "system.recovered")) == 1  # the first start only

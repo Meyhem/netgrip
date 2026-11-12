@@ -334,6 +334,13 @@ class NodeRelevanceChecked(_Data):
     reason: str | None = None
 
 
+class NodeLeftFailed(_Data):
+    """The orchestrator decided not to retry this Failed node (`auto_retry_used` or
+    `spending_limit`). The durable record that its failure handling ran."""
+
+    reason: str
+
+
 class SystemRecovered(_Data):
     """A restart found the investigation Running: these nodes were Running and are Pending."""
 
@@ -367,6 +374,7 @@ register_event("node.reset", 1, NodeReset)
 register_event("node.rejected", 1, NodeRejected)
 register_event("node.off_topic", 1, NodeOffTopic)
 register_event("node.relevance_checked", 1, NodeRelevanceChecked)
+register_event("node.left_failed", 1, NodeLeftFailed)
 register_event("system.recovered", 1, SystemRecovered)
 register_event("investigation.concluding", 1, InvestigationConcluding)
 register_event("page.unobtainable", 1, PageUnobtainable)

@@ -1,5 +1,6 @@
 """The engine boundary: commands in (`submit`), events out (`subscribe`). Nothing else crosses."""
 
+import asyncio
 import json
 import logging
 import uuid
@@ -76,12 +77,27 @@ class Engine:
         self.pages = pages
         self.planning = PlanningQueue()
         self.runtimes: dict[str, InvestigationRuntime] = {}
+        self._background: set[asyncio.Task] = set()
 
     async def start(self) -> None:
         resize_limiters((await get_settings(self.db)).capacity)
         await recover(self)
 
+    def background(self, coro, name: str) -> None:
+        """Run startup work (recovery's synthesis) without holding up `start`."""
+        task = asyncio.create_task(coro, name=name)
+        self._background.add(task)
+        task.add_done_callback(self._background_done)
+
+    def _background_done(self, task: "asyncio.Task") -> None:
+        self._background.discard(task)
+        if not task.cancelled() and task.exception() is not None:
+            log.error("background task %s failed", task.get_name(), exc_info=task.exception())
+
     async def stop(self) -> None:
+        for t in list(self._background):
+            t.cancel()
+        await asyncio.gather(*self._background, return_exceptions=True)
         await self.planning.stop()
         for rt in list(self.runtimes.values()):
             await rt.stop(abandon=True)

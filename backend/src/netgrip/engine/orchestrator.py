@@ -363,7 +363,11 @@ async def on_node_failed(ctx: OrchestratorContext, node: NodeRef) -> bool:
         [ctx.investigation_id, nid],
     )
     n = (await ctx.db.read("SELECT status FROM nodes WHERE id = ?", [nid]))[0]
-    if used or n["status"] != "Failed" or await _spend_exhausted(ctx):
+    if n["status"] != "Failed":
+        return False
+    if used or await _spend_exhausted(ctx):
+        why = "auto_retry_used" if used else "spending_limit"
+        await _commit(ctx, None, [_draft("node.left_failed", {"reason": why}, nid)])
         return False
     failed = await ctx.db.read(
         "SELECT data FROM events WHERE investigation_id = ? AND node_id = ?"

@@ -412,6 +412,12 @@ async def _node_completed(tx: Tx, event: Event) -> None:
 @projector("node.failed")
 async def _node_failed(tx: Tx, event: Event) -> None:
     await _node_status(tx, event, "Failed", None)
+    await tx.execute("UPDATE nodes SET failure_handled = 0 WHERE id = ?", [event.node_id])
+
+
+@projector("node.left_failed")
+async def _node_left_failed(tx: Tx, event: Event) -> None:
+    await tx.execute("UPDATE nodes SET failure_handled = 1 WHERE id = ?", [event.node_id])
 
 
 @projector("node.reset")

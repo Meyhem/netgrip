@@ -23,6 +23,7 @@ from netgrip.store.rebuild import rebuild, verify
 
 if TYPE_CHECKING:
     from netgrip.engine.engine import Engine
+    from netgrip.store.db import Database
 
 log = logging.getLogger(__name__)
 
@@ -38,29 +39,36 @@ async def recover(engine: "Engine") -> None:
 
 async def recover_research(engine: "Engine") -> None:
     rows = await engine.db.read(
-        "SELECT id, state FROM investigations WHERE state IN ('Running', 'Synthesising')"
+        "SELECT id, state FROM investigations"
+        " WHERE state IN ('Running', 'Synthesising', 'Paused', 'Stopped')"
         " ORDER BY created_at, id"
     )
     for row in rows:
         inv = row["id"]
         if row["state"] == "Synthesising":
             log.info("restarting the synthesis of %s", inv)
-            await synthesise(engine, inv)
+            engine.background(synthesise(engine, inv), f"synthesis:{inv}")
             continue
-        reset = await _reset_running(engine, inv)
-        owed = await _owed_return_work(engine, inv)
+        running = row["state"] == "Running"
+        # A Paused or Stopped investigation can hold a node cut off mid-step (spending limit):
+        # it goes back to Pending too, so it runs on resume; no runtime starts for it now.
+        owed = await owed_return_work(engine.db, inv)
+        reset = await _reset_running(engine, inv, row["state"], announce=bool(owed))
+        if not running:
+            continue
         log.info("recovering %s: reset %s, return work owed for %s", inv, reset, owed)
         rt = engine.start_runtime(inv)
         if rt is not None:
             rt.owe(owed)  # before the loop's first turn (the launch only created its task)
+        # Paused/Stopped: a later runtime loads the owed work itself (`_setup`).
 
 
-async def _reset_running(engine: "Engine", inv: str) -> list[str]:
-    """Running nodes back to Pending; Waiting on children stays (6.2)."""
+async def _reset_running(engine: "Engine", inv: str, expected: str, announce: bool) -> list[str]:
+    """Running nodes back to Pending; Waiting on children stays (6.2). `system.recovered` is
+    emitted when a node was reset or return work is owed (`announce`)."""
     async with engine.db.tx() as tx:
-        if (await tx.fetchone("SELECT state FROM investigations WHERE id = ?", [inv]))[
-            "state"
-        ] != "Running":
+        row = await tx.fetchone("SELECT state FROM investigations WHERE id = ?", [inv])
+        if row["state"] != expected:
             return []
         rows = await tx.fetchall(
             "SELECT id FROM nodes WHERE investigation_id = ? AND status = 'Running' ORDER BY seq",
@@ -71,19 +79,22 @@ async def _reset_running(engine: "Engine", inv: str) -> list[str]:
             EventDraft(type="node.reset", actor="system", node_id=nid, data={"reason": "recovery"})
             for nid in ids
         ]
-        drafts.append(
-            EventDraft(type="system.recovered", actor="system", data={"reset_node_ids": ids})
-        )
-        await append_and_project_in_tx(tx, inv, drafts, engine.bus)
+        if ids or announce:
+            drafts.append(
+                EventDraft(type="system.recovered", actor="system", data={"reset_node_ids": ids})
+            )
+            await append_and_project_in_tx(tx, inv, drafts, engine.bus)
     return ids
 
 
-async def _owed_return_work(engine: "Engine", inv: str) -> list[str]:
+async def owed_return_work(db: "Database", inv: str) -> list[str]:
     """Returned nodes whose orchestrator work never committed: a Completed node with no
-    relevance decision, and a waiting parent with proposals still unreviewed."""
-    rows = await engine.db.read(
+    relevance decision, a waiting parent with proposals still unreviewed, and a Failed node
+    with no retry decision."""
+    rows = await db.read(
         "SELECT id FROM nodes n WHERE investigation_id = ? AND ("
         " (status = 'Completed' AND relevance_checked = 0)"
+        " OR (status = 'Failed' AND failure_handled = 0)"
         " OR (status = 'Waiting on children' AND EXISTS (SELECT 1 FROM nodes c"
         "  WHERE c.parent_id = n.id AND c.status = 'Proposed' AND c.inclusion = 'Included')))"
         " ORDER BY seq",
