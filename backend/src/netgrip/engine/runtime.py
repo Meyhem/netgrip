@@ -16,10 +16,12 @@ System pauses (Task 7, N-05, B4):
   Then the investigation pauses (origin system). The node keeps its context: its interrupted
   step was not committed, so it runs again on resume (no reset event).
 - A rejected key or exhausted credit pauses at once; a rejected key is marked on the key.
-- Before every step (and before starting nodes or asking the orchestrator) the spend is
-  checked: at or over the limit, nothing more is called and the investigation pauses with
-  cause `spending_limit`. Spend is committed with each step, so checking at step boundaries
-  is checking before every model call that could see new spend.
+- The spending limit is checked by `call_model` before every model call (node steps and
+  orchestrator calls alike) and before nodes are started: at or over the limit nothing is
+  called; SpendingLimitReached becomes a `spending_limit` pause. A step that made its calls
+  finishes and commits; one stopped before its call runs again on resume; a returned node's
+  orchestrator work stays owed and runs on resume.
+- Orchestrator calls get the same outage backoff as node steps (`retry_unavailable`).
 - `start()` on an investigation whose nodes were reset by recovery (Task 8) just schedules
   them: a fresh context starts the node over.
 """
@@ -27,6 +29,7 @@ System pauses (Task 7, N-05, B4):
 import asyncio
 import json
 import logging
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
 from netgrip.adapters.model import ModelError, ModelRejected, ModelUnavailable
@@ -34,7 +37,8 @@ from netgrip.adapters.search import SearchError, SearchRejected, SearchUnavailab
 from netgrip.boundary.events import EventDraft
 from netgrip.engine import orchestrator
 from netgrip.engine.agent import Deps, NodeContext, Signal, node_context, run_node
-from netgrip.engine.clock import SystemClock
+from netgrip.engine.budget import SpendingLimitReached
+from netgrip.engine.clock import Clock, SystemClock
 from netgrip.engine.orchestrator import OrchestratorContext
 from netgrip.engine.scheduler import GraphNode, Schedule, load_graph, schedule
 from netgrip.engine.synthesis import synthesise
@@ -62,6 +66,44 @@ def backoff_delays(limit: float) -> list[float]:
     return out
 
 
+async def retry_unavailable[T](
+    fn: Callable[[], Awaitable[T]],
+    *,
+    clock: Clock,
+    limit: float,
+    halted: asyncio.Event,
+    on_retry: Callable[[int, int, Exception], Awaitable[None]] | None = None,
+    progress: Callable[[], object] | None = None,
+) -> T:
+    """Run `fn`; on ModelUnavailable/SearchUnavailable wait (`backoff_delays(limit)`) and run
+    it again. Raises the last outage when the delays run out or `halted` is set (a pause or
+    stop also cuts a wait short). When `progress()` changed since the previous failure the
+    work moved on, so the backoff starts over."""
+    delays = backoff_delays(limit)
+    attempt = 0
+    last = progress() if progress else None
+    while True:
+        try:
+            return await fn()
+        except (ModelUnavailable, SearchUnavailable) as e:
+            if progress is not None and (now := progress()) != last:
+                last, attempt = now, 0
+            if halted.is_set() or attempt >= len(delays):
+                raise
+            if on_retry is not None:
+                await on_retry(attempt + 1, len(delays), e)
+            sleep = asyncio.ensure_future(clock.sleep(delays[attempt]))
+            halt = asyncio.ensure_future(halted.wait())
+            try:
+                await asyncio.wait({sleep, halt}, return_when=asyncio.FIRST_COMPLETED)
+            finally:
+                sleep.cancel()
+                halt.cancel()
+            attempt += 1
+            if halted.is_set():
+                raise
+
+
 class InvestigationRuntime:
     def __init__(self, engine: "Engine", investigation_id: str) -> None:
         self.engine = engine
@@ -78,6 +120,8 @@ class InvestigationRuntime:
         self._octx: OrchestratorContext | None = None
         self._gen = 0  # bumped by every (re)launch; a pause write from an older one is dropped
         self._retry_limit = 300.0
+        self._halt = asyncio.Event()  # set by a pause or stop request: cuts backoff short
+        self._owed: set[str] = set()  # returned nodes whose orchestrator work is still to do
 
     # --- control -----------------------------------------------------------------------------
 
@@ -93,6 +137,7 @@ class InvestigationRuntime:
         self._gen += 1
         self._stopping = False
         self._pause = None
+        self._halt.clear()
         if self.active:  # still draining a pause or stop: keep this loop going
             self._wake.set()
             return
@@ -105,11 +150,13 @@ class InvestigationRuntime:
         """No new step starts; running steps finish; then Paused with this cause."""
         if self._pause is None:
             self._pause = (cause, detail, origin)
+        self._halt.set()
         self._wake.set()
 
     def request_stop(self) -> None:
         """Like a pause, without a state change (the stop command already recorded Stopped)."""
         self._stopping = True
+        self._halt.set()
         self._wake.set()
 
     @property
@@ -146,10 +193,10 @@ class InvestigationRuntime:
         self._deps = Deps(
             db=e.db, model=e.model_client, search=e.search, fetcher=e.fetcher,
             pages=e.pages or PageStore(e.db, e.config.data_dir), evidence=evidence,
-            clock=clock, bus=e.bus, prices=prices,
+            clock=clock, bus=e.bus, prices=prices, limit_reached=self._limit_reached,
         )  # fmt: skip
         self._octx = OrchestratorContext(
-            self.id, e.db, e.model_client, evidence, clock, e.bus, prices
+            self.id, e.db, e.model_client, evidence, clock, e.bus, prices, self._limit_reached
         )
 
     async def _state(self) -> str:
@@ -209,7 +256,14 @@ class InvestigationRuntime:
                         for nid in sched.order[: max(free, 0)]:
                             self._start_node(nid)
                         if not self._tasks:
-                            if await orchestrator.decide_next(self._octx) == "conclude":
+                            try:
+                                decision = await self._retrying(
+                                    lambda: orchestrator.decide_next(self._octx)
+                                )
+                            except SpendingLimitReached:
+                                self._request_limit_pause()
+                                continue
+                            if decision == "conclude":
                                 await synthesise(self.engine, self.id)
                                 return
                             continue
@@ -292,8 +346,6 @@ class InvestigationRuntime:
     async def _boundary(self) -> Signal:
         if self._stopping:
             return Signal.CANCEL
-        if self._pause is None and await self._limit_reached():
-            self._request_limit_pause()
         if self._pause is not None:
             return Signal.PAUSE
         return Signal.CONTINUE
@@ -307,61 +359,73 @@ class InvestigationRuntime:
     def _request_limit_pause(self) -> None:
         self.request_pause("spending_limit", "The spending limit was reached", "system")
 
-    def _halting(self) -> bool:
-        return self._stopping or self._pause is not None
-
     async def _node(self, nid: str) -> None:
+        if nid not in self._owed and not await self._steps(nid):
+            return
+        await self._return_work(nid)
+
+    async def _steps(self, nid: str) -> bool:
+        """Run the node's steps. True when it returned (completed, failed or waits on
+        children) and its return work is now owed; False when it was suspended or failed."""
         ctx = self._ctxs.get(nid)
-        delays: list[float] | None = None  # the backoff of the current outage
-        attempt = 0
-        while True:
-            try:
-                if ctx is None:
-                    ctx = self._ctxs[nid] = await node_context(
-                        self._deps, self.id, nid, self._boundary
-                    )
-                await run_node(ctx)
-                break
-            except (ModelUnavailable, SearchUnavailable) as e:
-                if delays is None:
-                    delays = backoff_delays(self._retry_limit)
-                if self._halting() or attempt >= len(delays):
-                    self._suspended.append(nid)
-                    if not self._halting():
-                        await self._on_provider_error(nid, e)
-                    return
-                step = ctx.state.next_step[0] if ctx and ctx.state.next_step else "plan"
+        try:
+            if ctx is None:
+                ctx = self._ctxs[nid] = await node_context(self._deps, self.id, nid, self._boundary)
+            c = ctx
+
+            async def on_retry(n: int, m: int, exc: Exception) -> None:
+                step = c.state.next_step[0] if c.state.next_step else "plan"
                 await append_and_project(self.engine.db, self.id, [EventDraft(
                     type="node.activity", actor="node", node_id=nid,
-                    data={"activity": "Retrying", "detail": str(e), "step": step,
-                          "retry": {"n": attempt + 1, "m": len(delays)}},
+                    data={"activity": "Retrying", "detail": str(exc), "step": step,
+                          "retry": {"n": n, "m": m}},
                 )], self.engine.bus)  # fmt: skip
-                await self._deps.clock.sleep(delays[attempt])
-                attempt += 1
-                if self._halting():  # paused or stopped while waiting
-                    self._suspended.append(nid)
-                    return
-            except (ModelError, SearchError) as e:
-                self._suspended.append(nid)
-                await self._on_provider_error(nid, e)
-                return
-            except Exception as e:
-                log.exception("node %s of %s failed unexpectedly", nid, self.id)
-                self._ctxs.pop(nid, None)
-                await append_and_project(self.engine.db, self.id, [EventDraft(
-                    type="node.failed", actor="node", node_id=nid,
-                    data={"reason": f"internal error: {type(e).__name__}",
-                          "auto_retry_used": False},
-                )], self.engine.bus)  # fmt: skip
-                try:
-                    await orchestrator.on_node_failed(self._octx, nid)
-                except Exception:
-                    log.exception("retry decision for failed node %s of %s failed", nid, self.id)
-                return
+
+            await self._retrying(lambda: run_node(c), on_retry, progress=lambda: c.state.steps)
+        except SpendingLimitReached:
+            self._suspended.append(nid)
+            self._request_limit_pause()
+            return False
+        except (ModelError, SearchError) as e:
+            self._suspended.append(nid)
+            await self._on_provider_error(nid, e)
+            await self._reset_interrupted(nid)
+            return False
+        except Exception as e:
+            log.exception("node %s of %s failed unexpectedly", nid, self.id)
+            self._ctxs.pop(nid, None)
+            await append_and_project(self.engine.db, self.id, [EventDraft(
+                type="node.failed", actor="node", node_id=nid,
+                data={"reason": f"internal error: {type(e).__name__}", "auto_retry_used": False},
+            )], self.engine.bus)  # fmt: skip
+            try:
+                await orchestrator.on_node_failed(self._octx, nid)
+            except Exception:
+                log.exception("retry decision for failed node %s of %s failed", nid, self.id)
+            return False
         if not ctx.state.done and ctx.node.status not in ("Completed", "Failed", "Rejected"):
             self._suspended.append(nid)  # returned at a boundary: continue it on resume
-            return
+            return False
         self._ctxs.pop(nid, None)
+        self._owed.add(nid)
+        return True
+
+    async def _return_work(self, nid: str) -> None:
+        """The orchestrator's work on a returned node. It stays owed (and runs on resume) when
+        the spending limit or a provider error stops it."""
+        try:
+            await self._retrying(lambda: self._after_return(nid))
+        except SpendingLimitReached:
+            self._suspended.append(nid)
+            self._request_limit_pause()
+            return
+        except (ModelError, SearchError) as e:
+            self._suspended.append(nid)
+            await self._on_provider_error(nid, e)
+            return
+        self._owed.discard(nid)
+
+    async def _after_return(self, nid: str) -> None:
         status = (await self.engine.db.read("SELECT status FROM nodes WHERE id = ?", [nid]))[0][0]
         if status == "Completed":
             await orchestrator.on_node_returned(self._octx, nid)  # before anyone reads it
@@ -375,6 +439,27 @@ class InvestigationRuntime:
                 await orchestrator.review_proposals(self._octx, [r["id"] for r in rows])
         elif status == "Failed":
             await orchestrator.on_node_failed(self._octx, nid)
+
+    async def _retrying[T](
+        self,
+        fn: Callable[[], Awaitable[T]],
+        on_retry: Callable[[int, int, Exception], Awaitable[None]] | None = None,
+        progress: Callable[[], object] | None = None,
+    ) -> T:
+        return await retry_unavailable(
+            fn, clock=self._deps.clock, limit=self._retry_limit, halted=self._halt,
+            on_retry=on_retry, progress=progress,
+        )  # fmt: skip
+
+    async def _reset_interrupted(self, nid: str) -> None:
+        """The node's step was interrupted by the provider: back to Pending (reason outage).
+        Its context is kept, so resume continues the uncommitted step."""
+        try:
+            await append_and_project(self.engine.db, self.id, [EventDraft(
+                type="node.reset", actor="system", node_id=nid, data={"reason": "outage"},
+            )], self.engine.bus)  # fmt: skip
+        except Exception:
+            log.exception("could not reset interrupted node %s of %s", nid, self.id)
 
     async def _on_provider_error(self, nid: str, exc: Exception) -> None:
         """A provider error that is not retried (any more): pause the system way. The node

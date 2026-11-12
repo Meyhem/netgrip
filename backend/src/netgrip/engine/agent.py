@@ -18,7 +18,7 @@ from netgrip.adapters.model import ModelClient, ModelError
 from netgrip.adapters.search import Search, SearchError
 from netgrip.boundary.events import EventDraft
 from netgrip.engine.brief import Brief, build_brief
-from netgrip.engine.budget import CallContext
+from netgrip.engine.budget import CallContext, LimitCheck, SpendingLimitReached
 from netgrip.engine.clock import Clock
 from netgrip.evidence.service import EvidenceService
 from netgrip.store.db import Database, Tx
@@ -47,6 +47,7 @@ class Deps:
     clock: Clock
     bus: Publisher | None = None
     prices: list[ModelPrice] = field(default_factory=list)
+    limit_reached: LimitCheck | None = None  # the spending-limit check before model calls
 
 
 @dataclass
@@ -84,6 +85,7 @@ class NodeState:
     excluded: set[str] = field(default_factory=set)
     note: str | None = None  # told to the next decision call (after an unusable answer)
     done: bool = False
+    steps: int = 0  # steps run so far (a retried outage restarts its backoff after progress)
 
 
 @dataclass
@@ -104,6 +106,7 @@ class NodeContext:
                 settings=self.investigation.settings,
                 prices=self.deps.prices,
                 node_id=self.node.id,
+                limit_reached=self.deps.limit_reached,
             )
 
     def draft(self, type: str, data: dict, node_id: str | None = None) -> EventDraft:
@@ -187,7 +190,8 @@ async def run_node(ctx: NodeContext) -> None:
                 return
             name, arg = state.next_step
             state.next_step = await steps.STEPS[name](ctx, arg)
-    except (ModelError, SearchError):
+            state.steps += 1
+    except (ModelError, SearchError, SpendingLimitReached):
         if ctx.call.pending_events:
             await ctx.commit([])
         raise

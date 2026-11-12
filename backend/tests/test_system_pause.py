@@ -1,6 +1,8 @@
 """System pauses (N-05, B4, S10): outages back off then pause, rejections pause at once, the
 spending limit pauses at a step boundary and refuses resume until raised."""
 
+import asyncio
+
 import pytest
 from test_runtime import (
     BASE_SCRIPT,
@@ -14,9 +16,11 @@ from test_runtime import (
     proposed,
     seed,
     state,
+    statuses,
 )
 
 from netgrip.boundary.commands import CommandRejected
+from netgrip.engine.clock import FakeClock
 from netgrip.store.db import open_db
 from netgrip.store.settings import key_status, set_key
 
@@ -73,12 +77,19 @@ async def test_outage_backs_off_then_pauses_with_reason(db, tmp_path):
     assert len(decides(client)) == len(sleeps) + 1
     assert calls_at_pause == len(client.calls)
 
+    # The interrupted node is back to Pending while paused (node.reset outage).
+    assert (await statuses(db))["n-1"] == "Pending"
+    resets = [d for _, n, d in await events(db, "node.reset") if n == "n-1"]
+    assert resets == [{"reason": "outage", "hint": None}]
+
     # In the morning: resume, nothing lost.
     client.queues["node.decide"] = [conclude()]
     client._last.pop("node.decide", None)
     await engine.submit(cmd("resume"))
     await engine.runtimes[INV].wait()
     assert await state(db) == "Completed"
+    assert len([n for _, n, _ in await events(db, "node.started") if n == "n-1"]) == 1
+    assert (await statuses(db))["n-1"] == "Completed"
 
 
 async def test_outage_that_recovers_does_not_pause(db, tmp_path):
@@ -209,3 +220,76 @@ async def test_resume_during_enter_paused_is_not_lost(db, tmp_path):
         db.tx = real_tx
         await rt.stop(abandon=True)
     assert await state(db) == "Running"
+
+
+async def test_cap_reached_on_last_step_keeps_return_work_owed(db, tmp_path):
+    await seed(db, [("n-1", proposed("D1"))])
+    async with db.tx() as tx:  # the conclusion (0.01) reaches the cap
+        await tx.execute("UPDATE investigations SET spending_limit_usd = 0.01 WHERE id = ?", [INV])
+    client = TrackingClient(BASE_SCRIPT)
+    engine = make_engine(db, tmp_path, client)
+    await run_to_end(engine)
+    assert (await pause_row(db))["pause_cause"] == "spending_limit"
+    assert [c.purpose for c in client.calls] == ["node.decide"]  # no return check over the cap
+    assert (await statuses(db))["n-1"] == "Completed"
+    await engine.submit(cmd("raise_limit", spending_limit_usd=5.0))
+    await engine.submit(cmd("resume"))
+    await engine.runtimes[INV].wait()
+    assert await state(db) == "Completed"
+    assert "node.relevance" in [c.purpose for c in client.calls]  # the return work ran
+
+
+async def test_orchestrator_outage_backs_off_then_recovers(db, tmp_path):
+    await seed(db, [("n-1", proposed("D1"))])
+    script = BASE_SCRIPT | {
+        "node.relevance": [UNAVAILABLE, UNAVAILABLE, *BASE_SCRIPT["node.relevance"]]
+    }
+    engine = make_engine(db, tmp_path, TrackingClient(script))
+    await run_to_end(engine)
+    assert await state(db) == "Completed"
+    assert engine.clock.sleeps == [1, 2]
+
+
+async def test_orchestrator_outage_backs_off_then_pauses(db, tmp_path):
+    await seed(db, [("n-1", proposed("D1"))])
+    engine = make_engine(
+        db, tmp_path, TrackingClient(BASE_SCRIPT | {"orchestrator.next": [UNAVAILABLE]})
+    )
+    await run_to_end(engine)
+    assert (await pause_row(db))["pause_cause"] == "model_unavailable"
+    assert len(engine.clock.sleeps) > 2 and sum(engine.clock.sleeps) <= 300
+
+
+async def test_backoff_restarts_after_the_step_advanced(db, tmp_path):
+    await seed(db, [("n-1", proposed("D1"))])
+    decisions = [UNAVAILABLE, UNAVAILABLE, decide("search", query="wall"), UNAVAILABLE, conclude()]
+    script = BASE_SCRIPT | {"node.decide": decisions}
+    engine = make_engine(db, tmp_path, TrackingClient(script))
+    await run_to_end(engine)
+    assert await state(db) == "Completed"
+    assert engine.clock.sleeps == [1, 2, 1]
+
+
+class BlockingClock(FakeClock):
+    """Every sleep blocks until cancelled: only a wake can end a backoff wait."""
+
+    async def sleep(self, seconds):
+        self.sleeps.append(seconds)
+        await asyncio.Event().wait()
+
+
+async def test_pause_cuts_backoff_wait_short(db, tmp_path):
+    await seed(db, [("n-1", proposed("D1"))])
+    client = TrackingClient(BASE_SCRIPT | {"node.decide": [UNAVAILABLE]})
+    engine = make_engine(db, tmp_path, client)
+    engine.clock = BlockingClock()
+    engine.start_runtime(INV)
+    for _ in range(500):
+        if engine.clock.sleeps:
+            break
+        await asyncio.sleep(0.001)
+    await engine.submit(cmd("pause"))
+    await asyncio.wait_for(engine.runtimes[INV].wait(), 2)
+    row = await pause_row(db)
+    assert row["state"] == "Paused" and row["pause_cause"] == "user"
+    assert engine.clock.sleeps == [1]

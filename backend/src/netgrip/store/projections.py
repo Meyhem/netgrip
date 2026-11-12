@@ -382,8 +382,10 @@ async def _node_started(tx: Tx, event: Event) -> None:
 async def _node_activity(tx: Tx, event: Event) -> None:
     # The status is left alone: a node aggregating stays `Waiting on children` until it
     # completes, so after a restart it is still recognised as a coordinator (Task 8).
+    # A node reset by an outage and continued from its kept context shows Running again.
     await tx.execute(
-        "UPDATE nodes SET activity = ?, updated_at = ? WHERE id = ?",
+        "UPDATE nodes SET activity = ?, updated_at = ?,"
+        " status = CASE WHEN status = 'Pending' THEN 'Running' ELSE status END WHERE id = ?",
         [event.data["activity"], event.at, event.node_id],
     )
 
@@ -415,8 +417,9 @@ async def _node_failed(tx: Tx, event: Event) -> None:
 @projector("node.reset")
 async def _node_reset(tx: Tx, event: Event) -> None:
     await _node_status(tx, event, "Pending", None)
-    # An auto retry carries its hint; a recovery keeps it (same attempt); a user rerun clears it.
-    if event.data["reason"] != "recovery":
+    # An auto retry carries its hint; a recovery or outage keeps it (same attempt); a user rerun
+    # clears it.
+    if event.data["reason"] not in ("recovery", "outage"):
         await tx.execute(
             "UPDATE nodes SET retry_hint = ? WHERE id = ?", [event.data.get("hint"), event.node_id]
         )

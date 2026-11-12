@@ -1,5 +1,6 @@
 """The spend ledger: every model call goes through `call_model` and leaves a `spend.recorded`."""
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from decimal import Decimal
 
@@ -16,6 +17,13 @@ from netgrip.store.settings import Effort, ModelPrice
 
 MILLION = Decimal(1_000_000)
 
+LimitCheck = Callable[[], Awaitable[bool]]
+
+
+class SpendingLimitReached(Exception):  # noqa: N818 - a signal, like CancelledError
+    """Raised by `call_model` instead of calling when the investigation's spend has reached its
+    spending limit (B4). The runtime turns it into a `spending_limit` pause."""
+
 
 @dataclass
 class CallContext:
@@ -28,6 +36,7 @@ class CallContext:
     prices: list[ModelPrice]  # price table from the global settings, per million tokens
     node_id: str | None = None
     pending_events: list[EventDraft] = field(default_factory=list)
+    limit_reached: LimitCheck | None = None  # asked before every call; True: do not call
 
 
 def price_usage(usage: Usage, model: str, prices: list[ModelPrice]) -> tuple[Decimal, bool]:
@@ -47,8 +56,12 @@ def price_usage(usage: Usage, model: str, prices: list[ModelPrice]) -> tuple[Dec
 async def call_model(ctx: CallContext, req: ModelRequest) -> ModelResponse:
     """Call the model assigned to `req.tier` and record the spend in `ctx.pending_events`.
 
-    Opens no transaction. A call that raises records nothing, except a malformed answer whose
-    usage the client reported: it was paid for, so it is recorded before re-raising (B5)."""
+    Before calling, `ctx.limit_reached` (if set) is asked; at the limit nothing is called and
+    SpendingLimitReached is raised. Opens no transaction. A call that raises records
+    nothing, except a malformed answer whose usage the client reported: it was paid for, so
+    it is recorded before re-raising (B5)."""
+    if ctx.limit_reached is not None and await ctx.limit_reached():
+        raise SpendingLimitReached(ctx.investigation_id)
     model = ctx.settings["tiers"][req.tier]
     req = req.model_copy(update={"model": model})
     try:

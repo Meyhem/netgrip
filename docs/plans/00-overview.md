@@ -112,7 +112,7 @@ Every durable event, in the database, on the stream and in `contract/`:
 | `node.waiting_on_children` | none | 4 |
 | `node.completed` | `verdict` (`text`, `confidence`), `open_questions`, `off_topic` (always false in v1; set later by `node.off_topic`) | 4 |
 | `node.failed` | `reason`, `auto_retry_used` | 4 |
-| `node.reset` | `reason` (`recovery`/`rerun`/`auto_retry`), `hint` (optional: the different approach for an auto retry, shown in the brief) | 4 |
+| `node.reset` | `reason` (`recovery`/`rerun`/`auto_retry`/`outage`: the node's step was interrupted by a provider error and the system paused; back to Pending), `hint` (optional: the different approach for an auto retry, shown in the brief) | 4 |
 | `node.off_topic` | `reason` (the relevance gate found the result off-topic; its claims are kept out of synthesis, E3. A follow-up event so the node commits its own completion) | 4 |
 | `node.paused`, `node.resumed` | `node_ids` | 6 |
 | `node.inclusion_changed` | `node_ids`, `inclusion`, `by` (`user`/`replan`), `instruction_id` | 3 |

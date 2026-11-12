@@ -311,7 +311,7 @@ class NodeFailed(_Data):
 
 
 class NodeReset(_Data):
-    reason: Literal["recovery", "rerun", "auto_retry"]
+    reason: Literal["recovery", "rerun", "auto_retry", "outage"]
     hint: str | None = None  # auto_retry: the different approach, told in the brief (D-19)
 
 

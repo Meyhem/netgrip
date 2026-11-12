@@ -19,7 +19,7 @@ from typing import Any, Literal
 
 from netgrip.adapters.model import Message, ModelClient, ModelMalformed, ModelRequest
 from netgrip.boundary.events import EventDraft
-from netgrip.engine.budget import CallContext, allocate_budget, call_model
+from netgrip.engine.budget import CallContext, LimitCheck, allocate_budget, call_model
 from netgrip.engine.clock import Clock
 from netgrip.engine.ids import next_display_id
 from netgrip.evidence.service import Claim, EvidenceService
@@ -48,6 +48,7 @@ class OrchestratorContext:
     clock: Clock
     bus: Publisher | None = None
     prices: list[ModelPrice] = field(default_factory=list)
+    limit_reached: LimitCheck | None = None  # the spending-limit check before model calls
 
 
 @dataclass(frozen=True)
@@ -102,6 +103,7 @@ def _call(ctx: OrchestratorContext, settings: dict) -> CallContext:
         investigation_id=ctx.investigation_id,
         settings=settings,
         prices=ctx.prices,
+        limit_reached=ctx.limit_reached,
     )
 
 
