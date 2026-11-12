@@ -70,7 +70,12 @@ class ModelRejected(ModelError):
 
 
 class ModelMalformed(ModelError):
-    """The answer does not satisfy the requested schema."""
+    """The answer does not satisfy the requested schema. `usage` is set when an answer was
+    received and the provider reported its usage: that call was paid for (B5)."""
+
+    def __init__(self, message: str, usage: "Usage | None" = None) -> None:
+        super().__init__(message)
+        self.usage = usage
 
 
 class ModelClient(Protocol):

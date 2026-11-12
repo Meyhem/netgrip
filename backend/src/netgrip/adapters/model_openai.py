@@ -92,15 +92,18 @@ def _tool_calls(raw: list[dict] | None) -> list[ToolCall]:
 
 
 def _finish(req: ModelRequest, text: str, tool_calls: list[ToolCall], usage: Usage):
+    """A malformed answer raises ModelMalformed carrying `usage`: it was still paid for."""
     parsed = None
     if req.response_schema is not None:
         try:
             parsed = json.loads(text)
             jsonschema.validate(parsed, req.response_schema)
         except (ValueError, jsonschema.ValidationError) as e:
-            raise ModelMalformed(f"answer does not satisfy the schema ({req.purpose})") from e
+            raise ModelMalformed(
+                f"answer does not satisfy the schema ({req.purpose})", usage
+            ) from e
         if not isinstance(parsed, dict):
-            raise ModelMalformed("answer is not a JSON object")
+            raise ModelMalformed("answer is not a JSON object", usage)
     return ModelResponse(text=text, parsed=parsed, tool_calls=tool_calls, usage=usage)
 
 
@@ -169,15 +172,20 @@ class OpenAICompatClient:
         _raise_for_status(resp)
         try:
             data = resp.json()
-            message = data["choices"][0]["message"]
-        except (ValueError, KeyError, IndexError, TypeError) as e:
+        except ValueError as e:
             raise ModelMalformed("unexpected response from the model endpoint") from e
-        return _finish(
-            req,
-            message.get("content") or "",
-            _tool_calls(message.get("tool_calls")),
-            _usage(data.get("usage")),
-        )
+        usage = None
+        if isinstance(data, dict) and isinstance(data.get("usage"), dict):
+            usage = _usage(data["usage"])
+        try:
+            message = data["choices"][0]["message"]
+            tool_calls = _tool_calls(message.get("tool_calls"))
+        except (KeyError, IndexError, TypeError, AttributeError) as e:
+            raise ModelMalformed("unexpected response from the model endpoint", usage) from e
+        except ModelMalformed as e:
+            e.usage = e.usage or usage
+            raise
+        return _finish(req, message.get("content") or "", tool_calls, usage or Usage())
 
     async def stream(self, req: ModelRequest) -> AsyncIterator[str | ModelResponse]:
         log.debug("model stream: purpose=%s model=%s", req.purpose, req.model)

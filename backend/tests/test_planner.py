@@ -173,14 +173,35 @@ async def test_planning_spend_recorded(make_engine):
     inv = await new_investigation(engine)
     events = await draft_and_wait(engine, inv)
     spend = [e for e in events if e.type == "spend.recorded"]
-    # B5: planning counts towards the spending limit. A malformed answer records nothing
-    # (the fake raised before reporting usage); the good answer is recorded on the strong tier.
+    # B5: planning counts towards the spending limit. A failure before any answer arrived
+    # (no usage reported) records nothing; the good answer is recorded on the strong tier.
     assert len(spend) == 1
     assert spend[0].data["tier"] == "strong"
     assert spend[0].data["amount_usd"] == "0.01"
     assert spend[0].node_id is None
     row = await inv_row(engine, inv)
     assert row["spent_usd"] == pytest.approx(0.01)
+
+
+async def test_malformed_attempt_spend_recorded(make_engine):
+    # An answer that fails the schema was still paid for (B5).
+    bad = {"parsed": {"root_goal": "g"}, "usage": {"cost_usd": "0.02"}}
+    engine = await make_engine(
+        {"plan.initial": [bad, {"raise": "malformed", "usage": {"cost_usd": "0.03"}},
+                          GREAT_WALL["plan.initial"][0]]}
+    )  # fmt: skip
+    inv = await new_investigation(engine)
+    events = await draft_and_wait(engine, inv)
+    spend = [e.data["amount_usd"] for e in events if e.type == "spend.recorded"]
+    assert spend == ["0.02", "0.03", "0.01"]
+    assert events[-1].type == "plan.version_created"
+    assert (await inv_row(engine, inv))["spent_usd"] == pytest.approx(0.06)
+
+    engine = await make_engine({"plan.initial": [bad] * 3})
+    inv = await new_investigation(engine)
+    events = await draft_and_wait(engine, inv)
+    assert [e.type for e in events][-4:] == ["spend.recorded"] * 3 + ["plan.failed"]
+    assert (await inv_row(engine, inv))["spent_usd"] == pytest.approx(0.06)
 
 
 async def test_no_search_or_fetch_tool_offered(make_engine):

@@ -3,7 +3,7 @@ from decimal import Decimal
 import pytest
 
 from netgrip.adapters.fakes import FakeModelClient
-from netgrip.adapters.model import Message, ModelRequest
+from netgrip.adapters.model import Message, ModelMalformed, ModelRequest
 from netgrip.boundary.events import EventDraft
 from netgrip.engine.budget import CallContext, call_model
 from netgrip.store.db import open_db
@@ -126,3 +126,23 @@ async def test_spend_in_snapshot_and_list(app_client):
     assert snap["investigation"]["spent_usd"] == pytest.approx(3.0)
     [row] = (await app_client.get("/api/investigations")).json()
     assert row["spent_usd"] == pytest.approx(3.0)
+
+
+async def test_malformed_answer_with_usage_is_recorded_then_reraised():
+    c = FakeModelClient(
+        {"plan.initial": [{"raise": "malformed", "usage": {"tokens_in": 7, "tokens_out": 3,
+                                                           "cost_usd": "0.04"}},
+                          {"raise": "malformed"}]}
+    )  # fmt: skip
+    ctx = ctx_for(c)
+    with pytest.raises(ModelMalformed):
+        await call_model(ctx, req())
+    [draft] = ctx.pending_events
+    assert draft.type == "spend.recorded"
+    assert Decimal(draft.data["amount_usd"]) == Decimal("0.04")
+    assert (draft.data["tokens_in"], draft.data["tokens_out"]) == (7, 3)
+    assert draft.data["tier"] == "standard"
+    # no answer received, no usage: nothing recorded
+    with pytest.raises(ModelMalformed):
+        await call_model(ctx, req())
+    assert len(ctx.pending_events) == 1

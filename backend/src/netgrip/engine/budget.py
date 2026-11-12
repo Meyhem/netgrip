@@ -3,7 +3,13 @@
 from dataclasses import dataclass, field
 from decimal import Decimal
 
-from netgrip.adapters.model import ModelClient, ModelRequest, ModelResponse, Usage
+from netgrip.adapters.model import (
+    ModelClient,
+    ModelMalformed,
+    ModelRequest,
+    ModelResponse,
+    Usage,
+)
 from netgrip.boundary.events import EventDraft
 from netgrip.store.settings import ModelPrice
 
@@ -40,24 +46,34 @@ def price_usage(usage: Usage, model: str, prices: list[ModelPrice]) -> tuple[Dec
 async def call_model(ctx: CallContext, req: ModelRequest) -> ModelResponse:
     """Call the model assigned to `req.tier` and record the spend in `ctx.pending_events`.
 
-    Opens no transaction. A call that raises records nothing."""
+    Opens no transaction. A call that raises records nothing, except a malformed answer whose
+    usage the client reported: it was paid for, so it is recorded before re-raising (B5)."""
     model = ctx.settings["tiers"][req.tier]
     req = req.model_copy(update={"model": model})
-    resp = await ctx.client.complete(req)
-    amount, approximate = price_usage(resp.usage, model, ctx.prices)
+    try:
+        resp = await ctx.client.complete(req)
+    except ModelMalformed as e:
+        if e.usage is not None:
+            _record(ctx, req.tier, model, e.usage)
+        raise
+    _record(ctx, req.tier, model, resp.usage)
+    return resp
+
+
+def _record(ctx: CallContext, tier: str, model: str, usage: Usage) -> None:
+    amount, approximate = price_usage(usage, model, ctx.prices)
     ctx.pending_events.append(
         EventDraft(
             type="spend.recorded",
             actor="node" if ctx.node_id else "orchestrator",
             node_id=ctx.node_id,
             data={
-                "tier": req.tier,
+                "tier": tier,
                 "model": model,
                 "amount_usd": str(amount),
                 "approximate": approximate,
-                "tokens_in": resp.usage.tokens_in,
-                "tokens_out": resp.usage.tokens_out,
+                "tokens_in": usage.tokens_in,
+                "tokens_out": usage.tokens_out,
             },
         )
     )
-    return resp

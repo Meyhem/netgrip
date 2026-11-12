@@ -150,6 +150,40 @@ async def test_non_json_with_schema_raises_malformed():
         await client.complete(req(response_schema=SCHEMA))
 
 
+async def test_malformed_answer_carries_usage():
+    usage = {"prompt_tokens": 12, "completion_tokens": 8, "cost": 0.05}
+    for content in ('{"wrong": 1}', "not json"):
+        client = client_for(lambda r, c=content: httpx.Response(200, json=completion(c, usage)))
+        with pytest.raises(ModelMalformed) as exc:
+            await client.complete(req(response_schema=SCHEMA))
+        assert exc.value.usage is not None
+        assert (exc.value.usage.tokens_in, exc.value.usage.tokens_out) == (12, 8)
+        assert exc.value.usage.cost_usd == Decimal("0.05")
+
+
+async def test_malformed_streamed_answer_carries_usage():
+    body = (
+        'data: {"choices": [{"delta": {"content": "not json"}}]}\n\n'
+        'data: {"choices": [], "usage": {"prompt_tokens": 3, "completion_tokens": 2}}\n\n'
+        "data: [DONE]\n\n"
+    )
+    client = client_for(lambda r: httpx.Response(200, text=body))
+    with pytest.raises(ModelMalformed) as exc:
+        async for _ in client.stream(req(response_schema=SCHEMA)):
+            pass
+    assert (exc.value.usage.tokens_in, exc.value.usage.tokens_out) == (3, 2)
+
+
+async def test_fake_checks_schema_and_reports_usage():
+    fake = FakeModelClient({"plan.initial": [{"parsed": {"wrong": 1}}, {"raise": "malformed"}]})
+    with pytest.raises(ModelMalformed) as exc:
+        await fake.complete(req(response_schema=SCHEMA))
+    assert exc.value.usage is not None and exc.value.usage.cost_usd == Decimal("0.01")
+    with pytest.raises(ModelMalformed) as exc:
+        await fake.complete(req(response_schema=SCHEMA))
+    assert exc.value.usage is None
+
+
 async def test_key_never_logged(caplog):
     caplog.set_level(logging.DEBUG)
     ok = client_for(lambda r: httpx.Response(200, json=completion("hi")))

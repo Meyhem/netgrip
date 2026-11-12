@@ -5,6 +5,8 @@ from collections.abc import AsyncIterator
 from decimal import Decimal
 from pathlib import Path
 
+import jsonschema
+
 from netgrip.adapters.model import (
     ModelMalformed,
     ModelRejected,
@@ -21,8 +23,10 @@ SCENARIOS = Path(__file__).parent / "fake_scenarios"
 class FakeModelClient:
     """`script` maps a purpose (or "purpose:node_ref") to a queue of entries. An entry is
     `{"raise": "unavailable"|"malformed"|"key"|"credit"}` or a response with any of `text`,
-    `parsed`, `tool_calls`, `usage`. With `repeat_last`, an exhausted queue repeats its last
-    entry; otherwise asking again raises LookupError."""
+    `parsed`, `tool_calls`, `usage`. A "malformed" entry with `usage`, or an answer that fails
+    the request's `response_schema`, raises ModelMalformed carrying that usage. With
+    `repeat_last`, an exhausted queue repeats its last entry; otherwise asking again raises
+    LookupError."""
 
     def __init__(self, script: dict, repeat_last: bool = False) -> None:
         self.queues: dict[str, list[dict]] = {k: list(v) for k, v in script.items()}
@@ -49,22 +53,32 @@ class FakeModelClient:
     async def complete(self, req: ModelRequest) -> ModelResponse:
         self.calls.append(req)
         entry = self._next(req)
+        usage = {"tokens_in": 100, "tokens_out": 200, "cost_usd": "0.01"} | entry.get("usage", {})
+        if usage["cost_usd"] is not None:
+            usage["cost_usd"] = Decimal(str(usage["cost_usd"]))
         match entry.get("raise"):
             case None:
                 pass
             case "unavailable":
                 raise ModelUnavailable("fake: unavailable")
             case "malformed":
-                raise ModelMalformed("fake: malformed")
+                raise ModelMalformed(
+                    "fake: malformed", Usage(**usage) if "usage" in entry else None
+                )
             case "key" | "credit" as kind:
                 raise ModelRejected(kind, f"fake: {kind} rejected")
             case other:
                 raise ValueError(f"unknown fake failure {other!r}")
         parsed = entry.get("parsed")
         text = entry.get("text", json.dumps(parsed) if parsed is not None else "")
-        usage = {"tokens_in": 100, "tokens_out": 200, "cost_usd": "0.01"} | entry.get("usage", {})
-        if usage["cost_usd"] is not None:
-            usage["cost_usd"] = Decimal(str(usage["cost_usd"]))
+        if req.response_schema is not None:
+            try:
+                answer = parsed if parsed is not None else json.loads(text)
+                jsonschema.validate(answer, req.response_schema)
+            except (ValueError, jsonschema.ValidationError) as e:
+                raise ModelMalformed(
+                    "fake: answer does not satisfy the schema", Usage(**usage)
+                ) from e
         return ModelResponse(
             text=text,
             parsed=parsed,
