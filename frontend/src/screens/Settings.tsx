@@ -52,7 +52,7 @@ function Section({ id, title, intro, children, panel = true }: { id: string; tit
 }
 
 export function Settings() {
-  const { data: loaded, error } = usePoll(() => getJSON<SettingsT>("/api/settings"), 0);
+  const { data: loaded, error } = usePoll(() => getJSON<SettingsT>("/api/settings"), 3000, { untilLoaded: true });
   const { data: pools } = usePoll(() => getJSON<Pools>("/api/system/pools"), 5000);
   const { data: storage } = usePoll(() => getJSON<Storage>("/api/system/storage"), 10000);
   const [s, setS] = useState<SettingsT | null>(null);
@@ -62,6 +62,7 @@ export function Settings() {
   const { hash } = useLocation();
   const [rebuilt, setRebuilt] = useState<string | null>(null);
   const [rebuilding, setRebuilding] = useState(false);
+  const [resetKey, setResetKey] = useState(0); // bumped when the server refuses a change
 
   useEffect(() => { if (loaded) setS(loaded); }, [loaded]);
   const ready = s != null;
@@ -70,7 +71,7 @@ export function Settings() {
   }, [ready, hash]);
 
   if (!s) {
-    return <Page>{error != null && <Banner tone="warn" title="Netgrip cannot reach its service.">Settings could not be loaded. Reload to try again.</Banner>}</Page>;
+    return <Page>{error != null && <Banner tone="warn" title="Netgrip cannot reach its service.">Retrying every 3 seconds. Nothing is lost.</Banner>}</Page>;
   }
 
   const patch: Patch = async (field, partial) => {
@@ -82,7 +83,7 @@ export function Settings() {
       savedTimer.current = setTimeout(() => setSaved(null), 2000);
     } catch (e) {
       setFailed({ field, message: e instanceof ApiError && e.status === 422 ? "Not saved: the value is out of range." : "Not saved: Netgrip could not be reached." });
-      setS({ ...s }); // re-render inputs from the server's last value
+      setResetKey((k) => k + 1); // remount the inputs so they show the server's value again
     }
   };
   const replaceKey = (name: "model" | "search") => async (value: string) => {
@@ -103,7 +104,7 @@ export function Settings() {
         <nav>
           {SECTIONS.map(([id, word]) => <a key={id} href={`#${id}`} className={on === id ? "is-on" : ""}>{word}</a>)}
         </nav>
-        <div className="ng-col settings-sections">
+        <div className="ng-col settings-sections" key={resetKey}>
           <Section id="keys" title="Keys" intro="Keys are stored in Netgrip's database on this machine. They can be replaced but never shown again. Treat the database file as a secret.">
             <Row label="Model provider" hint="OpenRouter, or any OpenAI-compatible endpoint." saved={saved === "endpoint"} error={err("endpoint")}>
               <TextSetting aria-label="Endpoint" value={s.model_endpoint} validate={(v) => (v.trim() ? null : "Enter the endpoint URL.")}

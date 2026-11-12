@@ -52,11 +52,11 @@ function defaultsFrom(s: Settings): Choice {
 }
 
 export function NewInvestigation({ draft }: { draft?: Snapshot["investigation"] }) {
-  const { data: settings, error } = usePoll(() => getJSON<Settings>("/api/settings"), 0);
+  const { data: settings, error } = usePoll(() => getJSON<Settings>("/api/settings"), 3000, { untilLoaded: true });
   if (!settings) {
     return (
       <Page>
-        {error != null && <Banner tone="warn" title="Netgrip cannot reach its service.">Your settings could not be loaded. Reload to try again.</Banner>}
+        {error != null && <Banner tone="warn" title="Netgrip cannot reach its service.">Retrying every 3 seconds. Nothing is lost.</Banner>}
       </Page>
     );
   }

@@ -106,6 +106,7 @@ export function KeyField({ label, status, onReplace }: { label: string; status: 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
   const id = useId();
   const pill = KEY_PILL[status.status];
   const note =
@@ -116,10 +117,14 @@ export function KeyField({ label, status, onReplace }: { label: string; status: 
     const save = async () => {
       if (!draft.trim()) return;
       setBusy(true);
+      setFailed(null);
       try {
-        await onReplace(draft);
+        await onReplace(draft.trim());
         setDraft("");
         setEditing(false);
+      } catch {
+        // Never echo the key or the server's text back: it may contain the key.
+        setFailed("Not saved: Netgrip did not store the key. Try again.");
       } finally {
         setBusy(false);
       }
@@ -129,7 +134,8 @@ export function KeyField({ label, status, onReplace }: { label: string; status: 
         <Input mono id={id} aria-label={label} className="ng-grow" type="password" autoComplete="off" value={draft}
           onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void save(); }} autoFocus />
         <Button size="sm" onClick={save} sent={busy} sentLabel="Saving…" disabled={!draft.trim()}>Save key</Button>
-        <Button size="sm" variant="quiet" onClick={() => { setDraft(""); setEditing(false); }}>Cancel</Button>
+        <Button size="sm" variant="quiet" onClick={() => { setDraft(""); setFailed(null); setEditing(false); }}>Cancel</Button>
+        {failed && <span className="ng-field__hint is-error">{failed}</span>}
       </div>
     );
   }
