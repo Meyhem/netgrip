@@ -36,3 +36,15 @@ html, body, #root { height: 100%; margin: 0; }
 .settings-sections .count { width: 64px; }
 .settings-sections .money { width: 120px; }
 .settings-sections .wide-select { width: 200px; }
+
+/* InstructionComposer / Instruction */
+.instr-diff { margin-top: var(--space-2); }
+
+/* ScreenPlanReview: centre and a 400px right pane; meters at the preview's widths. */
+.plan-review__title { gap: 2px; min-width: 0; }
+.plan-review__spend { width: 130px; }
+.plan-review__nodes { width: 170px; }
+.plan-review__body { grid-template-columns: 1fr 400px; }
+.plan-review__dock { padding: var(--space-3); }
+.plan-review__dock:empty { display: none; }
+.plan-review__pane { padding: var(--space-4); }

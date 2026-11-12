@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { createInvestigation, getJSON, postJSON } from "../api/client";
+import { createInvestigation, getJSON, postJSON, sendCommand } from "../api/client";
 import type { EffortBudget, EffortName, Estimate, InvestigationSettings, PageReuse, PresetName, Settings, Snapshot, Tier } from "../api/types";
 import { money } from "../lib/format";
 import { usePoll } from "../lib/usePoll";
@@ -74,7 +74,8 @@ function Form({ settings, draft }: { settings: Settings; draft?: Snapshot["inves
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [sending, setSending] = useState<"draft" | "plan" | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
-  const idRef = useRef(crypto.randomUUID()); // one id for this form: repeated clicks create one investigation
+  // One id for this form: repeated clicks create one investigation. A saved draft keeps its own.
+  const idRef = useRef(draft?.id ?? crypto.randomUUID());
   const ids = { excl: useId(), pref: useId(), reuse: useId(), limit: useId() };
 
   const set = <K extends keyof Choice>(k: K, v: Choice[K]) => setC((old) => ({ ...old, [k]: v }));
@@ -104,8 +105,14 @@ function Form({ settings, draft }: { settings: Settings; draft?: Snapshot["inves
     setSending(kind);
     setFailed(null);
     try {
-      await createInvestigation(idRef.current, prompt, { ...c, excluded_domains: domains.domains });
-      navigate(kind === "plan" ? `/investigations/${idRef.current}` : "/");
+      if (!saved) await createInvestigation(idRef.current, prompt, { ...c, excluded_domains: domains.domains });
+      if (kind === "plan") {
+        // Draft → Planning is recorded with the command; the plan itself arrives on the stream.
+        await sendCommand(idRef.current, "draft_plan");
+        navigate(`/investigations/${idRef.current}`, { state: { drafting: true } });
+      } else {
+        navigate("/");
+      }
     } catch (e) {
       setFailed(e instanceof Error ? e.message : "Not saved.");
       setSending(null);
@@ -215,13 +222,13 @@ function Form({ settings, draft }: { settings: Settings; draft?: Snapshot["inves
               </p>
             </div>
             {failed && <p className="ng-small ng-danger">{failed}</p>}
-            <Button variant="steer" className="wide" disabled={noKey || !valid || saved} sent={sending === "plan"} sentLabel="Creating…"
+            <Button variant="steer" className="wide" disabled={noKey || !valid} sent={sending === "plan"} sentLabel="Drafting…"
               onClick={() => submit("plan")} title={noKey ? "Add a model key in Settings → Keys" : undefined}>
               Draft the plan
             </Button>
             {noKey && <span className="ng-field__hint"><Link to="/settings#keys">Add a model key in Settings → Keys</Link></span>}
             {saved
-              ? <span className="ng-field__hint">Saved as a draft. Planning it arrives with plan review.</span>
+              ? <span className="ng-field__hint">Saved as a draft. Drafting the plan uses the prompt and settings it was saved with.</span>
               : (
                 <Button variant="quiet" className="wide" disabled={!valid} sent={sending === "draft"} sentLabel="Saving…" onClick={() => submit("draft")}>
                   Save as draft

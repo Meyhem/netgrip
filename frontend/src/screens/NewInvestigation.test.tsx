@@ -1,9 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NewInvestigation } from "./NewInvestigation";
 import { callsTo, mockApi } from "../test/fetch";
-import { settings } from "../test/fixtures";
+import { row, settings } from "../test/fixtures";
 import type { Settings } from "../api/types";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -23,6 +23,7 @@ function api(s: Settings = settings({ spending_limit_usd: 7.5 }), est = EST) {
     "GET /api/settings": s,
     "POST /api/estimate": est,
     "POST /api/investigations": new Response(JSON.stringify({ recorded: true, duplicate: false }), { status: 202 }),
+    "POST /api/investigations/*/commands": () => new Response(JSON.stringify({ recorded: true, duplicate: false }), { status: 202 }),
   });
 }
 
@@ -86,7 +87,7 @@ describe("NewInvestigation", () => {
     expect(screen.getByText("Add a model key in Settings → Keys")).toBeInTheDocument();
   });
 
-  it("Draft the plan creates the investigation and opens it", async () => {
+  it("Draft the plan creates the investigation, sends draft_plan, and opens it", async () => {
     const f = api();
     show();
     fireEvent.change(await screen.findByRole("textbox", { name: "Your question or claim" }), { target: { value: "Is it?" } });
@@ -99,6 +100,42 @@ describe("NewInvestigation", () => {
       tiers: { strong: "anthropic/claude-opus-5.5", standard: "anthropic/claude-sonnet-5.5", fast: "anthropic/claude-haiku-5.5", verifier: "openai/gpt-5.2" },
       excluded_domains: [], prefer: "none", page_reuse: "1d", spending_limit_usd: 7.5,
     });
+    const commands = callsTo(f, "POST", `/api/investigations/${body.id}/commands`);
+    expect(commands).toHaveLength(1);
+    expect(JSON.parse(commands[0][1]!.body as string)).toMatchObject({ type: "draft_plan", payload: {} });
+  });
+
+  it("a refused draft_plan stays on the form and says why", async () => {
+    mockApi({
+      "GET /api/settings": settings(),
+      "POST /api/estimate": EST,
+      "POST /api/investigations": new Response(JSON.stringify({ recorded: true, duplicate: false }), { status: 202 }),
+      "POST /api/investigations/*/commands": () => new Response(JSON.stringify({ code: "parallel_limit", message: "5 investigations are already active" }), { status: 409 }),
+    });
+    show();
+    fireEvent.change(await screen.findByRole("textbox", { name: "Your question or claim" }), { target: { value: "Is it?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Draft the plan" }));
+    expect(await screen.findByText(/5 investigations are already active/)).toBeInTheDocument();
+    expect(screen.queryByText("opened")).toBeNull();
+    expect(screen.getByRole("button", { name: "Draft the plan" })).toBeEnabled();
+  });
+
+  it("a saved draft drafts its plan without creating it again", async () => {
+    const f = api();
+    const draft = { ...row({ id: "inv-9", state: "Draft", prompt: "Saved?" }), settings: { effort: "Medium", preset: "balanced" } as never, root_goal: null };
+    render(
+      <MemoryRouter initialEntries={["/investigations/inv-9"]}>
+        <Routes>
+          <Route path="/investigations/:id" element={<NewInvestigation draft={draft} />} />
+          <Route path="/" element={<p>home</p>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    const button = await screen.findByRole("button", { name: "Draft the plan" });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    await waitFor(() => expect(callsTo(f, "POST", "/api/investigations/inv-9/commands")).toHaveLength(1));
+    expect(callsTo(f, "POST", "/api/investigations")).toHaveLength(0);
   });
 
   it("double click on Save as draft creates one investigation", async () => {

@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { createStore, useStore, type StoreApi } from "zustand";
 import { getJSON } from "../api/client";
 import { openStream } from "../api/stream";
-import type { EphemeralEvent, Snapshot } from "../api/types";
+import type { DurableEvent, EphemeralEvent, Snapshot } from "../api/types";
 import { reduce } from "./reduce";
 
 export type ConnectionStatus = "loading" | "open" | "reconnecting" | "error";
@@ -19,6 +19,16 @@ export interface InvestigationState {
 export const EPHEMERAL_KEEP = 50;
 
 const stores = new Map<string, StoreApi<InvestigationState>>();
+const durableListeners = new Map<string, Set<(ev: DurableEvent) => void>>();
+
+/** Call `fn` with every durable event the stream delivers for `id`, after it is applied.
+ * Returns the unsubscribe function. */
+export function subscribeDurable(id: string, fn: (ev: DurableEvent) => void): () => void {
+  let set = durableListeners.get(id);
+  if (!set) durableListeners.set(id, (set = new Set()));
+  set.add(fn);
+  return () => { set.delete(fn); };
+}
 
 function storeFor(id: string): StoreApi<InvestigationState> {
   let store = stores.get(id);
@@ -27,6 +37,11 @@ function storeFor(id: string): StoreApi<InvestigationState> {
     stores.set(id, store);
   }
   return store;
+}
+
+/** Drop what is kept for `id` (after deleting it, and between tests). */
+export function forgetInvestigation(id: string): void {
+  stores.delete(id);
 }
 
 /** Load the snapshot, then follow the stream from its `seq`, folding durable events in with
@@ -45,7 +60,10 @@ export function useInvestigation(id: string): InvestigationState {
         const snapshot = current && current.seq > loaded.seq ? current : loaded;
         store.setState({ snapshot });
         close = openStream(id, snapshot.seq, {
-          onDurable: (ev) => store.setState((s) => (s.snapshot ? { snapshot: reduce(s.snapshot, ev) } : s)),
+          onDurable: (ev) => {
+            store.setState((s) => (s.snapshot ? { snapshot: reduce(s.snapshot, ev) } : s));
+            for (const fn of [...(durableListeners.get(id) ?? [])]) fn(ev);
+          },
           onEphemeral: (ev) => store.setState((s) => ({ ephemeral: [...s.ephemeral, ev].slice(-EPHEMERAL_KEEP) })),
           onStatus: (status) => store.setState({ status }),
         });

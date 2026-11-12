@@ -5,7 +5,9 @@ import { TopBar } from "./TopBar";
 import { InvestigationRoute, screenFor } from "../screens/InvestigationRoute";
 import { mockApi } from "../test/fetch";
 import { POOLS, row, settings } from "../test/fixtures";
-import type { InvestigationState } from "../api/types";
+import type { InvestigationSettings, InvestigationState } from "../api/types";
+import { FakeEventSource } from "../test/eventSource";
+import { emptySnapshot } from "../state/reduce";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -36,16 +38,28 @@ describe("InvestigationRoute", () => {
   });
 
   it("route /investigations/:id picks the screen by state", async () => {
+    FakeEventSource.reset();
+    vi.stubGlobal("EventSource", FakeEventSource);
+    const planning = { ...emptySnapshot("inv-1"), seq: 3, investigation: { ...emptySnapshot("inv-1").investigation, ...row({ state: "Planning" }), settings: {} as InvestigationSettings, root_goal: null } };
     mockApi({
-      "GET /api/investigations/inv-1": { seq: 3, investigation: { ...row({ state: "Planning" }), settings: {}, root_goal: null } },
+      "GET /api/investigations/inv-1": planning,
+      "GET /api/investigations/inv-2": { ...planning, investigation: { ...planning.investigation, id: "inv-2", state: "Running" } },
       "GET /api/settings": settings(),
     });
-    render(
+    const { unmount } = render(
       <MemoryRouter initialEntries={["/investigations/inv-1"]}>
         <Routes><Route path="/investigations/:id" element={<InvestigationRoute />} /></Routes>
       </MemoryRouter>,
     );
-    expect(await screen.findByText(/Plan review/)).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveClass("ng-banner");
+    expect(await screen.findByRole("button", { name: "Approve plan and start" })).toHaveClass("ng-btn--steer");
+    expect(document.querySelector(".ng-board__head .ng-pill")).toHaveTextContent("Plan review");
+    unmount();
+    render(
+      <MemoryRouter initialEntries={["/investigations/inv-2"]}>
+        <Routes><Route path="/investigations/:id" element={<InvestigationRoute />} /></Routes>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByRole("status")).toHaveClass("ng-banner");
+    expect(document.querySelector(".ng-pill")).toHaveTextContent("Running");
   });
 });
