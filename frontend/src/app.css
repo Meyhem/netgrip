@@ -1,2 +1,21 @@
 /* Layout only: grid areas and widths from the screen READMEs. Colours and type come from tokens. */
 html, body, #root { height: 100%; margin: 0; }
+
+/* ScreenInvestigations: the prompt column takes the rest; a long prompt never widens the table. */
+.investigations-table { table-layout: fixed; }
+.investigations-table .w-state { width: 220px; }
+.investigations-table .w-effort { width: 84px; }
+.investigations-table .w-num { width: 92px; }
+.investigations-table .w-spend { width: 132px; }
+.investigations-table .w-action { width: 230px; }
+.investigations-table th.num { text-align: right; }
+.investigations-table tr.clickable { cursor: pointer; }
+.investigations-table tbody tr:hover td { background: var(--raised); }
+.row-actions { position: relative; justify-content: flex-end; }
+.row-menu { position: absolute; top: 100%; right: 0; z-index: 10; text-align: left; }
+.search { max-width: 280px; }
+.prompt-box { min-height: 104px; font-size: 15px; line-height: 22px; }
+
+/* The app's only modal. */
+.scrim { position: fixed; inset: 0; background: var(--scrim); display: grid; place-items: center; z-index: 100; padding: var(--space-5); }
+.dialog { width: 100%; max-width: 480px; }
