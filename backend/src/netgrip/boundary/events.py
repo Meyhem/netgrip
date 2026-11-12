@@ -312,6 +312,25 @@ class NodeFailed(_Data):
 
 class NodeReset(_Data):
     reason: Literal["recovery", "rerun", "auto_retry"]
+    hint: str | None = None  # auto_retry: the different approach, told in the brief (D-19)
+
+
+class NodeRejected(_Data):
+    reason: str  # "budget", "duplicate", or the reviewer's reason
+    duplicate_of: str | None = None
+
+
+class NodeOffTopic(_Data):
+    """The relevance gate found the node's result off-topic: its claims stay out of synthesis
+    (E3). A follow-up to node.completed, whose shape stays as the overview gives it."""
+
+    reason: str
+
+
+class InvestigationConcluding(_Data):
+    """The orchestrator decided to conclude; synthesis follows (O3)."""
+
+    cut_short_by: Literal["budget"] | None = None
 
 
 class AttemptRecord(_Data):
@@ -332,4 +351,7 @@ register_event("node.waiting_on_children", 1, NodeWaitingOnChildren)
 register_event("node.completed", 1, NodeCompleted)
 register_event("node.failed", 1, NodeFailed)
 register_event("node.reset", 1, NodeReset)
+register_event("node.rejected", 1, NodeRejected)
+register_event("node.off_topic", 1, NodeOffTopic)
+register_event("investigation.concluding", 1, InvestigationConcluding)
 register_event("page.unobtainable", 1, PageUnobtainable)

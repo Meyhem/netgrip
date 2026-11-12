@@ -396,9 +396,14 @@ async def _node_waiting(tx: Tx, event: Event) -> None:
 @projector("node.completed")
 async def _node_completed(tx: Tx, event: Event) -> None:
     await tx.execute(
-        "UPDATE nodes SET status = 'Completed', activity = NULL, verdict = ?, updated_at = ?"
-        " WHERE id = ?",
-        [_j(event.data["verdict"]), event.at, event.node_id],
+        "UPDATE nodes SET status = 'Completed', activity = NULL, verdict = ?, off_topic = ?,"
+        " updated_at = ? WHERE id = ?",
+        [
+            _j(event.data["verdict"]),
+            int(event.data.get("off_topic", False)),
+            event.at,
+            event.node_id,
+        ],  # fmt: skip
     )
 
 
@@ -410,3 +415,32 @@ async def _node_failed(tx: Tx, event: Event) -> None:
 @projector("node.reset")
 async def _node_reset(tx: Tx, event: Event) -> None:
     await _node_status(tx, event, "Pending", None)
+    # An auto retry carries its hint; a recovery keeps it (same attempt); a user rerun clears it.
+    if event.data["reason"] != "recovery":
+        await tx.execute(
+            "UPDATE nodes SET retry_hint = ? WHERE id = ?", [event.data.get("hint"), event.node_id]
+        )
+
+
+@projector("node.rejected")
+async def _node_rejected(tx: Tx, event: Event) -> None:
+    await tx.execute(
+        "UPDATE nodes SET status = 'Rejected', rejection_reason = ?, duplicate_of = ?,"
+        " updated_at = ? WHERE id = ?",
+        [event.data["reason"], event.data.get("duplicate_of"), event.at, event.node_id],
+    )
+
+
+@projector("node.off_topic")
+async def _node_off_topic(tx: Tx, event: Event) -> None:
+    await tx.execute(
+        "UPDATE nodes SET off_topic = 1, updated_at = ? WHERE id = ?", [event.at, event.node_id]
+    )
+
+
+@projector("investigation.concluding")
+async def _concluding(tx: Tx, event: Event) -> None:
+    await tx.execute(
+        "UPDATE investigations SET cut_short_by = ? WHERE id = ?",
+        [event.data.get("cut_short_by"), event.investigation_id],
+    )

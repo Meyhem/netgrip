@@ -29,6 +29,7 @@ class Task(BaseModel):
     out_of_scope: str | None = None
     done_when: str | None = None
     budget: dict = Field(default_factory=dict)
+    hint: str | None = None  # set by an automatic retry: try a different approach (D-19)
 
 
 class KnownClaim(BaseModel):
@@ -129,6 +130,7 @@ async def build_brief(db: Database, node_id: str, evidence: EvidenceService | No
             out_of_scope=_load_text(node["out_of_scope"]),
             done_when=_load_text(node["done_when"]),
             budget=_load(node["budget"]) or {},
+            hint=node["retry_hint"],
         ),
         known=Known(
             claims=[KnownClaim(id=c.id, text=c.text, status=c.status) for c in claims],
@@ -160,6 +162,8 @@ def render_brief(brief: Brief) -> str:
         out.append(f"Done when: {t.done_when}")
     if t.budget:
         out.append(f"Budget: {json.dumps(t.budget)}")
+    if t.hint:
+        out.append(f"Note from the orchestrator: {t.hint}")
     k = brief.known
     if k.instructions:
         out += ["", "Instructions from the user that apply:"]
