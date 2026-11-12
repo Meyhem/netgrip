@@ -22,6 +22,10 @@ STATE_TABLES: list[str] = [
     "instructions",
     "premises",
     "plan_versions",
+    "sources",
+    "claims",
+    "claim_sources",
+    "contradictions",
 ]
 
 # Column holding the investigation id, for tables where it is not `investigation_id`.
@@ -289,4 +293,67 @@ async def _plan_draft_requested(tx: Tx, event: Event) -> None:
     await tx.execute(
         "UPDATE investigations SET plan_failed_reason = NULL WHERE id = ?",
         [event.investigation_id],
+    )
+
+
+# --- Phase 4 projectors: evidence -------------------------------------------------------------
+
+
+@projector("source.recorded")
+async def _source_recorded(tx: Tx, event: Event) -> None:
+    d = event.data
+    await tx.execute(
+        "INSERT INTO sources(id, investigation_id, url, title, page_version_id, credibility,"
+        " published_at, origin_key, seq) VALUES (?,?,?,?,?,?,?,?,?)",
+        [d["source_id"], event.investigation_id, d["url"], d.get("title"), d["page_version_id"],
+         d["credibility"], d.get("published_at"), d["origin_key"], event.seq],
+    )  # fmt: skip
+
+
+async def _set_claim_sources(tx: Tx, event: Event) -> None:
+    d = event.data
+    await tx.execute("DELETE FROM claim_sources WHERE claim_id = ?", [d["claim_id"]])
+    rows = [(event.investigation_id, d["claim_id"], s, "supports") for s in d["supporting"]]
+    rows += [(event.investigation_id, d["claim_id"], s, "contradicts") for s in d["contradicting"]]
+    await tx.executemany(
+        "INSERT OR REPLACE INTO claim_sources(investigation_id, claim_id, source_id, stance)"
+        " VALUES (?,?,?,?)",
+        rows,
+    )
+
+
+@projector("claim.added")
+async def _claim_added(tx: Tx, event: Event) -> None:
+    d = event.data
+    await tx.execute(
+        "INSERT INTO claims(id, investigation_id, node_id, text, status, seq) VALUES (?,?,?,?,?,?)",
+        [d["claim_id"], event.investigation_id, event.node_id, d["text"], d["status"], event.seq],
+    )
+    await _set_claim_sources(tx, event)
+
+
+@projector("claim.updated")
+async def _claim_updated(tx: Tx, event: Event) -> None:
+    d = event.data
+    await tx.execute(
+        "UPDATE claims SET status = ?, merged_into = COALESCE(?, merged_into) WHERE id = ?",
+        [d["status"], d.get("merged_into"), d["claim_id"]],
+    )
+    await _set_claim_sources(tx, event)
+
+
+@projector("claim.contradiction_recorded")
+async def _claim_contradiction(tx: Tx, event: Event) -> None:
+    a, b = sorted(event.data["claim_ids"])
+    await tx.execute(
+        "INSERT OR IGNORE INTO contradictions(investigation_id, claim_a, claim_b) VALUES (?,?,?)",
+        [event.investigation_id, a, b],
+    )
+
+
+@projector("premise.outcome")
+async def _premise_outcome(tx: Tx, event: Event) -> None:
+    await tx.execute(
+        "UPDATE premises SET outcome = ? WHERE id = ?",
+        [event.data["outcome"], event.data["premise_id"]],
     )

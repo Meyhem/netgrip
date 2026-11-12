@@ -206,3 +206,51 @@ register_event("node.approved", 1, NodeApproved)
 register_event("node.inclusion_changed", 1, NodeInclusionChanged)
 register_event("instruction.queued", 1, InstructionQueued)
 register_event("instruction.applied", 1, InstructionApplied)
+
+
+# --- Phase 4 shapes: evidence ----------------------------------------------------------------
+
+Credibility = Literal["Primary", "Reputable", "Weak"]
+ClaimStatusName = Literal["Confirmed", "Supported", "Unverified", "Contested", "Refuted"]
+
+
+class SourceRecorded(_Data):
+    source_id: str
+    url: str
+    title: str | None = None
+    page_version_id: str
+    credibility: Credibility
+    published_at: str | None = None
+    origin_key: str
+
+
+class ClaimAdded(_Data):
+    claim_id: str
+    text: str
+    status: ClaimStatusName
+    supporting: list[str]
+    contradicting: list[str]
+
+
+class ClaimUpdated(_Data):
+    claim_id: str
+    status: ClaimStatusName
+    supporting: list[str]
+    contradicting: list[str]
+    merged_into: str | None = None  # set when the claim turned out to be an existing one
+
+
+class ClaimContradictionRecorded(_Data):
+    claim_ids: list[str]
+
+
+class PremiseOutcome(_Data):
+    premise_id: str
+    outcome: Literal["confirmed", "refuted", "unverifiable"]
+
+
+register_event("source.recorded", 1, SourceRecorded)
+register_event("claim.added", 1, ClaimAdded)
+register_event("claim.updated", 1, ClaimUpdated)
+register_event("claim.contradiction_recorded", 1, ClaimContradictionRecorded)
+register_event("premise.outcome", 1, PremiseOutcome)
