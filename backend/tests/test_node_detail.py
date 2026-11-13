@@ -256,3 +256,21 @@ async def test_events_query_rejects_bad_parameters(app_client, bad):
     await seed(engine)
     r = await app_client.get(f"/api/investigations/{INV}/events?{bad}")
     assert r.status_code == 422
+
+
+async def test_outage_retry_has_no_fetch_route(app_client):
+    engine = app_client.app.state.engine
+    await seed(engine)
+    retry = {"activity": "Retrying", "step": "plan", "retry": {"n": 2, "m": 5},
+             "detail": "fake: unavailable"}  # fmt: skip
+    await append_and_project(engine.db, INV, [
+        ev("node.activity", {"activity": "Planning", "step": "plan"}, "n-1", "node"),
+        ev("node.activity", retry, "n-1", "orchestrator"),
+        ev("node.activity", {**retry, "step": "search", "retry": {"n": 3, "m": 5}}, "n-1"),
+    ])  # fmt: skip
+    trail = (await detail(app_client, "n-1"))["trail"]
+    assert [(t["activity"], t["retry"], t["route"]) for t in trail] == [
+        ("Planning", None, None),
+        ("Retrying", {"n": 2, "m": 5}, None),
+        ("Retrying", {"n": 3, "m": 5}, None),
+    ]

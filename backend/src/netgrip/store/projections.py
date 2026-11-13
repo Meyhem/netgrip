@@ -495,14 +495,17 @@ async def _close_step(tx: Tx, event: Event) -> None:
 
 @projector("node.activity")
 async def _trail_activity(tx: Tx, event: Event) -> None:
-    """Each activity opens a step; a retry is its own step, on the route it tries."""
+    """Each activity opens a step; a retry is its own step (a fetch retry on the route it
+    tries)."""
     d = event.data
     await _close_step(tx, event)
     last = await _last_step(tx, event.node_id)
     retry = d.get("retry")
     route = None
-    if retry and 1 <= retry["n"] <= len(ROUTES):
-        route = ROUTES[retry["n"] - 1]  # the fetcher tries the routes in turn
+    # Only a read's retries are fetch retries: the fetcher tries the routes in turn. A retry
+    # after a model or search outage (the runtime's) has no route.
+    if retry and d["step"] == "read" and 1 <= retry["n"] <= len(ROUTES):
+        route = ROUTES[retry["n"] - 1]
     await tx.execute(
         "INSERT INTO node_steps(investigation_id, node_id, step, name, activity, detail,"
         " started_at, route, retry) VALUES (?,?,?,?,?,?,?,?,?)",
