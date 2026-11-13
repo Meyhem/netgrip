@@ -187,7 +187,11 @@ async def test_startup_sweeps_leftovers(tmp_path, httpserver):
 
 
 async def test_hardened_hides_webdriver(tmp_path, httpserver):
-    page_html = f"<html><head><title>w</title></head><body><p id=r></p><script>document.getElementById('r').textContent='webdriver='+navigator.webdriver;</script>{PARAS}</body></html>"
+    page_html = (
+        "<html><head><title>w</title></head><body><p id=r></p><script>"
+        "document.getElementById('r').textContent='webdriver='+navigator.webdriver;"
+        f"</script>{PARAS}</body></html>"
+    )
     httpserver.expect_request("/w").respond_with_data(page_html, content_type="text/html")
     p = BrowserPool(1, LIMITS, tmp_path / "h", hardened=True)
     try:
