@@ -5,7 +5,7 @@ from decimal import Decimal
 import httpx
 import pytest
 
-from netgrip.adapters.fakes import FakeModelClient
+from netgrip.adapters.fakes import FakeFetcher, FakeModelClient, FakeSearch
 from netgrip.adapters.model import (
     Message,
     ModelMalformed,
@@ -259,6 +259,43 @@ async def test_fake_keys_on_node_ref_when_scripted_and_repeats_last():
     assert (await fake.complete(req(purpose="x", node_ref="D2"))).text == "generic"
 
 
+async def test_fake_keys_on_text_in_the_prompt_after_node_ref():
+    fake = FakeModelClient(
+        {
+            "x": [{"text": "generic"}],
+            "x@Your task: B": [{"text": "for B"}],
+            "x:n-1": [{"text": "for n-1"}],
+        },
+        repeat_last=True,
+    )
+
+    def asking(content, node_ref=None):
+        return req(purpose="x", node_ref=node_ref).model_copy(
+            update={"messages": [Message(role="user", content=content)]}
+        )
+
+    assert (await fake.complete(asking("- A: path\nYour task: B?"))).text == "for B"
+    assert (await fake.complete(asking("Your task: B?", node_ref="n-1"))).text == "for n-1"
+    assert (await fake.complete(asking("- B: path\nYour task: C?"))).text == "generic"
+    assert (await fake.complete(asking("Your task: B again"))).text == "for B"
+
+
+async def test_fake_per_investigation_serves_each_investigation_the_whole_script():
+    fake = FakeModelClient({"x": [{"text": "one"}, {"text": "two"}]}, per_investigation=True)
+    assert (await fake.complete(req(purpose="x", investigation_id="a"))).text == "one"
+    assert (await fake.complete(req(purpose="x", investigation_id="b"))).text == "one"
+    assert (await fake.complete(req(purpose="x", investigation_id="a"))).text == "two"
+
+
+async def test_call_model_names_the_investigation_in_the_request():
+    from netgrip.engine.budget import CallContext, call_model
+
+    fake = FakeModelClient({"plan.initial": [{"text": "ok"}]})
+    ctx = CallContext(fake, "inv-9", {"tiers": {"strong": "m"}}, [])
+    await call_model(ctx, req())
+    assert fake.calls[0].investigation_id == "inv-9"
+
+
 async def test_great_wall_scenario_has_required_shape():
     fake = FakeModelClient.from_scenario("great_wall")
     first = (await fake.complete(req())).parsed
@@ -305,6 +342,9 @@ async def test_fake_mode_wires_fake_client_and_valid_key(tmp_path):
         engine = app.state.engine
         assert isinstance(engine.model_client, FakeModelClient)
         assert engine.model_client.repeat_last is True
+        assert engine.model_client.per_investigation is True
+        assert isinstance(engine.search, FakeSearch) and isinstance(engine.fetcher, FakeFetcher)
+        assert engine.can_research
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
             r = await c.post("/api/settings/keys/model/check")

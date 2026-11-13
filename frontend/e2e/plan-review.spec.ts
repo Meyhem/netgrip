@@ -5,7 +5,7 @@ test.beforeEach(async ({ request }) => {
   await clearInvestigations(request);
 });
 
-test("S9: prompt → Draft the plan → re-plan by instruction → undo → approve; pill becomes Running", async ({ page }) => {
+test("S9: prompt → Draft the plan → re-plan by instruction → undo → approve; pill becomes Running, then Completed", async ({ page }) => {
   await page.goto("/new");
   await page.getByRole("textbox", { name: "Your question or claim" }).fill("Why is the Great Wall of China visible from space with the naked eye?");
   await page.getByRole("button", { name: "Draft the plan" }).click();
@@ -49,6 +49,10 @@ test("S9: prompt → Draft the plan → re-plan by instruction → undo → appr
   await expect(instr.locator(".ng-instr__meta")).toContainText("undone");
 
   await page.getByRole("button", { name: "Approve plan and start" }).click();
-  await expect(page.locator(".ng-pill").first()).toHaveText(/Running/);
+  // Fake mode runs the approved plan to the end on the scripted web (Phase 4), and fast:
+  // the pill may already have moved past Running when it is first read.
+  const pill = page.locator(".ng-pill").first();
+  await expect(pill).toHaveText(/Running|Synthesising|Completed/);
+  await expect(pill).toHaveText(/Completed/, { timeout: 30_000 });
   expect(await page.evaluate(() => (window as unknown as { __s9?: number }).__s9)).toBe(1);
 });

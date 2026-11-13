@@ -6,7 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import ValidationError
 
-from netgrip.adapters.fakes import FakeModelClient
+from netgrip.adapters.fakes import FakeFetcher, FakeModelClient, FakeSearch
 from netgrip.adapters.model_openai import OpenAICompatClient
 from netgrip.api import commands, investigations, settings, stream, system
 from netgrip.boundary.bus import EventBus
@@ -29,8 +29,16 @@ def create_app(config: Config, frontend_dist: Path | None = None) -> FastAPI:
         config.data_dir.mkdir(parents=True, exist_ok=True)
         db = await open_db(config.db_path)
         model_client: FakeModelClient | OpenAICompatClient
+        web: dict = {}
         if config.fake:
-            model_client = FakeModelClient.from_scenario("great_wall", repeat_last=True)
+            model_client = FakeModelClient.from_scenario(
+                "great_wall", repeat_last=True, per_investigation=True
+            )
+            # The scripted web of the scenario; the real adapters arrive in Phase 7.
+            web = {
+                "search": FakeSearch.from_scenario("great_wall_web"),
+                "fetcher": FakeFetcher.from_scenario("great_wall_web"),
+            }
         else:
 
             async def model_endpoint() -> str:
@@ -40,7 +48,7 @@ def create_app(config: Config, frontend_dist: Path | None = None) -> FastAPI:
                 return await get_key(db, "model")
 
             model_client = OpenAICompatClient(model_endpoint, model_key)
-        engine = Engine(db, config, EventBus(), model_client)
+        engine = Engine(db, config, EventBus(), model_client, **web)
         await engine.start()
         app.state.engine = engine
         try:

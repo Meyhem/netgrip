@@ -330,5 +330,200 @@
         ]
       }
     }
+  ],
+  "node.decide@Your task: Is the Great Wall of China visible to the naked eye from low Earth orbit?": [
+    {
+      "parsed": {
+        "action": "search",
+        "query": "Is the Great Wall visible from low Earth orbit with the naked eye"
+      }
+    },
+    {
+      "parsed": {
+        "action": "read"
+      }
+    },
+    {
+      "parsed": {
+        "action": "conclude",
+        "verdict": {
+          "text": "No. Astronauts at about 400 km report that the Wall is very hard or impossible to see without aid: it is narrow and the colour of the terrain. The belief predates spaceflight.",
+          "confidence": "high"
+        },
+        "open_questions": [
+          "Under which lighting, if any, has it been glimpsed?"
+        ],
+        "premise_outcome": "refuted"
+      }
+    }
+  ],
+  "node.decide@Your task: What do astronauts and the historical record report about seeing the Wall?": [
+    {
+      "parsed": {
+        "action": "split",
+        "children": [
+          {
+            "question": "Which astronauts have said whether they saw the Wall from low Earth orbit, and with what aid?",
+            "kind": "Deep-dive",
+            "justification": "First-hand accounts from orbit are the direct test of the claim.",
+            "out_of_scope": "Accounts from the Moon.",
+            "done_when": "Each account is cited with its mission and any aid used."
+          },
+          {
+            "question": "What did Yang Liwei report about the Wall after Shenzhou 5?",
+            "kind": "Deep-dive",
+            "justification": "China's first astronaut was widely expected to confirm the claim.",
+            "out_of_scope": "Later Chinese missions.",
+            "done_when": "His statement is cited from a report of the time."
+          }
+        ]
+      }
+    },
+    {
+      "parsed": {
+        "action": "conclude",
+        "verdict": {
+          "text": "The first-hand accounts agree: from low Earth orbit the Wall is not seen with the naked eye.",
+          "confidence": "medium"
+        },
+        "open_questions": []
+      }
+    }
+  ],
+  "node.decide@Your task: Which astronauts have said whether they saw the Wall from low Earth orbit, and with what aid?": [
+    {
+      "parsed": {
+        "action": "search",
+        "query": "astronaut accounts Great Wall visible from orbit"
+      }
+    },
+    {
+      "parsed": {
+        "action": "conclude",
+        "verdict": {
+          "text": "Astronauts report the Wall is very difficult to see from orbit and was not seen without aid.",
+          "confidence": "medium"
+        },
+        "open_questions": []
+      }
+    }
+  ],
+  "node.decide@Your task: What did Yang Liwei report about the Wall after Shenzhou 5?": [
+    {
+      "parsed": {
+        "action": "search",
+        "query": "Yang Liwei Shenzhou 5 Great Wall"
+      }
+    },
+    {
+      "parsed": {
+        "action": "conclude",
+        "verdict": {
+          "text": "The sources found do not record his statement; the question stays open.",
+          "confidence": "low"
+        },
+        "open_questions": [
+          "What exactly did Yang Liwei say?"
+        ]
+      }
+    }
+  ],
+  "node.decide": [
+    {
+      "parsed": {
+        "action": "conclude",
+        "verdict": {
+          "text": "The sources consulted bear on the task but do not settle it alone.",
+          "confidence": "medium"
+        },
+        "open_questions": []
+      }
+    }
+  ],
+  "node.extract@nine metres wide": [
+    {
+      "parsed": {
+        "claims": [
+          {
+            "text": "The Great Wall is not visible to the naked eye from low Earth orbit without aid.",
+            "stance": "supports"
+          },
+          {
+            "text": "The Great Wall is at most about nine metres wide and the colour of the terrain around it.",
+            "stance": "supports"
+          }
+        ],
+        "credibility": "Primary",
+        "published_at": "2005-02-01",
+        "origin": "nasa"
+      }
+    }
+  ],
+  "node.extract@appeared in print in the 1930s": [
+    {
+      "parsed": {
+        "claims": [
+          {
+            "text": "The claim that the Wall can be seen from space appeared in print in the 1930s, before any human reached orbit.",
+            "stance": "supports"
+          }
+        ],
+        "credibility": "Reputable",
+        "published_at": null,
+        "origin": null
+      }
+    }
+  ],
+  "node.extract": [
+    {
+      "parsed": {
+        "claims": [
+          {
+            "text": "The Great Wall was built by several dynasties over about two thousand years.",
+            "stance": "supports"
+          }
+        ],
+        "credibility": "Reputable",
+        "published_at": null,
+        "origin": null
+      }
+    }
+  ],
+  "evidence.match": [
+    {
+      "parsed": {
+        "relation": "unrelated",
+        "claim_id": null
+      }
+    }
+  ],
+  "evidence.contradiction": [
+    {
+      "parsed": {
+        "contradicts": false
+      }
+    }
+  ],
+  "node.relevance": [
+    {
+      "parsed": {
+        "relevant": true,
+        "reason": "Bears directly on the root goal."
+      }
+    }
+  ],
+  "orchestrator.review": [
+    {
+      "parsed": {
+        "decisions": []
+      }
+    }
+  ],
+  "orchestrator.next": [
+    {
+      "parsed": {
+        "decision": "conclude"
+      }
+    }
   ]
 }

@@ -63,7 +63,7 @@ async def call_model(ctx: CallContext, req: ModelRequest) -> ModelResponse:
     if ctx.limit_reached is not None and await ctx.limit_reached():
         raise SpendingLimitReached(ctx.investigation_id)
     model = ctx.settings["tiers"][req.tier]
-    req = req.model_copy(update={"model": model})
+    req = req.model_copy(update={"model": model, "investigation_id": ctx.investigation_id})
     try:
         async with limiter.model:  # shared by every runtime (D-05)
             resp = await ctx.client.complete(req)

@@ -29,33 +29,56 @@ SCENARIOS = Path(__file__).parent / "fake_scenarios"
 
 
 class FakeModelClient:
-    """`script` maps a purpose (or "purpose:node_ref") to a queue of entries. An entry is
+    """`script` maps a purpose, "purpose:node_ref" or "purpose@text" to a queue of entries.
+    A request takes the "purpose:node_ref" queue if scripted, else the first "purpose@text"
+    queue (in script order) whose text occurs in its messages, else the purpose's queue; so a
+    scenario can answer per node ("node.decide@Your task: ...") or per page. An entry is
     `{"raise": "unavailable"|"malformed"|"key"|"credit"|"request"}` or a response with any of
     `text`, `parsed`, `tool_calls`, `usage`. A "malformed" entry with `usage`, or an answer that
     fails the request's `response_schema`, raises ModelMalformed carrying that usage. With
     `repeat_last`, an exhausted queue repeats its last entry; otherwise asking again raises
-    LookupError."""
+    LookupError. With `per_investigation`, each investigation (`req.investigation_id`) is
+    served the whole script from the start, so every fake run in one process is the same."""
 
-    def __init__(self, script: dict, repeat_last: bool = False) -> None:
+    def __init__(
+        self, script: dict, repeat_last: bool = False, per_investigation: bool = False
+    ) -> None:
         self.queues: dict[str, list[dict]] = {k: list(v) for k, v in script.items()}
         self.repeat_last = repeat_last
+        self.per_investigation = per_investigation
         self.calls: list[ModelRequest] = []
         self._last: dict[str, dict] = {}
+        self._script = {k: list(v) for k, v in script.items()}
+        self._each: dict[str | None, tuple[dict[str, list[dict]], dict[str, dict]]] = {}
 
     @classmethod
-    def from_scenario(cls, name: str, repeat_last: bool = False) -> "FakeModelClient":
+    def from_scenario(
+        cls, name: str, repeat_last: bool = False, per_investigation: bool = False
+    ) -> "FakeModelClient":
         script = json.loads((SCENARIOS / f"{name}.json").read_text(encoding="utf-8"))
-        return cls(script, repeat_last=repeat_last)
+        return cls(script, repeat_last=repeat_last, per_investigation=per_investigation)
 
     def _next(self, req: ModelRequest) -> dict:
+        if not self.per_investigation:
+            return self._pop(req, self.queues, self._last)
+        if req.investigation_id not in self._each:
+            fresh = {k: list(v) for k, v in self._script.items()}
+            self._each[req.investigation_id] = (fresh, {})
+        return self._pop(req, *self._each[req.investigation_id])
+
+    def _pop(self, req: ModelRequest, queues: dict[str, list[dict]], last: dict) -> dict:
         keys = [f"{req.purpose}:{req.node_ref}"] if req.node_ref else []
-        key = next((k for k in [*keys, req.purpose] if k in self.queues), req.purpose)
-        queue = self.queues.get(key)
+        prompt = "\n".join(m.content or "" for m in req.messages)
+        keys += [
+            k for k in queues if k.startswith(f"{req.purpose}@") and k.split("@", 1)[1] in prompt
+        ]
+        key = next((k for k in [*keys, req.purpose] if k in queues), req.purpose)
+        queue = queues.get(key)
         if queue:
-            self._last[key] = entry = queue.pop(0)
+            last[key] = entry = queue.pop(0)
             return entry
-        if self.repeat_last and key in self._last:
-            return self._last[key]
+        if self.repeat_last and key in last:
+            return last[key]
         raise LookupError(f"fake model script has no entry left for {key!r}")
 
     async def complete(self, req: ModelRequest) -> ModelResponse:

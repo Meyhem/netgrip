@@ -158,6 +158,11 @@ class Engine:
         return CommandAck(recorded=True, duplicate=False)
 
     async def delete_investigation(self, id: str) -> None:
+        """Its runtime is abandoned first (steps in flight are dropped), so nothing writes
+        events for it after the delete."""
+        rt = self.runtimes.pop(id, None)
+        if rt is not None:
+            await rt.stop(abandon=True)
         async with self.db.tx() as tx:
             if await tx.fetchone("SELECT 1 FROM investigations WHERE id = ?", [id]) is None:
                 raise CommandRejected("not_found", "No such investigation")

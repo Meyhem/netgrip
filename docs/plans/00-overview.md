@@ -190,6 +190,8 @@ Creating is `POST /api/investigations` (same `id` rule); deleting is `DELETE /ap
 | `POST /api/estimate` | cost range per tier | 2 |
 | `GET /api/system/pools`, `/storage`; `POST /api/system/rebuild` | pool use, disk, repair | 1 |
 
+List rows (and the snapshot's `investigation`) carry derived fields, computed the same way by the backend (`summarise` in `api/investigations.py`) and the frontend reducer (`state/summary.ts`): `running_count` is the nodes `Running` while the investigation is Running; `nodes_total` the nodes below the root that were approved (not `Proposed` or `Rejected`); `summary` is, for Running, the first running node's activity (`"D1 Searching"`), for Paused, the cause (`"Reached the spending limit."`), then each refuted premise (`"Premise refuted: <text>"`), joined by ` · `, or null. The snapshot's `schedule` is the last `schedule.updated`; a node's `brief` is the object from its last `node.started`.
+
 ## Default settings (starting values, D-20; they match the Settings preview)
 
 | Setting | Value |

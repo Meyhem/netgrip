@@ -76,7 +76,8 @@ export interface GraphNode {
   budget: NodeBudget | null;
   activity: Activity | null;
   verdict: unknown;
-  brief: string | null;
+  /** The brief the node was last started with (node.started.data.brief). */
+  brief: Record<string, unknown> | null;
   spent_usd: number;
   instruction_count: number;
   plan_version_added: number | null;

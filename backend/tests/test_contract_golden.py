@@ -1,8 +1,11 @@
-"""The golden event contract shared with the frontend (Phase 3, Task 7).
+"""The golden event contracts shared with the frontend (Phase 3, Task 7; Phase 4, Task 9).
 
-Runs the fake Great Wall planning scenario (draft, one instruction, undo, another instruction,
-approve) and writes its durable events and the final snapshot to `contract/plan_review.json`.
-The frontend reduces those events from an empty snapshot and must reach the same snapshot.
+`contract/plan_review.json`: the fake Great Wall planning scenario (draft, one instruction,
+undo, another instruction, approve): its durable events and the final snapshot.
+`contract/run.json`: the fake Great Wall run from draft to Completed on the scripted web, one
+node at a time (so the order is fixed): its durable events, a snapshot taken mid-run (P1
+reading its second page) and the final snapshot.
+The frontend reduces those events from an empty snapshot and must reach the same snapshots.
 
 Ids and timestamps are made deterministic (R12): `uuid.uuid4` and the event-log clock are
 replaced by counters for the run. Regenerate with `NETGRIP_WRITE_GOLDEN=1 uv run pytest`.
@@ -15,6 +18,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from great_wall_run import MYTH, GatedFetcher, open_engine
+from great_wall_run import run as great_wall_run
 
 from netgrip.adapters.fakes import FakeModelClient
 from netgrip.api.investigations import snapshot
@@ -25,7 +30,9 @@ from netgrip.engine.engine import Engine
 from netgrip.store import eventlog
 from netgrip.store.db import open_db
 
-GOLDEN = Path(__file__).resolve().parents[2] / "contract" / "plan_review.json"
+CONTRACT = Path(__file__).resolve().parents[2] / "contract"
+GOLDEN = CONTRACT / "plan_review.json"
+RUN_GOLDEN = CONTRACT / "run.json"
 PROMPT = "Is the Great Wall visible from space?"
 INVESTIGATION_ID = "00000000-0000-4000-8000-000000000000"
 
@@ -117,3 +124,77 @@ async def test_the_scenario_is_deterministic_and_covers_plan_review(tmp_path, de
               "instruction.queued", "instruction.applied", "plan.reverted",
               "node.inclusion_changed", "node.approved", "spend.recorded"):  # fmt: skip
         assert t in types, t
+
+
+# --- The full run (Phase 4) --------------------------------------------------------------------
+
+PHASE_4_TYPES = (
+    "premise.outcome", "node.rejected", "node.started", "node.activity", "node.step_completed",
+    "node.waiting_on_children", "node.completed", "node.failed", "node.reset", "node.off_topic",
+    "node.relevance_checked", "node.left_failed", "schedule.updated", "source.recorded",
+    "page.unobtainable", "claim.added", "claim.updated", "claim.contradiction_recorded",
+    "limit.changed", "investigation.concluding", "system.recovered", "report.created",
+)  # fmt: skip
+# Types the scripted run reaches; the rest are covered by the frontend's reduce unit tests.
+IN_THE_RUN = (
+    "premise.outcome", "node.started", "node.activity", "node.step_completed",
+    "node.waiting_on_children", "node.completed", "node.relevance_checked", "schedule.updated",
+    "source.recorded", "claim.added", "investigation.concluding", "report.created",
+    "node.proposed", "node.approved", "spend.recorded", "investigation.state_changed",
+)  # fmt: skip
+
+
+async def run_full(path: Path) -> dict:
+    mid: list[dict] = []
+
+    async def capture() -> None:  # the run is held inside P1's second read
+        mid.append(await snapshot(INVESTIGATION_ID, engine.db))
+
+    engine = await open_engine(path, fetcher=GatedFetcher(MYTH, capture), parallel=1)
+    try:
+        n = 0
+
+        def command_id() -> uuid.UUID:
+            nonlocal n
+            n += 1
+            return uuid.UUID(f"00000000-0000-4000-9000-{n:012d}")
+
+        r = great_wall_run(engine, INVESTIGATION_ID, command_id)
+        await r.approved()
+        await r.finished()
+        events = [e.model_dump(mode="json") for e in await eventlog.read(engine.db, r.inv)]
+        final = await snapshot(r.inv, engine.db)
+        return {"events": events, "snapshots": [*mid, final]}
+    finally:
+        await engine.stop()
+        await engine.db.close()
+
+
+async def test_run_contract_matches_the_golden_file(tmp_path, deterministic):
+    text = dump(await run_full(tmp_path))
+    if os.environ.get("NETGRIP_WRITE_GOLDEN") == "1":
+        RUN_GOLDEN.write_text(text, encoding="utf-8")
+    assert RUN_GOLDEN.exists(), "contract/run.json is missing; run with NETGRIP_WRITE_GOLDEN=1"
+    assert RUN_GOLDEN.read_text(encoding="utf-8") == text, (
+        "the run contract changed; review it and regenerate with NETGRIP_WRITE_GOLDEN=1"
+    )
+
+
+async def test_the_run_is_deterministic_and_reaches_completed(tmp_path, deterministic):
+    first = await run_full(tmp_path / "a")
+    deterministic()
+    second = await run_full(tmp_path / "b")
+    assert dump(first) == dump(second)
+    mid, final = first["snapshots"]
+    assert mid["investigation"]["state"] == "Running"
+    assert mid["investigation"]["summary"] == "P1 Reading"
+    assert final["investigation"]["state"] == "Completed"
+    assert "Premise refuted" in final["investigation"]["summary"]
+    types = {e["type"] for e in first["events"]}
+    for t in IN_THE_RUN:
+        assert t in types, t
+    assert set(PHASE_4_TYPES) - types == {
+        "node.rejected", "node.failed", "node.reset", "node.off_topic", "node.left_failed",
+        "page.unobtainable", "claim.updated", "claim.contradiction_recorded", "limit.changed",
+        "system.recovered",
+    }  # fmt: skip

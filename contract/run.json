@@ -1,0 +1,4063 @@
+{
+  "events": [
+    {
+      "actor": "user",
+      "at": "2026-01-01T00:00:01.000Z",
+      "command_id": "00000000-0000-4000-8000-000000000000",
+      "data": {
+        "prompt": "Is the Great Wall visible from space?",
+        "settings": {
+          "effort": "Medium",
+          "effort_budget": {
+            "max_depth": 4,
+            "max_nodes": 40,
+            "parallel": 1,
+            "sources_per_node": 8,
+            "sources_to_confirm": 2
+          },
+          "excluded_domains": [],
+          "page_reuse": "1d",
+          "prefer": "none",
+          "preset": "balanced",
+          "spending_limit_usd": 5.0,
+          "tiers": {
+            "fast": "anthropic/claude-haiku-5.5",
+            "standard": "anthropic/claude-sonnet-5.5",
+            "strong": "anthropic/claude-opus-5.5",
+            "verifier": "openai/gpt-5.2"
+          }
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 1,
+      "type": "investigation.created",
+      "v": 1
+    },
+    {
+      "actor": "user",
+      "at": "2026-01-01T00:00:02.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "cause": null,
+        "detail": null,
+        "from": "Draft",
+        "origin": "user",
+        "to": "Planning"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 2,
+      "type": "investigation.state_changed",
+      "v": 1
+    },
+    {
+      "actor": "user",
+      "at": "2026-01-01T00:00:02.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {},
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 3,
+      "type": "plan.draft_requested",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:03.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-opus-5.5",
+        "tier": "strong",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 4,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:04.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 5,
+      "type": "investigation.root_goal_set",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:04.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "node_id": "00000000-0000-4000-8000-000000000002",
+        "premise_id": "00000000-0000-4000-8000-000000000008",
+        "text": "The Wall is visible to the naked eye from low Earth orbit."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 6,
+      "type": "premise.extracted",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:04.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "depends_on": [],
+        "depth": 0,
+        "display_id": "R",
+        "done_when": null,
+        "justification": "The root goal of the investigation.",
+        "kind": "Synthesis",
+        "out_of_scope": null,
+        "parent_id": null,
+        "proposed_by": "planner",
+        "question": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000001",
+      "seq": 7,
+      "type": "node.proposed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:04.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "depends_on": [],
+        "depth": 1,
+        "display_id": "P1",
+        "done_when": "Two independent primary sources (astronaut accounts or measurements) agree or disagree.",
+        "justification": "The question takes this as given; if it is false the report must say so first.",
+        "kind": "Premise check",
+        "out_of_scope": "Visibility from the Moon or from aircraft.",
+        "parent_id": "00000000-0000-4000-8000-000000000001",
+        "proposed_by": "planner",
+        "question": "Is the Great Wall of China visible to the naked eye from low Earth orbit?"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 8,
+      "type": "node.proposed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:04.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "depends_on": [
+          "00000000-0000-4000-8000-000000000002"
+        ],
+        "depth": 1,
+        "display_id": "D1",
+        "done_when": "At least three first-hand accounts from different missions are compared.",
+        "justification": "First-hand accounts are the most direct evidence for or against the claim.",
+        "kind": "Divergent",
+        "out_of_scope": "Photographs taken with telephoto lenses.",
+        "parent_id": "00000000-0000-4000-8000-000000000001",
+        "proposed_by": "planner",
+        "question": "What do astronauts and the historical record report about seeing the Wall?"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000003",
+      "seq": 9,
+      "type": "node.proposed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:04.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "depends_on": [
+          "00000000-0000-4000-8000-000000000002"
+        ],
+        "depth": 1,
+        "display_id": "D2",
+        "done_when": "The angular size and contrast of the Wall are computed and compared with eye resolution.",
+        "justification": "Physics sets a hard bound that does not depend on anyone's testimony.",
+        "kind": "Deep-dive",
+        "out_of_scope": "Satellites and radar imaging.",
+        "parent_id": "00000000-0000-4000-8000-000000000001",
+        "proposed_by": "planner",
+        "question": "How do the Wall's width and contrast compare with the limits of the human eye at orbital altitude?"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000004",
+      "seq": 10,
+      "type": "node.proposed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:04.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "depends_on": [
+          "00000000-0000-4000-8000-000000000003",
+          "00000000-0000-4000-8000-000000000002"
+        ],
+        "depth": 2,
+        "display_id": "D2a",
+        "done_when": "Both numbers are found in sources and the ratio is stated.",
+        "justification": "Gives the two numbers the comparison in D2 needs.",
+        "kind": "Deep-dive",
+        "out_of_scope": "Effects of atmosphere and lighting.",
+        "parent_id": "00000000-0000-4000-8000-000000000004",
+        "proposed_by": "planner",
+        "question": "What angular resolution does the human eye reach, and what is the Wall's apparent width at 400 km?"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000005",
+      "seq": 11,
+      "type": "node.proposed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:04.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "depends_on": [
+          "00000000-0000-4000-8000-000000000002"
+        ],
+        "depth": 1,
+        "display_id": "D3",
+        "done_when": "Typical marketing uses are listed with sources.",
+        "justification": "Shows how widespread the belief is among visitors.",
+        "kind": "Divergent",
+        "out_of_scope": "Marketing claims about other landmarks.",
+        "parent_id": "00000000-0000-4000-8000-000000000001",
+        "proposed_by": "planner",
+        "question": "How is the claim used in tourism marketing?"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000006",
+      "seq": 12,
+      "type": "node.proposed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:04.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "depends_on": [
+          "00000000-0000-4000-8000-000000000003",
+          "00000000-0000-4000-8000-000000000004",
+          "00000000-0000-4000-8000-000000000002"
+        ],
+        "depth": 1,
+        "display_id": "V1",
+        "done_when": "Each account is marked consistent or inconsistent with the computed limits.",
+        "justification": "Cross-checks testimony against calculation before any conclusion is drawn.",
+        "kind": "Verification",
+        "out_of_scope": "New evidence beyond D1 and D2.",
+        "parent_id": "00000000-0000-4000-8000-000000000001",
+        "proposed_by": "planner",
+        "question": "Do the accounts in D1 and the physics in D2 agree?"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000007",
+      "seq": 13,
+      "type": "node.proposed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:04.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "diff": {
+          "kept": [],
+          "notes": [],
+          "proposed": [
+            "00000000-0000-4000-8000-000000000001",
+            "00000000-0000-4000-8000-000000000002",
+            "00000000-0000-4000-8000-000000000003",
+            "00000000-0000-4000-8000-000000000004",
+            "00000000-0000-4000-8000-000000000005",
+            "00000000-0000-4000-8000-000000000006",
+            "00000000-0000-4000-8000-000000000007"
+          ],
+          "superseded": []
+        },
+        "instruction_id": null,
+        "version": 1
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 14,
+      "type": "plan.version_created",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:05.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000002",
+      "data": {
+        "budget": {
+          "child_nodes": 20,
+          "sources": 8
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000001",
+      "seq": 15,
+      "type": "node.approved",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:05.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000002",
+      "data": {
+        "budget": {
+          "child_nodes": 20,
+          "sources": 8
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 16,
+      "type": "node.approved",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:05.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000002",
+      "data": {
+        "budget": {
+          "child_nodes": 20,
+          "sources": 8
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000003",
+      "seq": 17,
+      "type": "node.approved",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:05.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000002",
+      "data": {
+        "budget": {
+          "child_nodes": 20,
+          "sources": 8
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000004",
+      "seq": 18,
+      "type": "node.approved",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:05.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000002",
+      "data": {
+        "budget": {
+          "child_nodes": 10,
+          "sources": 6
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000005",
+      "seq": 19,
+      "type": "node.approved",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:05.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000002",
+      "data": {
+        "budget": {
+          "child_nodes": 20,
+          "sources": 8
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000006",
+      "seq": 20,
+      "type": "node.approved",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:05.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000002",
+      "data": {
+        "budget": {
+          "child_nodes": 20,
+          "sources": 8
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000007",
+      "seq": 21,
+      "type": "node.approved",
+      "v": 1
+    },
+    {
+      "actor": "user",
+      "at": "2026-01-01T00:00:05.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000002",
+      "data": {
+        "cause": null,
+        "detail": null,
+        "from": "Planning",
+        "origin": "user",
+        "to": "Running"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 22,
+      "type": "investigation.state_changed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:06.000Z",
+      "command_id": null,
+      "data": {},
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000004",
+      "seq": 23,
+      "type": "node.waiting_on_children",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:07.000Z",
+      "command_id": null,
+      "data": {
+        "order": [
+          "00000000-0000-4000-8000-000000000002"
+        ],
+        "reasons": {
+          "00000000-0000-4000-8000-000000000003": "dependency:00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000005": "dependency:00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000006": "dependency:00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000007": "dependency:00000000-0000-4000-8000-000000000002"
+        },
+        "slots": 1
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 24,
+      "type": "schedule.updated",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:08.000Z",
+      "command_id": null,
+      "data": {
+        "attempt": 1,
+        "brief": {
+          "known": {
+            "claims": [],
+            "dependency_results": [],
+            "instructions": []
+          },
+          "path": [
+            {
+              "display_id": "R",
+              "justification": "The root goal of the investigation.",
+              "question": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists."
+            }
+          ],
+          "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+          "task": {
+            "budget": {
+              "child_nodes": 20,
+              "sources": 8
+            },
+            "done_when": "Two independent primary sources (astronaut accounts or measurements) agree or disagree.",
+            "hint": null,
+            "out_of_scope": "Visibility from the Moon or from aircraft.",
+            "question": "Is the Great Wall of China visible to the naked eye from low Earth orbit?"
+          }
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 25,
+      "type": "node.started",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:09.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Planning",
+        "detail": null,
+        "retry": null,
+        "step": "plan"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 26,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:10.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-sonnet-5.5",
+        "tier": "standard",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 27,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:10.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "decision",
+        "page_version_id": null,
+        "route": "search",
+        "step": "plan",
+        "summary": "search: Is the Great Wall visible from low Earth orbit with the naked eye"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 28,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:11.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Searching",
+        "detail": "Is the Great Wall visible from low Earth orbit with the naked eye",
+        "retry": null,
+        "step": "search"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 29,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:12.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "search",
+        "page_version_id": null,
+        "route": null,
+        "step": "search",
+        "summary": "2 results, 2 new"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 30,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:13.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Reading",
+        "detail": "https://example.org/nasa/great-wall-from-orbit",
+        "retry": null,
+        "step": "read"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 31,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:14.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "fetch",
+        "page_version_id": "00000000000040008000000000000011",
+        "route": "simple",
+        "step": "read",
+        "summary": "read https://example.org/nasa/great-wall-from-orbit"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 32,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:15.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Extracting",
+        "detail": "https://example.org/nasa/great-wall-from-orbit",
+        "retry": null,
+        "step": "extract"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 33,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:16.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-haiku-5.5",
+        "tier": "fast",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 34,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:17.000Z",
+      "command_id": null,
+      "data": {
+        "credibility": "Primary",
+        "origin_key": "nasa",
+        "page_version_id": "00000000000040008000000000000011",
+        "published_at": "2005-02-01",
+        "source_id": "00000000000040008000000000000012",
+        "title": "Great Wall from orbit",
+        "url": "https://example.org/nasa/great-wall-from-orbit"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 35,
+      "type": "source.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:18.000Z",
+      "command_id": null,
+      "data": {
+        "claim_id": "00000000000040008000000000000013",
+        "contradicting": [],
+        "status": "Supported",
+        "supporting": [
+          "00000000000040008000000000000012"
+        ],
+        "text": "The Great Wall is not visible to the naked eye from low Earth orbit without aid."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 36,
+      "type": "claim.added",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:19.000Z",
+      "command_id": null,
+      "data": {
+        "claim_id": "00000000000040008000000000000014",
+        "contradicting": [],
+        "status": "Supported",
+        "supporting": [
+          "00000000000040008000000000000012"
+        ],
+        "text": "The Great Wall is at most about nine metres wide and the colour of the terrain around it."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 37,
+      "type": "claim.added",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:20.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-haiku-5.5",
+        "tier": "fast",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 38,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:21.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "extraction",
+        "page_version_id": "00000000000040008000000000000011",
+        "route": null,
+        "step": "extract",
+        "summary": "2 claims, 2 new"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 39,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:22.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Reasoning",
+        "detail": null,
+        "retry": null,
+        "step": "reason"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 40,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:23.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-sonnet-5.5",
+        "tier": "standard",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 41,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:23.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "decision",
+        "page_version_id": null,
+        "route": "read",
+        "step": "reason",
+        "summary": "read: https://example.org/history/wall-myth"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 42,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:24.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Reading",
+        "detail": "https://example.org/history/wall-myth",
+        "retry": null,
+        "step": "read"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 43,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:25.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Retrying",
+        "detail": "https://example.org/history/wall-myth",
+        "retry": {
+          "m": 3,
+          "n": 2
+        },
+        "step": "read"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 44,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:26.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Retrying",
+        "detail": "https://example.org/history/wall-myth",
+        "retry": {
+          "m": 3,
+          "n": 3
+        },
+        "step": "read"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 45,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:27.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "fetch",
+        "page_version_id": "00000000000040008000000000000017",
+        "route": "hardened",
+        "step": "read",
+        "summary": "read https://example.org/history/wall-myth"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 46,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:28.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Extracting",
+        "detail": "https://example.org/history/wall-myth",
+        "retry": null,
+        "step": "extract"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 47,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:29.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-haiku-5.5",
+        "tier": "fast",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 48,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:30.000Z",
+      "command_id": null,
+      "data": {
+        "credibility": "Reputable",
+        "origin_key": "example.org",
+        "page_version_id": "00000000000040008000000000000017",
+        "published_at": null,
+        "source_id": "00000000000040008000000000000018",
+        "title": "Origin of the space myth",
+        "url": "https://example.org/history/wall-myth"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 49,
+      "type": "source.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:31.000Z",
+      "command_id": null,
+      "data": {
+        "claim_id": "00000000000040008000000000000019",
+        "contradicting": [],
+        "status": "Supported",
+        "supporting": [
+          "00000000000040008000000000000018"
+        ],
+        "text": "The claim that the Wall can be seen from space appeared in print in the 1930s, before any human reached orbit."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 50,
+      "type": "claim.added",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:32.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-haiku-5.5",
+        "tier": "fast",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 51,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:33.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "extraction",
+        "page_version_id": "00000000000040008000000000000017",
+        "route": null,
+        "step": "extract",
+        "summary": "1 claims, 1 new"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 52,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:34.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Reasoning",
+        "detail": null,
+        "retry": null,
+        "step": "reason"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 53,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:35.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-sonnet-5.5",
+        "tier": "standard",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 54,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:35.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "decision",
+        "page_version_id": null,
+        "route": "conclude",
+        "step": "reason",
+        "summary": "conclude"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 55,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:36.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "conclusion",
+        "page_version_id": null,
+        "route": null,
+        "step": "conclude",
+        "summary": "No. Astronauts at about 400 km report that the Wall is very hard or impossible to see without aid: it is narrow and the colour of the terrain. The belief predates spaceflight."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 56,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:36.000Z",
+      "command_id": null,
+      "data": {
+        "outcome": "refuted",
+        "premise_id": "00000000-0000-4000-8000-000000000008"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 57,
+      "type": "premise.outcome",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:36.000Z",
+      "command_id": null,
+      "data": {
+        "off_topic": false,
+        "open_questions": [
+          "Under which lighting, if any, has it been glimpsed?"
+        ],
+        "verdict": {
+          "confidence": "high",
+          "text": "No. Astronauts at about 400 km report that the Wall is very hard or impossible to see without aid: it is narrow and the colour of the terrain. The belief predates spaceflight."
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 58,
+      "type": "node.completed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:37.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-haiku-5.5",
+        "tier": "fast",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 59,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:37.000Z",
+      "command_id": null,
+      "data": {
+        "reason": "Bears directly on the root goal."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 60,
+      "type": "node.relevance_checked",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:38.000Z",
+      "command_id": null,
+      "data": {
+        "order": [
+          "00000000-0000-4000-8000-000000000003",
+          "00000000-0000-4000-8000-000000000006"
+        ],
+        "reasons": {
+          "00000000-0000-4000-8000-000000000005": "dependency:00000000-0000-4000-8000-000000000003",
+          "00000000-0000-4000-8000-000000000006": "slot",
+          "00000000-0000-4000-8000-000000000007": "dependency:00000000-0000-4000-8000-000000000003"
+        },
+        "slots": 1
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 61,
+      "type": "schedule.updated",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:39.000Z",
+      "command_id": null,
+      "data": {
+        "attempt": 1,
+        "brief": {
+          "known": {
+            "claims": [
+              {
+                "id": "00000000000040008000000000000014",
+                "status": "Supported",
+                "text": "The Great Wall is at most about nine metres wide and the colour of the terrain around it."
+              },
+              {
+                "id": "00000000000040008000000000000013",
+                "status": "Supported",
+                "text": "The Great Wall is not visible to the naked eye from low Earth orbit without aid."
+              },
+              {
+                "id": "00000000000040008000000000000019",
+                "status": "Supported",
+                "text": "The claim that the Wall can be seen from space appeared in print in the 1930s, before any human reached orbit."
+              }
+            ],
+            "dependency_results": [
+              {
+                "display_id": "P1",
+                "verdict": {
+                  "confidence": "high",
+                  "text": "No. Astronauts at about 400 km report that the Wall is very hard or impossible to see without aid: it is narrow and the colour of the terrain. The belief predates spaceflight."
+                }
+              }
+            ],
+            "instructions": []
+          },
+          "path": [
+            {
+              "display_id": "R",
+              "justification": "The root goal of the investigation.",
+              "question": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists."
+            }
+          ],
+          "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+          "task": {
+            "budget": {
+              "child_nodes": 20,
+              "sources": 8
+            },
+            "done_when": "At least three first-hand accounts from different missions are compared.",
+            "hint": null,
+            "out_of_scope": "Photographs taken with telephoto lenses.",
+            "question": "What do astronauts and the historical record report about seeing the Wall?"
+          }
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000003",
+      "seq": 62,
+      "type": "node.started",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:40.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Planning",
+        "detail": null,
+        "retry": null,
+        "step": "plan"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000003",
+      "seq": 63,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:41.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-sonnet-5.5",
+        "tier": "standard",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000003",
+      "seq": 64,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:41.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "decision",
+        "page_version_id": null,
+        "route": "split",
+        "step": "plan",
+        "summary": "split into 2"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000003",
+      "seq": 65,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:42.000Z",
+      "command_id": null,
+      "data": {
+        "depends_on": [],
+        "depth": 2,
+        "display_id": "D1a",
+        "done_when": "Each account is cited with its mission and any aid used.",
+        "justification": "First-hand accounts from orbit are the direct test of the claim.",
+        "kind": "Deep-dive",
+        "out_of_scope": "Accounts from the Moon.",
+        "parent_id": "00000000-0000-4000-8000-000000000003",
+        "proposed_by": "00000000-0000-4000-8000-000000000003",
+        "question": "Which astronauts have said whether they saw the Wall from low Earth orbit, and with what aid?"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000020",
+      "seq": 66,
+      "type": "node.proposed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:42.000Z",
+      "command_id": null,
+      "data": {
+        "depends_on": [],
+        "depth": 2,
+        "display_id": "D1b",
+        "done_when": "His statement is cited from a report of the time.",
+        "justification": "China's first astronaut was widely expected to confirm the claim.",
+        "kind": "Deep-dive",
+        "out_of_scope": "Later Chinese missions.",
+        "parent_id": "00000000-0000-4000-8000-000000000003",
+        "proposed_by": "00000000-0000-4000-8000-000000000003",
+        "question": "What did Yang Liwei report about the Wall after Shenzhou 5?"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000021",
+      "seq": 67,
+      "type": "node.proposed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:42.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "proposal",
+        "page_version_id": null,
+        "route": null,
+        "step": "propose",
+        "summary": "proposed 2 children"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000003",
+      "seq": 68,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:42.000Z",
+      "command_id": null,
+      "data": {},
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000003",
+      "seq": 69,
+      "type": "node.waiting_on_children",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:43.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-opus-5.5",
+        "tier": "strong",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 70,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:43.000Z",
+      "command_id": null,
+      "data": {
+        "budget": {
+          "child_nodes": 10,
+          "sources": 6
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000020",
+      "seq": 71,
+      "type": "node.approved",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:43.000Z",
+      "command_id": null,
+      "data": {
+        "budget": {
+          "child_nodes": 10,
+          "sources": 6
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000021",
+      "seq": 72,
+      "type": "node.approved",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:44.000Z",
+      "command_id": null,
+      "data": {
+        "order": [
+          "00000000-0000-4000-8000-000000000006",
+          "00000000-0000-4000-8000-000000000020",
+          "00000000-0000-4000-8000-000000000021"
+        ],
+        "reasons": {
+          "00000000-0000-4000-8000-000000000005": "dependency:00000000-0000-4000-8000-000000000003",
+          "00000000-0000-4000-8000-000000000007": "dependency:00000000-0000-4000-8000-000000000003",
+          "00000000-0000-4000-8000-000000000020": "slot",
+          "00000000-0000-4000-8000-000000000021": "slot"
+        },
+        "slots": 1
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 73,
+      "type": "schedule.updated",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:45.000Z",
+      "command_id": null,
+      "data": {
+        "attempt": 1,
+        "brief": {
+          "known": {
+            "claims": [
+              {
+                "id": "00000000000040008000000000000019",
+                "status": "Supported",
+                "text": "The claim that the Wall can be seen from space appeared in print in the 1930s, before any human reached orbit."
+              }
+            ],
+            "dependency_results": [
+              {
+                "display_id": "P1",
+                "verdict": {
+                  "confidence": "high",
+                  "text": "No. Astronauts at about 400 km report that the Wall is very hard or impossible to see without aid: it is narrow and the colour of the terrain. The belief predates spaceflight."
+                }
+              }
+            ],
+            "instructions": []
+          },
+          "path": [
+            {
+              "display_id": "R",
+              "justification": "The root goal of the investigation.",
+              "question": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists."
+            }
+          ],
+          "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+          "task": {
+            "budget": {
+              "child_nodes": 20,
+              "sources": 8
+            },
+            "done_when": "Typical marketing uses are listed with sources.",
+            "hint": null,
+            "out_of_scope": "Marketing claims about other landmarks.",
+            "question": "How is the claim used in tourism marketing?"
+          }
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000006",
+      "seq": 74,
+      "type": "node.started",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:46.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Planning",
+        "detail": null,
+        "retry": null,
+        "step": "plan"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000006",
+      "seq": 75,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:47.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-sonnet-5.5",
+        "tier": "standard",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000006",
+      "seq": 76,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:47.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "decision",
+        "page_version_id": null,
+        "route": "conclude",
+        "step": "plan",
+        "summary": "conclude"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000006",
+      "seq": 77,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:48.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "conclusion",
+        "page_version_id": null,
+        "route": null,
+        "step": "conclude",
+        "summary": "The sources consulted bear on the task but do not settle it alone."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000006",
+      "seq": 78,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:48.000Z",
+      "command_id": null,
+      "data": {
+        "off_topic": false,
+        "open_questions": [],
+        "verdict": {
+          "confidence": "low",
+          "text": "The sources consulted bear on the task but do not settle it alone."
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000006",
+      "seq": 79,
+      "type": "node.completed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:49.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-haiku-5.5",
+        "tier": "fast",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 80,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:49.000Z",
+      "command_id": null,
+      "data": {
+        "reason": "Bears directly on the root goal."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000006",
+      "seq": 81,
+      "type": "node.relevance_checked",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:50.000Z",
+      "command_id": null,
+      "data": {
+        "order": [
+          "00000000-0000-4000-8000-000000000020",
+          "00000000-0000-4000-8000-000000000021"
+        ],
+        "reasons": {
+          "00000000-0000-4000-8000-000000000005": "dependency:00000000-0000-4000-8000-000000000003",
+          "00000000-0000-4000-8000-000000000007": "dependency:00000000-0000-4000-8000-000000000003",
+          "00000000-0000-4000-8000-000000000021": "slot"
+        },
+        "slots": 1
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 82,
+      "type": "schedule.updated",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:51.000Z",
+      "command_id": null,
+      "data": {
+        "attempt": 1,
+        "brief": {
+          "known": {
+            "claims": [
+              {
+                "id": "00000000000040008000000000000013",
+                "status": "Supported",
+                "text": "The Great Wall is not visible to the naked eye from low Earth orbit without aid."
+              },
+              {
+                "id": "00000000000040008000000000000019",
+                "status": "Supported",
+                "text": "The claim that the Wall can be seen from space appeared in print in the 1930s, before any human reached orbit."
+              },
+              {
+                "id": "00000000000040008000000000000014",
+                "status": "Supported",
+                "text": "The Great Wall is at most about nine metres wide and the colour of the terrain around it."
+              }
+            ],
+            "dependency_results": [],
+            "instructions": []
+          },
+          "path": [
+            {
+              "display_id": "R",
+              "justification": "The root goal of the investigation.",
+              "question": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists."
+            },
+            {
+              "display_id": "D1",
+              "justification": "First-hand accounts are the most direct evidence for or against the claim.",
+              "question": "What do astronauts and the historical record report about seeing the Wall?"
+            }
+          ],
+          "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+          "task": {
+            "budget": {
+              "child_nodes": 10,
+              "sources": 6
+            },
+            "done_when": "Each account is cited with its mission and any aid used.",
+            "hint": null,
+            "out_of_scope": "Accounts from the Moon.",
+            "question": "Which astronauts have said whether they saw the Wall from low Earth orbit, and with what aid?"
+          }
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000020",
+      "seq": 83,
+      "type": "node.started",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:52.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Planning",
+        "detail": null,
+        "retry": null,
+        "step": "plan"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000020",
+      "seq": 84,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:53.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-sonnet-5.5",
+        "tier": "standard",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000020",
+      "seq": 85,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:53.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "decision",
+        "page_version_id": null,
+        "route": "search",
+        "step": "plan",
+        "summary": "search: astronaut accounts Great Wall visible from orbit"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000020",
+      "seq": 86,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:54.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Searching",
+        "detail": "astronaut accounts Great Wall visible from orbit",
+        "retry": null,
+        "step": "search"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000020",
+      "seq": 87,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:55.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "search",
+        "page_version_id": null,
+        "route": null,
+        "step": "search",
+        "summary": "2 results, 2 new"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000020",
+      "seq": 88,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:56.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Reading",
+        "detail": "https://example.org/nasa/great-wall-from-orbit",
+        "retry": null,
+        "step": "read"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000020",
+      "seq": 89,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:57.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "fetch",
+        "page_version_id": "00000000000040008000000000000011",
+        "route": "reused",
+        "step": "read",
+        "summary": "read https://example.org/nasa/great-wall-from-orbit"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000020",
+      "seq": 90,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:58.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Extracting",
+        "detail": "https://example.org/nasa/great-wall-from-orbit",
+        "retry": null,
+        "step": "extract"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000020",
+      "seq": 91,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:00:59.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-haiku-5.5",
+        "tier": "fast",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000020",
+      "seq": 92,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:00.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-haiku-5.5",
+        "tier": "fast",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000020",
+      "seq": 93,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:01.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "extraction",
+        "page_version_id": "00000000000040008000000000000011",
+        "route": null,
+        "step": "extract",
+        "summary": "2 claims, 0 new"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000020",
+      "seq": 94,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:02.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Reasoning",
+        "detail": null,
+        "retry": null,
+        "step": "reason"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000020",
+      "seq": 95,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:03.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-sonnet-5.5",
+        "tier": "standard",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000020",
+      "seq": 96,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:03.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "decision",
+        "page_version_id": null,
+        "route": "conclude",
+        "step": "reason",
+        "summary": "conclude"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000020",
+      "seq": 97,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:04.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "conclusion",
+        "page_version_id": null,
+        "route": null,
+        "step": "conclude",
+        "summary": "Astronauts report the Wall is very difficult to see from orbit and was not seen without aid."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000020",
+      "seq": 98,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:04.000Z",
+      "command_id": null,
+      "data": {
+        "off_topic": false,
+        "open_questions": [],
+        "verdict": {
+          "confidence": "medium",
+          "text": "Astronauts report the Wall is very difficult to see from orbit and was not seen without aid."
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000020",
+      "seq": 99,
+      "type": "node.completed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:05.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-haiku-5.5",
+        "tier": "fast",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 100,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:05.000Z",
+      "command_id": null,
+      "data": {
+        "reason": "Bears directly on the root goal."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000020",
+      "seq": 101,
+      "type": "node.relevance_checked",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:06.000Z",
+      "command_id": null,
+      "data": {
+        "order": [
+          "00000000-0000-4000-8000-000000000021"
+        ],
+        "reasons": {
+          "00000000-0000-4000-8000-000000000005": "dependency:00000000-0000-4000-8000-000000000003",
+          "00000000-0000-4000-8000-000000000007": "dependency:00000000-0000-4000-8000-000000000003"
+        },
+        "slots": 1
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 102,
+      "type": "schedule.updated",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:07.000Z",
+      "command_id": null,
+      "data": {
+        "attempt": 1,
+        "brief": {
+          "known": {
+            "claims": [
+              {
+                "id": "00000000000040008000000000000014",
+                "status": "Supported",
+                "text": "The Great Wall is at most about nine metres wide and the colour of the terrain around it."
+              },
+              {
+                "id": "00000000000040008000000000000013",
+                "status": "Supported",
+                "text": "The Great Wall is not visible to the naked eye from low Earth orbit without aid."
+              },
+              {
+                "id": "00000000000040008000000000000019",
+                "status": "Supported",
+                "text": "The claim that the Wall can be seen from space appeared in print in the 1930s, before any human reached orbit."
+              }
+            ],
+            "dependency_results": [],
+            "instructions": []
+          },
+          "path": [
+            {
+              "display_id": "R",
+              "justification": "The root goal of the investigation.",
+              "question": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists."
+            },
+            {
+              "display_id": "D1",
+              "justification": "First-hand accounts are the most direct evidence for or against the claim.",
+              "question": "What do astronauts and the historical record report about seeing the Wall?"
+            }
+          ],
+          "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+          "task": {
+            "budget": {
+              "child_nodes": 10,
+              "sources": 6
+            },
+            "done_when": "His statement is cited from a report of the time.",
+            "hint": null,
+            "out_of_scope": "Later Chinese missions.",
+            "question": "What did Yang Liwei report about the Wall after Shenzhou 5?"
+          }
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000021",
+      "seq": 103,
+      "type": "node.started",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:08.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Planning",
+        "detail": null,
+        "retry": null,
+        "step": "plan"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000021",
+      "seq": 104,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:09.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-sonnet-5.5",
+        "tier": "standard",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000021",
+      "seq": 105,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:09.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "decision",
+        "page_version_id": null,
+        "route": "search",
+        "step": "plan",
+        "summary": "search: Yang Liwei Shenzhou 5 Great Wall"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000021",
+      "seq": 106,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:10.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Searching",
+        "detail": "Yang Liwei Shenzhou 5 Great Wall",
+        "retry": null,
+        "step": "search"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000021",
+      "seq": 107,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:11.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "search",
+        "page_version_id": null,
+        "route": null,
+        "step": "search",
+        "summary": "1 results, 1 new"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000021",
+      "seq": 108,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:12.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Reading",
+        "detail": "https://example.org/encyclopedia/great-wall",
+        "retry": null,
+        "step": "read"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000021",
+      "seq": 109,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:13.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "fetch",
+        "page_version_id": "00000000000040008000000000000024",
+        "route": "simple",
+        "step": "read",
+        "summary": "read https://example.org/encyclopedia/great-wall"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000021",
+      "seq": 110,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:14.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Extracting",
+        "detail": "https://example.org/encyclopedia/great-wall",
+        "retry": null,
+        "step": "extract"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000021",
+      "seq": 111,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:15.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-haiku-5.5",
+        "tier": "fast",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000021",
+      "seq": 112,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:16.000Z",
+      "command_id": null,
+      "data": {
+        "credibility": "Reputable",
+        "origin_key": "example.org",
+        "page_version_id": "00000000000040008000000000000024",
+        "published_at": null,
+        "source_id": "00000000000040008000000000000025",
+        "title": "Great Wall of China",
+        "url": "https://example.org/encyclopedia/great-wall"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000021",
+      "seq": 113,
+      "type": "source.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:17.000Z",
+      "command_id": null,
+      "data": {
+        "claim_id": "00000000000040008000000000000026",
+        "contradicting": [],
+        "status": "Supported",
+        "supporting": [
+          "00000000000040008000000000000025"
+        ],
+        "text": "The Great Wall was built by several dynasties over about two thousand years."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000021",
+      "seq": 114,
+      "type": "claim.added",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:18.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-haiku-5.5",
+        "tier": "fast",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000021",
+      "seq": 115,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:19.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "extraction",
+        "page_version_id": "00000000000040008000000000000024",
+        "route": null,
+        "step": "extract",
+        "summary": "1 claims, 1 new"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000021",
+      "seq": 116,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:20.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Reasoning",
+        "detail": null,
+        "retry": null,
+        "step": "reason"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000021",
+      "seq": 117,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:21.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-sonnet-5.5",
+        "tier": "standard",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000021",
+      "seq": 118,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:21.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "decision",
+        "page_version_id": null,
+        "route": "conclude",
+        "step": "reason",
+        "summary": "conclude"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000021",
+      "seq": 119,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:22.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "conclusion",
+        "page_version_id": null,
+        "route": null,
+        "step": "conclude",
+        "summary": "The sources found do not record his statement; the question stays open."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000021",
+      "seq": 120,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:22.000Z",
+      "command_id": null,
+      "data": {
+        "off_topic": false,
+        "open_questions": [
+          "What exactly did Yang Liwei say?"
+        ],
+        "verdict": {
+          "confidence": "low",
+          "text": "The sources found do not record his statement; the question stays open."
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000021",
+      "seq": 121,
+      "type": "node.completed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:23.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-haiku-5.5",
+        "tier": "fast",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 122,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:23.000Z",
+      "command_id": null,
+      "data": {
+        "reason": "Bears directly on the root goal."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000021",
+      "seq": 123,
+      "type": "node.relevance_checked",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:24.000Z",
+      "command_id": null,
+      "data": {
+        "order": [
+          "00000000-0000-4000-8000-000000000003"
+        ],
+        "reasons": {
+          "00000000-0000-4000-8000-000000000005": "dependency:00000000-0000-4000-8000-000000000003",
+          "00000000-0000-4000-8000-000000000007": "dependency:00000000-0000-4000-8000-000000000003"
+        },
+        "slots": 1
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 124,
+      "type": "schedule.updated",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:25.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Aggregating",
+        "detail": null,
+        "retry": null,
+        "step": "aggregate"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000003",
+      "seq": 125,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:26.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-sonnet-5.5",
+        "tier": "standard",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000003",
+      "seq": 126,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:26.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "decision",
+        "page_version_id": null,
+        "route": "conclude",
+        "step": "aggregate",
+        "summary": "conclude"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000003",
+      "seq": 127,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:27.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "conclusion",
+        "page_version_id": null,
+        "route": null,
+        "step": "conclude",
+        "summary": "The first-hand accounts agree: from low Earth orbit the Wall is not seen with the naked eye."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000003",
+      "seq": 128,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:27.000Z",
+      "command_id": null,
+      "data": {
+        "off_topic": false,
+        "open_questions": [],
+        "verdict": {
+          "confidence": "medium",
+          "text": "The first-hand accounts agree: from low Earth orbit the Wall is not seen with the naked eye."
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000003",
+      "seq": 129,
+      "type": "node.completed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:28.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-haiku-5.5",
+        "tier": "fast",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 130,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:28.000Z",
+      "command_id": null,
+      "data": {
+        "reason": "Bears directly on the root goal."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000003",
+      "seq": 131,
+      "type": "node.relevance_checked",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:29.000Z",
+      "command_id": null,
+      "data": {
+        "order": [
+          "00000000-0000-4000-8000-000000000005"
+        ],
+        "reasons": {
+          "00000000-0000-4000-8000-000000000007": "dependency:00000000-0000-4000-8000-000000000004"
+        },
+        "slots": 1
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 132,
+      "type": "schedule.updated",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:30.000Z",
+      "command_id": null,
+      "data": {
+        "attempt": 1,
+        "brief": {
+          "known": {
+            "claims": [
+              {
+                "id": "00000000000040008000000000000014",
+                "status": "Supported",
+                "text": "The Great Wall is at most about nine metres wide and the colour of the terrain around it."
+              },
+              {
+                "id": "00000000000040008000000000000013",
+                "status": "Supported",
+                "text": "The Great Wall is not visible to the naked eye from low Earth orbit without aid."
+              },
+              {
+                "id": "00000000000040008000000000000019",
+                "status": "Supported",
+                "text": "The claim that the Wall can be seen from space appeared in print in the 1930s, before any human reached orbit."
+              },
+              {
+                "id": "00000000000040008000000000000026",
+                "status": "Supported",
+                "text": "The Great Wall was built by several dynasties over about two thousand years."
+              }
+            ],
+            "dependency_results": [
+              {
+                "display_id": "P1",
+                "verdict": {
+                  "confidence": "high",
+                  "text": "No. Astronauts at about 400 km report that the Wall is very hard or impossible to see without aid: it is narrow and the colour of the terrain. The belief predates spaceflight."
+                }
+              },
+              {
+                "display_id": "D1",
+                "verdict": {
+                  "confidence": "medium",
+                  "text": "The first-hand accounts agree: from low Earth orbit the Wall is not seen with the naked eye."
+                }
+              }
+            ],
+            "instructions": []
+          },
+          "path": [
+            {
+              "display_id": "R",
+              "justification": "The root goal of the investigation.",
+              "question": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists."
+            },
+            {
+              "display_id": "D2",
+              "justification": "Physics sets a hard bound that does not depend on anyone's testimony.",
+              "question": "How do the Wall's width and contrast compare with the limits of the human eye at orbital altitude?"
+            }
+          ],
+          "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+          "task": {
+            "budget": {
+              "child_nodes": 10,
+              "sources": 6
+            },
+            "done_when": "Both numbers are found in sources and the ratio is stated.",
+            "hint": null,
+            "out_of_scope": "Effects of atmosphere and lighting.",
+            "question": "What angular resolution does the human eye reach, and what is the Wall's apparent width at 400 km?"
+          }
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000005",
+      "seq": 133,
+      "type": "node.started",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:31.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Planning",
+        "detail": null,
+        "retry": null,
+        "step": "plan"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000005",
+      "seq": 134,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:32.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-sonnet-5.5",
+        "tier": "standard",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000005",
+      "seq": 135,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:32.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "decision",
+        "page_version_id": null,
+        "route": "conclude",
+        "step": "plan",
+        "summary": "conclude"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000005",
+      "seq": 136,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:33.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "conclusion",
+        "page_version_id": null,
+        "route": null,
+        "step": "conclude",
+        "summary": "The sources consulted bear on the task but do not settle it alone."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000005",
+      "seq": 137,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:33.000Z",
+      "command_id": null,
+      "data": {
+        "off_topic": false,
+        "open_questions": [],
+        "verdict": {
+          "confidence": "low",
+          "text": "The sources consulted bear on the task but do not settle it alone."
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000005",
+      "seq": 138,
+      "type": "node.completed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:34.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-haiku-5.5",
+        "tier": "fast",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 139,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:34.000Z",
+      "command_id": null,
+      "data": {
+        "reason": "Bears directly on the root goal."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000005",
+      "seq": 140,
+      "type": "node.relevance_checked",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:35.000Z",
+      "command_id": null,
+      "data": {
+        "order": [
+          "00000000-0000-4000-8000-000000000004"
+        ],
+        "reasons": {
+          "00000000-0000-4000-8000-000000000007": "dependency:00000000-0000-4000-8000-000000000004"
+        },
+        "slots": 1
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 141,
+      "type": "schedule.updated",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:36.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Aggregating",
+        "detail": null,
+        "retry": null,
+        "step": "aggregate"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000004",
+      "seq": 142,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:37.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-sonnet-5.5",
+        "tier": "standard",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000004",
+      "seq": 143,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:37.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "decision",
+        "page_version_id": null,
+        "route": "conclude",
+        "step": "aggregate",
+        "summary": "conclude"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000004",
+      "seq": 144,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:38.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "conclusion",
+        "page_version_id": null,
+        "route": null,
+        "step": "conclude",
+        "summary": "The sources consulted bear on the task but do not settle it alone."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000004",
+      "seq": 145,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:38.000Z",
+      "command_id": null,
+      "data": {
+        "off_topic": false,
+        "open_questions": [],
+        "verdict": {
+          "confidence": "medium",
+          "text": "The sources consulted bear on the task but do not settle it alone."
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000004",
+      "seq": 146,
+      "type": "node.completed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:39.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-haiku-5.5",
+        "tier": "fast",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 147,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:39.000Z",
+      "command_id": null,
+      "data": {
+        "reason": "Bears directly on the root goal."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000004",
+      "seq": 148,
+      "type": "node.relevance_checked",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:40.000Z",
+      "command_id": null,
+      "data": {
+        "order": [
+          "00000000-0000-4000-8000-000000000007"
+        ],
+        "reasons": {},
+        "slots": 1
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 149,
+      "type": "schedule.updated",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:41.000Z",
+      "command_id": null,
+      "data": {
+        "attempt": 1,
+        "brief": {
+          "known": {
+            "claims": [],
+            "dependency_results": [
+              {
+                "display_id": "P1",
+                "verdict": {
+                  "confidence": "high",
+                  "text": "No. Astronauts at about 400 km report that the Wall is very hard or impossible to see without aid: it is narrow and the colour of the terrain. The belief predates spaceflight."
+                }
+              },
+              {
+                "display_id": "D1",
+                "verdict": {
+                  "confidence": "medium",
+                  "text": "The first-hand accounts agree: from low Earth orbit the Wall is not seen with the naked eye."
+                }
+              },
+              {
+                "display_id": "D2",
+                "verdict": {
+                  "confidence": "medium",
+                  "text": "The sources consulted bear on the task but do not settle it alone."
+                }
+              }
+            ],
+            "instructions": []
+          },
+          "path": [
+            {
+              "display_id": "R",
+              "justification": "The root goal of the investigation.",
+              "question": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists."
+            }
+          ],
+          "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+          "task": {
+            "budget": {
+              "child_nodes": 20,
+              "sources": 8
+            },
+            "done_when": "Each account is marked consistent or inconsistent with the computed limits.",
+            "hint": null,
+            "out_of_scope": "New evidence beyond D1 and D2.",
+            "question": "Do the accounts in D1 and the physics in D2 agree?"
+          }
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000007",
+      "seq": 150,
+      "type": "node.started",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:42.000Z",
+      "command_id": null,
+      "data": {
+        "activity": "Planning",
+        "detail": null,
+        "retry": null,
+        "step": "plan"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000007",
+      "seq": 151,
+      "type": "node.activity",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:43.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-sonnet-5.5",
+        "tier": "standard",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000007",
+      "seq": 152,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:43.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "decision",
+        "page_version_id": null,
+        "route": "conclude",
+        "step": "plan",
+        "summary": "conclude"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000007",
+      "seq": 153,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:44.000Z",
+      "command_id": null,
+      "data": {
+        "kind": "conclusion",
+        "page_version_id": null,
+        "route": null,
+        "step": "conclude",
+        "summary": "The sources consulted bear on the task but do not settle it alone."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000007",
+      "seq": 154,
+      "type": "node.step_completed",
+      "v": 1
+    },
+    {
+      "actor": "node",
+      "at": "2026-01-01T00:01:44.000Z",
+      "command_id": null,
+      "data": {
+        "off_topic": false,
+        "open_questions": [],
+        "verdict": {
+          "confidence": "low",
+          "text": "The sources consulted bear on the task but do not settle it alone."
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000007",
+      "seq": 155,
+      "type": "node.completed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:45.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-haiku-5.5",
+        "tier": "fast",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 156,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:45.000Z",
+      "command_id": null,
+      "data": {
+        "reason": "Bears directly on the root goal."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000007",
+      "seq": 157,
+      "type": "node.relevance_checked",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:46.000Z",
+      "command_id": null,
+      "data": {
+        "order": [],
+        "reasons": {},
+        "slots": 1
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 158,
+      "type": "schedule.updated",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:47.000Z",
+      "command_id": null,
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-opus-5.5",
+        "tier": "strong",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 159,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:47.000Z",
+      "command_id": null,
+      "data": {
+        "cut_short_by": null
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 160,
+      "type": "investigation.concluding",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:48.000Z",
+      "command_id": null,
+      "data": {
+        "cause": null,
+        "detail": null,
+        "from": "Running",
+        "origin": "orchestrator",
+        "to": "Synthesising"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 161,
+      "type": "investigation.state_changed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:49.000Z",
+      "command_id": null,
+      "data": {
+        "cut_short_by": null,
+        "ended_early": false,
+        "report_id": "00000000-0000-4000-8000-000000000027"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 162,
+      "type": "report.created",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:49.000Z",
+      "command_id": null,
+      "data": {
+        "cause": null,
+        "detail": null,
+        "from": "Synthesising",
+        "origin": "orchestrator",
+        "to": "Completed"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 163,
+      "type": "investigation.state_changed",
+      "v": 1
+    }
+  ],
+  "snapshots": [
+    {
+      "focus_node_id": null,
+      "instructions": [],
+      "investigation": {
+        "disk_bytes": 0,
+        "effort": "Medium",
+        "id": "00000000-0000-4000-8000-000000000000",
+        "last_activity_at": "2026-01-01T00:00:24.000Z",
+        "nodes_max": 40,
+        "nodes_total": 6,
+        "pause_cause": null,
+        "pause_detail": null,
+        "prompt": "Is the Great Wall visible from space?",
+        "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+        "run_seconds": 0,
+        "running_count": 1,
+        "settings": {
+          "effort": "Medium",
+          "effort_budget": {
+            "max_depth": 4,
+            "max_nodes": 40,
+            "parallel": 1,
+            "sources_per_node": 8,
+            "sources_to_confirm": 2
+          },
+          "excluded_domains": [],
+          "page_reuse": "1d",
+          "prefer": "none",
+          "preset": "balanced",
+          "spending_limit_usd": 5.0,
+          "tiers": {
+            "fast": "anthropic/claude-haiku-5.5",
+            "standard": "anthropic/claude-sonnet-5.5",
+            "strong": "anthropic/claude-opus-5.5",
+            "verifier": "openai/gpt-5.2"
+          }
+        },
+        "spend_approximate": false,
+        "spending_limit_usd": 5.0,
+        "spent_usd": 0.05,
+        "state": "Running",
+        "summary": "P1 Reading"
+      },
+      "nodes": [
+        {
+          "activity": null,
+          "brief": null,
+          "budget": {
+            "child_nodes": 20,
+            "sources": 8
+          },
+          "depends_on": [],
+          "depth": 0,
+          "display_id": "R",
+          "done_when": null,
+          "id": "00000000-0000-4000-8000-000000000001",
+          "inclusion": "Included",
+          "instruction_count": 0,
+          "justification": "The root goal of the investigation.",
+          "kind": "Synthesis",
+          "out_of_scope": null,
+          "parent_id": null,
+          "plan_version_added": 1,
+          "proposed_by": "planner",
+          "question": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+          "spent_usd": 0.0,
+          "status": "Pending",
+          "verdict": null
+        },
+        {
+          "activity": "Reading",
+          "brief": {
+            "known": {
+              "claims": [],
+              "dependency_results": [],
+              "instructions": []
+            },
+            "path": [
+              {
+                "display_id": "R",
+                "justification": "The root goal of the investigation.",
+                "question": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists."
+              }
+            ],
+            "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+            "task": {
+              "budget": {
+                "child_nodes": 20,
+                "sources": 8
+              },
+              "done_when": "Two independent primary sources (astronaut accounts or measurements) agree or disagree.",
+              "hint": null,
+              "out_of_scope": "Visibility from the Moon or from aircraft.",
+              "question": "Is the Great Wall of China visible to the naked eye from low Earth orbit?"
+            }
+          },
+          "budget": {
+            "child_nodes": 20,
+            "sources": 8
+          },
+          "depends_on": [],
+          "depth": 1,
+          "display_id": "P1",
+          "done_when": "Two independent primary sources (astronaut accounts or measurements) agree or disagree.",
+          "id": "00000000-0000-4000-8000-000000000002",
+          "inclusion": "Included",
+          "instruction_count": 0,
+          "justification": "The question takes this as given; if it is false the report must say so first.",
+          "kind": "Premise check",
+          "out_of_scope": "Visibility from the Moon or from aircraft.",
+          "parent_id": "00000000-0000-4000-8000-000000000001",
+          "plan_version_added": 1,
+          "proposed_by": "planner",
+          "question": "Is the Great Wall of China visible to the naked eye from low Earth orbit?",
+          "spent_usd": 0.04,
+          "status": "Running",
+          "verdict": null
+        },
+        {
+          "activity": null,
+          "brief": null,
+          "budget": {
+            "child_nodes": 20,
+            "sources": 8
+          },
+          "depends_on": [
+            "00000000-0000-4000-8000-000000000002"
+          ],
+          "depth": 1,
+          "display_id": "D1",
+          "done_when": "At least three first-hand accounts from different missions are compared.",
+          "id": "00000000-0000-4000-8000-000000000003",
+          "inclusion": "Included",
+          "instruction_count": 0,
+          "justification": "First-hand accounts are the most direct evidence for or against the claim.",
+          "kind": "Divergent",
+          "out_of_scope": "Photographs taken with telephoto lenses.",
+          "parent_id": "00000000-0000-4000-8000-000000000001",
+          "plan_version_added": 1,
+          "proposed_by": "planner",
+          "question": "What do astronauts and the historical record report about seeing the Wall?",
+          "spent_usd": 0.0,
+          "status": "Pending",
+          "verdict": null
+        },
+        {
+          "activity": "Waiting on children",
+          "brief": null,
+          "budget": {
+            "child_nodes": 20,
+            "sources": 8
+          },
+          "depends_on": [
+            "00000000-0000-4000-8000-000000000002"
+          ],
+          "depth": 1,
+          "display_id": "D2",
+          "done_when": "The angular size and contrast of the Wall are computed and compared with eye resolution.",
+          "id": "00000000-0000-4000-8000-000000000004",
+          "inclusion": "Included",
+          "instruction_count": 0,
+          "justification": "Physics sets a hard bound that does not depend on anyone's testimony.",
+          "kind": "Deep-dive",
+          "out_of_scope": "Satellites and radar imaging.",
+          "parent_id": "00000000-0000-4000-8000-000000000001",
+          "plan_version_added": 1,
+          "proposed_by": "planner",
+          "question": "How do the Wall's width and contrast compare with the limits of the human eye at orbital altitude?",
+          "spent_usd": 0.0,
+          "status": "Waiting on children",
+          "verdict": null
+        },
+        {
+          "activity": null,
+          "brief": null,
+          "budget": {
+            "child_nodes": 10,
+            "sources": 6
+          },
+          "depends_on": [
+            "00000000-0000-4000-8000-000000000002",
+            "00000000-0000-4000-8000-000000000003"
+          ],
+          "depth": 2,
+          "display_id": "D2a",
+          "done_when": "Both numbers are found in sources and the ratio is stated.",
+          "id": "00000000-0000-4000-8000-000000000005",
+          "inclusion": "Included",
+          "instruction_count": 0,
+          "justification": "Gives the two numbers the comparison in D2 needs.",
+          "kind": "Deep-dive",
+          "out_of_scope": "Effects of atmosphere and lighting.",
+          "parent_id": "00000000-0000-4000-8000-000000000004",
+          "plan_version_added": 1,
+          "proposed_by": "planner",
+          "question": "What angular resolution does the human eye reach, and what is the Wall's apparent width at 400 km?",
+          "spent_usd": 0.0,
+          "status": "Pending",
+          "verdict": null
+        },
+        {
+          "activity": null,
+          "brief": null,
+          "budget": {
+            "child_nodes": 20,
+            "sources": 8
+          },
+          "depends_on": [
+            "00000000-0000-4000-8000-000000000002"
+          ],
+          "depth": 1,
+          "display_id": "D3",
+          "done_when": "Typical marketing uses are listed with sources.",
+          "id": "00000000-0000-4000-8000-000000000006",
+          "inclusion": "Included",
+          "instruction_count": 0,
+          "justification": "Shows how widespread the belief is among visitors.",
+          "kind": "Divergent",
+          "out_of_scope": "Marketing claims about other landmarks.",
+          "parent_id": "00000000-0000-4000-8000-000000000001",
+          "plan_version_added": 1,
+          "proposed_by": "planner",
+          "question": "How is the claim used in tourism marketing?",
+          "spent_usd": 0.0,
+          "status": "Pending",
+          "verdict": null
+        },
+        {
+          "activity": null,
+          "brief": null,
+          "budget": {
+            "child_nodes": 20,
+            "sources": 8
+          },
+          "depends_on": [
+            "00000000-0000-4000-8000-000000000002",
+            "00000000-0000-4000-8000-000000000003",
+            "00000000-0000-4000-8000-000000000004"
+          ],
+          "depth": 1,
+          "display_id": "V1",
+          "done_when": "Each account is marked consistent or inconsistent with the computed limits.",
+          "id": "00000000-0000-4000-8000-000000000007",
+          "inclusion": "Included",
+          "instruction_count": 0,
+          "justification": "Cross-checks testimony against calculation before any conclusion is drawn.",
+          "kind": "Verification",
+          "out_of_scope": "New evidence beyond D1 and D2.",
+          "parent_id": "00000000-0000-4000-8000-000000000001",
+          "plan_version_added": 1,
+          "proposed_by": "planner",
+          "question": "Do the accounts in D1 and the physics in D2 agree?",
+          "spent_usd": 0.0,
+          "status": "Pending",
+          "verdict": null
+        }
+      ],
+      "plan_failed": null,
+      "plan_version": 1,
+      "premises": [
+        {
+          "id": "00000000-0000-4000-8000-000000000008",
+          "node_id": "00000000-0000-4000-8000-000000000002",
+          "outcome": null,
+          "text": "The Wall is visible to the naked eye from low Earth orbit."
+        }
+      ],
+      "schedule": {
+        "order": [
+          "00000000-0000-4000-8000-000000000002"
+        ],
+        "reasons": {
+          "00000000-0000-4000-8000-000000000003": "dependency:00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000005": "dependency:00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000006": "dependency:00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000007": "dependency:00000000-0000-4000-8000-000000000002"
+        },
+        "slots": 1
+      },
+      "seq": 43
+    },
+    {
+      "focus_node_id": null,
+      "instructions": [],
+      "investigation": {
+        "disk_bytes": 0,
+        "effort": "Medium",
+        "id": "00000000-0000-4000-8000-000000000000",
+        "last_activity_at": "2026-01-01T00:01:49.000Z",
+        "nodes_max": 40,
+        "nodes_total": 8,
+        "pause_cause": null,
+        "pause_detail": null,
+        "prompt": "Is the Great Wall visible from space?",
+        "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+        "run_seconds": 0,
+        "running_count": 0,
+        "settings": {
+          "effort": "Medium",
+          "effort_budget": {
+            "max_depth": 4,
+            "max_nodes": 40,
+            "parallel": 1,
+            "sources_per_node": 8,
+            "sources_to_confirm": 2
+          },
+          "excluded_domains": [],
+          "page_reuse": "1d",
+          "prefer": "none",
+          "preset": "balanced",
+          "spending_limit_usd": 5.0,
+          "tiers": {
+            "fast": "anthropic/claude-haiku-5.5",
+            "standard": "anthropic/claude-sonnet-5.5",
+            "strong": "anthropic/claude-opus-5.5",
+            "verifier": "openai/gpt-5.2"
+          }
+        },
+        "spend_approximate": false,
+        "spending_limit_usd": 5.0,
+        "spent_usd": 0.3200000000000001,
+        "state": "Completed",
+        "summary": "Premise refuted: The Wall is visible to the naked eye from low Earth orbit."
+      },
+      "nodes": [
+        {
+          "activity": null,
+          "brief": null,
+          "budget": {
+            "child_nodes": 20,
+            "sources": 8
+          },
+          "depends_on": [],
+          "depth": 0,
+          "display_id": "R",
+          "done_when": null,
+          "id": "00000000-0000-4000-8000-000000000001",
+          "inclusion": "Included",
+          "instruction_count": 0,
+          "justification": "The root goal of the investigation.",
+          "kind": "Synthesis",
+          "out_of_scope": null,
+          "parent_id": null,
+          "plan_version_added": 1,
+          "proposed_by": "planner",
+          "question": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+          "spent_usd": 0.0,
+          "status": "Pending",
+          "verdict": null
+        },
+        {
+          "activity": null,
+          "brief": {
+            "known": {
+              "claims": [],
+              "dependency_results": [],
+              "instructions": []
+            },
+            "path": [
+              {
+                "display_id": "R",
+                "justification": "The root goal of the investigation.",
+                "question": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists."
+              }
+            ],
+            "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+            "task": {
+              "budget": {
+                "child_nodes": 20,
+                "sources": 8
+              },
+              "done_when": "Two independent primary sources (astronaut accounts or measurements) agree or disagree.",
+              "hint": null,
+              "out_of_scope": "Visibility from the Moon or from aircraft.",
+              "question": "Is the Great Wall of China visible to the naked eye from low Earth orbit?"
+            }
+          },
+          "budget": {
+            "child_nodes": 20,
+            "sources": 8
+          },
+          "depends_on": [],
+          "depth": 1,
+          "display_id": "P1",
+          "done_when": "Two independent primary sources (astronaut accounts or measurements) agree or disagree.",
+          "id": "00000000-0000-4000-8000-000000000002",
+          "inclusion": "Included",
+          "instruction_count": 0,
+          "justification": "The question takes this as given; if it is false the report must say so first.",
+          "kind": "Premise check",
+          "out_of_scope": "Visibility from the Moon or from aircraft.",
+          "parent_id": "00000000-0000-4000-8000-000000000001",
+          "plan_version_added": 1,
+          "proposed_by": "planner",
+          "question": "Is the Great Wall of China visible to the naked eye from low Earth orbit?",
+          "spent_usd": 0.07,
+          "status": "Completed",
+          "verdict": {
+            "confidence": "high",
+            "text": "No. Astronauts at about 400 km report that the Wall is very hard or impossible to see without aid: it is narrow and the colour of the terrain. The belief predates spaceflight."
+          }
+        },
+        {
+          "activity": null,
+          "brief": {
+            "known": {
+              "claims": [
+                {
+                  "id": "00000000000040008000000000000014",
+                  "status": "Supported",
+                  "text": "The Great Wall is at most about nine metres wide and the colour of the terrain around it."
+                },
+                {
+                  "id": "00000000000040008000000000000013",
+                  "status": "Supported",
+                  "text": "The Great Wall is not visible to the naked eye from low Earth orbit without aid."
+                },
+                {
+                  "id": "00000000000040008000000000000019",
+                  "status": "Supported",
+                  "text": "The claim that the Wall can be seen from space appeared in print in the 1930s, before any human reached orbit."
+                }
+              ],
+              "dependency_results": [
+                {
+                  "display_id": "P1",
+                  "verdict": {
+                    "confidence": "high",
+                    "text": "No. Astronauts at about 400 km report that the Wall is very hard or impossible to see without aid: it is narrow and the colour of the terrain. The belief predates spaceflight."
+                  }
+                }
+              ],
+              "instructions": []
+            },
+            "path": [
+              {
+                "display_id": "R",
+                "justification": "The root goal of the investigation.",
+                "question": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists."
+              }
+            ],
+            "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+            "task": {
+              "budget": {
+                "child_nodes": 20,
+                "sources": 8
+              },
+              "done_when": "At least three first-hand accounts from different missions are compared.",
+              "hint": null,
+              "out_of_scope": "Photographs taken with telephoto lenses.",
+              "question": "What do astronauts and the historical record report about seeing the Wall?"
+            }
+          },
+          "budget": {
+            "child_nodes": 20,
+            "sources": 8
+          },
+          "depends_on": [
+            "00000000-0000-4000-8000-000000000002"
+          ],
+          "depth": 1,
+          "display_id": "D1",
+          "done_when": "At least three first-hand accounts from different missions are compared.",
+          "id": "00000000-0000-4000-8000-000000000003",
+          "inclusion": "Included",
+          "instruction_count": 0,
+          "justification": "First-hand accounts are the most direct evidence for or against the claim.",
+          "kind": "Divergent",
+          "out_of_scope": "Photographs taken with telephoto lenses.",
+          "parent_id": "00000000-0000-4000-8000-000000000001",
+          "plan_version_added": 1,
+          "proposed_by": "planner",
+          "question": "What do astronauts and the historical record report about seeing the Wall?",
+          "spent_usd": 0.02,
+          "status": "Completed",
+          "verdict": {
+            "confidence": "medium",
+            "text": "The first-hand accounts agree: from low Earth orbit the Wall is not seen with the naked eye."
+          }
+        },
+        {
+          "activity": null,
+          "brief": null,
+          "budget": {
+            "child_nodes": 20,
+            "sources": 8
+          },
+          "depends_on": [
+            "00000000-0000-4000-8000-000000000002"
+          ],
+          "depth": 1,
+          "display_id": "D2",
+          "done_when": "The angular size and contrast of the Wall are computed and compared with eye resolution.",
+          "id": "00000000-0000-4000-8000-000000000004",
+          "inclusion": "Included",
+          "instruction_count": 0,
+          "justification": "Physics sets a hard bound that does not depend on anyone's testimony.",
+          "kind": "Deep-dive",
+          "out_of_scope": "Satellites and radar imaging.",
+          "parent_id": "00000000-0000-4000-8000-000000000001",
+          "plan_version_added": 1,
+          "proposed_by": "planner",
+          "question": "How do the Wall's width and contrast compare with the limits of the human eye at orbital altitude?",
+          "spent_usd": 0.01,
+          "status": "Completed",
+          "verdict": {
+            "confidence": "medium",
+            "text": "The sources consulted bear on the task but do not settle it alone."
+          }
+        },
+        {
+          "activity": null,
+          "brief": {
+            "known": {
+              "claims": [
+                {
+                  "id": "00000000000040008000000000000014",
+                  "status": "Supported",
+                  "text": "The Great Wall is at most about nine metres wide and the colour of the terrain around it."
+                },
+                {
+                  "id": "00000000000040008000000000000013",
+                  "status": "Supported",
+                  "text": "The Great Wall is not visible to the naked eye from low Earth orbit without aid."
+                },
+                {
+                  "id": "00000000000040008000000000000019",
+                  "status": "Supported",
+                  "text": "The claim that the Wall can be seen from space appeared in print in the 1930s, before any human reached orbit."
+                },
+                {
+                  "id": "00000000000040008000000000000026",
+                  "status": "Supported",
+                  "text": "The Great Wall was built by several dynasties over about two thousand years."
+                }
+              ],
+              "dependency_results": [
+                {
+                  "display_id": "P1",
+                  "verdict": {
+                    "confidence": "high",
+                    "text": "No. Astronauts at about 400 km report that the Wall is very hard or impossible to see without aid: it is narrow and the colour of the terrain. The belief predates spaceflight."
+                  }
+                },
+                {
+                  "display_id": "D1",
+                  "verdict": {
+                    "confidence": "medium",
+                    "text": "The first-hand accounts agree: from low Earth orbit the Wall is not seen with the naked eye."
+                  }
+                }
+              ],
+              "instructions": []
+            },
+            "path": [
+              {
+                "display_id": "R",
+                "justification": "The root goal of the investigation.",
+                "question": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists."
+              },
+              {
+                "display_id": "D2",
+                "justification": "Physics sets a hard bound that does not depend on anyone's testimony.",
+                "question": "How do the Wall's width and contrast compare with the limits of the human eye at orbital altitude?"
+              }
+            ],
+            "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+            "task": {
+              "budget": {
+                "child_nodes": 10,
+                "sources": 6
+              },
+              "done_when": "Both numbers are found in sources and the ratio is stated.",
+              "hint": null,
+              "out_of_scope": "Effects of atmosphere and lighting.",
+              "question": "What angular resolution does the human eye reach, and what is the Wall's apparent width at 400 km?"
+            }
+          },
+          "budget": {
+            "child_nodes": 10,
+            "sources": 6
+          },
+          "depends_on": [
+            "00000000-0000-4000-8000-000000000002",
+            "00000000-0000-4000-8000-000000000003"
+          ],
+          "depth": 2,
+          "display_id": "D2a",
+          "done_when": "Both numbers are found in sources and the ratio is stated.",
+          "id": "00000000-0000-4000-8000-000000000005",
+          "inclusion": "Included",
+          "instruction_count": 0,
+          "justification": "Gives the two numbers the comparison in D2 needs.",
+          "kind": "Deep-dive",
+          "out_of_scope": "Effects of atmosphere and lighting.",
+          "parent_id": "00000000-0000-4000-8000-000000000004",
+          "plan_version_added": 1,
+          "proposed_by": "planner",
+          "question": "What angular resolution does the human eye reach, and what is the Wall's apparent width at 400 km?",
+          "spent_usd": 0.01,
+          "status": "Completed",
+          "verdict": {
+            "confidence": "low",
+            "text": "The sources consulted bear on the task but do not settle it alone."
+          }
+        },
+        {
+          "activity": null,
+          "brief": {
+            "known": {
+              "claims": [
+                {
+                  "id": "00000000000040008000000000000019",
+                  "status": "Supported",
+                  "text": "The claim that the Wall can be seen from space appeared in print in the 1930s, before any human reached orbit."
+                }
+              ],
+              "dependency_results": [
+                {
+                  "display_id": "P1",
+                  "verdict": {
+                    "confidence": "high",
+                    "text": "No. Astronauts at about 400 km report that the Wall is very hard or impossible to see without aid: it is narrow and the colour of the terrain. The belief predates spaceflight."
+                  }
+                }
+              ],
+              "instructions": []
+            },
+            "path": [
+              {
+                "display_id": "R",
+                "justification": "The root goal of the investigation.",
+                "question": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists."
+              }
+            ],
+            "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+            "task": {
+              "budget": {
+                "child_nodes": 20,
+                "sources": 8
+              },
+              "done_when": "Typical marketing uses are listed with sources.",
+              "hint": null,
+              "out_of_scope": "Marketing claims about other landmarks.",
+              "question": "How is the claim used in tourism marketing?"
+            }
+          },
+          "budget": {
+            "child_nodes": 20,
+            "sources": 8
+          },
+          "depends_on": [
+            "00000000-0000-4000-8000-000000000002"
+          ],
+          "depth": 1,
+          "display_id": "D3",
+          "done_when": "Typical marketing uses are listed with sources.",
+          "id": "00000000-0000-4000-8000-000000000006",
+          "inclusion": "Included",
+          "instruction_count": 0,
+          "justification": "Shows how widespread the belief is among visitors.",
+          "kind": "Divergent",
+          "out_of_scope": "Marketing claims about other landmarks.",
+          "parent_id": "00000000-0000-4000-8000-000000000001",
+          "plan_version_added": 1,
+          "proposed_by": "planner",
+          "question": "How is the claim used in tourism marketing?",
+          "spent_usd": 0.01,
+          "status": "Completed",
+          "verdict": {
+            "confidence": "low",
+            "text": "The sources consulted bear on the task but do not settle it alone."
+          }
+        },
+        {
+          "activity": null,
+          "brief": {
+            "known": {
+              "claims": [],
+              "dependency_results": [
+                {
+                  "display_id": "P1",
+                  "verdict": {
+                    "confidence": "high",
+                    "text": "No. Astronauts at about 400 km report that the Wall is very hard or impossible to see without aid: it is narrow and the colour of the terrain. The belief predates spaceflight."
+                  }
+                },
+                {
+                  "display_id": "D1",
+                  "verdict": {
+                    "confidence": "medium",
+                    "text": "The first-hand accounts agree: from low Earth orbit the Wall is not seen with the naked eye."
+                  }
+                },
+                {
+                  "display_id": "D2",
+                  "verdict": {
+                    "confidence": "medium",
+                    "text": "The sources consulted bear on the task but do not settle it alone."
+                  }
+                }
+              ],
+              "instructions": []
+            },
+            "path": [
+              {
+                "display_id": "R",
+                "justification": "The root goal of the investigation.",
+                "question": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists."
+              }
+            ],
+            "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+            "task": {
+              "budget": {
+                "child_nodes": 20,
+                "sources": 8
+              },
+              "done_when": "Each account is marked consistent or inconsistent with the computed limits.",
+              "hint": null,
+              "out_of_scope": "New evidence beyond D1 and D2.",
+              "question": "Do the accounts in D1 and the physics in D2 agree?"
+            }
+          },
+          "budget": {
+            "child_nodes": 20,
+            "sources": 8
+          },
+          "depends_on": [
+            "00000000-0000-4000-8000-000000000002",
+            "00000000-0000-4000-8000-000000000003",
+            "00000000-0000-4000-8000-000000000004"
+          ],
+          "depth": 1,
+          "display_id": "V1",
+          "done_when": "Each account is marked consistent or inconsistent with the computed limits.",
+          "id": "00000000-0000-4000-8000-000000000007",
+          "inclusion": "Included",
+          "instruction_count": 0,
+          "justification": "Cross-checks testimony against calculation before any conclusion is drawn.",
+          "kind": "Verification",
+          "out_of_scope": "New evidence beyond D1 and D2.",
+          "parent_id": "00000000-0000-4000-8000-000000000001",
+          "plan_version_added": 1,
+          "proposed_by": "planner",
+          "question": "Do the accounts in D1 and the physics in D2 agree?",
+          "spent_usd": 0.01,
+          "status": "Completed",
+          "verdict": {
+            "confidence": "low",
+            "text": "The sources consulted bear on the task but do not settle it alone."
+          }
+        },
+        {
+          "activity": null,
+          "brief": {
+            "known": {
+              "claims": [
+                {
+                  "id": "00000000000040008000000000000013",
+                  "status": "Supported",
+                  "text": "The Great Wall is not visible to the naked eye from low Earth orbit without aid."
+                },
+                {
+                  "id": "00000000000040008000000000000019",
+                  "status": "Supported",
+                  "text": "The claim that the Wall can be seen from space appeared in print in the 1930s, before any human reached orbit."
+                },
+                {
+                  "id": "00000000000040008000000000000014",
+                  "status": "Supported",
+                  "text": "The Great Wall is at most about nine metres wide and the colour of the terrain around it."
+                }
+              ],
+              "dependency_results": [],
+              "instructions": []
+            },
+            "path": [
+              {
+                "display_id": "R",
+                "justification": "The root goal of the investigation.",
+                "question": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists."
+              },
+              {
+                "display_id": "D1",
+                "justification": "First-hand accounts are the most direct evidence for or against the claim.",
+                "question": "What do astronauts and the historical record report about seeing the Wall?"
+              }
+            ],
+            "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+            "task": {
+              "budget": {
+                "child_nodes": 10,
+                "sources": 6
+              },
+              "done_when": "Each account is cited with its mission and any aid used.",
+              "hint": null,
+              "out_of_scope": "Accounts from the Moon.",
+              "question": "Which astronauts have said whether they saw the Wall from low Earth orbit, and with what aid?"
+            }
+          },
+          "budget": {
+            "child_nodes": 10,
+            "sources": 6
+          },
+          "depends_on": [],
+          "depth": 2,
+          "display_id": "D1a",
+          "done_when": "Each account is cited with its mission and any aid used.",
+          "id": "00000000-0000-4000-8000-000000000020",
+          "inclusion": "Included",
+          "instruction_count": 0,
+          "justification": "First-hand accounts from orbit are the direct test of the claim.",
+          "kind": "Deep-dive",
+          "out_of_scope": "Accounts from the Moon.",
+          "parent_id": "00000000-0000-4000-8000-000000000003",
+          "plan_version_added": 2,
+          "proposed_by": "00000000-0000-4000-8000-000000000003",
+          "question": "Which astronauts have said whether they saw the Wall from low Earth orbit, and with what aid?",
+          "spent_usd": 0.04,
+          "status": "Completed",
+          "verdict": {
+            "confidence": "medium",
+            "text": "Astronauts report the Wall is very difficult to see from orbit and was not seen without aid."
+          }
+        },
+        {
+          "activity": null,
+          "brief": {
+            "known": {
+              "claims": [
+                {
+                  "id": "00000000000040008000000000000014",
+                  "status": "Supported",
+                  "text": "The Great Wall is at most about nine metres wide and the colour of the terrain around it."
+                },
+                {
+                  "id": "00000000000040008000000000000013",
+                  "status": "Supported",
+                  "text": "The Great Wall is not visible to the naked eye from low Earth orbit without aid."
+                },
+                {
+                  "id": "00000000000040008000000000000019",
+                  "status": "Supported",
+                  "text": "The claim that the Wall can be seen from space appeared in print in the 1930s, before any human reached orbit."
+                }
+              ],
+              "dependency_results": [],
+              "instructions": []
+            },
+            "path": [
+              {
+                "display_id": "R",
+                "justification": "The root goal of the investigation.",
+                "question": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists."
+              },
+              {
+                "display_id": "D1",
+                "justification": "First-hand accounts are the most direct evidence for or against the claim.",
+                "question": "What do astronauts and the historical record report about seeing the Wall?"
+              }
+            ],
+            "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+            "task": {
+              "budget": {
+                "child_nodes": 10,
+                "sources": 6
+              },
+              "done_when": "His statement is cited from a report of the time.",
+              "hint": null,
+              "out_of_scope": "Later Chinese missions.",
+              "question": "What did Yang Liwei report about the Wall after Shenzhou 5?"
+            }
+          },
+          "budget": {
+            "child_nodes": 10,
+            "sources": 6
+          },
+          "depends_on": [],
+          "depth": 2,
+          "display_id": "D1b",
+          "done_when": "His statement is cited from a report of the time.",
+          "id": "00000000-0000-4000-8000-000000000021",
+          "inclusion": "Included",
+          "instruction_count": 0,
+          "justification": "China's first astronaut was widely expected to confirm the claim.",
+          "kind": "Deep-dive",
+          "out_of_scope": "Later Chinese missions.",
+          "parent_id": "00000000-0000-4000-8000-000000000003",
+          "plan_version_added": 2,
+          "proposed_by": "00000000-0000-4000-8000-000000000003",
+          "question": "What did Yang Liwei report about the Wall after Shenzhou 5?",
+          "spent_usd": 0.04,
+          "status": "Completed",
+          "verdict": {
+            "confidence": "low",
+            "text": "The sources found do not record his statement; the question stays open."
+          }
+        }
+      ],
+      "plan_failed": null,
+      "plan_version": 1,
+      "premises": [
+        {
+          "id": "00000000-0000-4000-8000-000000000008",
+          "node_id": "00000000-0000-4000-8000-000000000002",
+          "outcome": "refuted",
+          "text": "The Wall is visible to the naked eye from low Earth orbit."
+        }
+      ],
+      "schedule": {
+        "order": [],
+        "reasons": {},
+        "slots": 1
+      },
+      "seq": 163
+    }
+  ]
+}

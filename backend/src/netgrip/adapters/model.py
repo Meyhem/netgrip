@@ -38,6 +38,7 @@ class ModelRequest(BaseModel):
     tools: list[ToolSpec] | None = None
     response_schema: dict | None = None
     node_ref: str | None = None
+    investigation_id: str | None = None  # set by `call_model`; adapters may ignore it
 
 
 class Usage(BaseModel):

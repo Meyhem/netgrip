@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { createInvestigation, deleteInvestigation, getJSON } from "../api/client";
-import type { InvestigationRow, InvestigationState, PauseCause, Settings, Storage } from "../api/types";
+import type { InvestigationRow, InvestigationState, Settings, Storage } from "../api/types";
 import { bytes, money, moneyOf } from "../lib/format";
 import { usePoll } from "../lib/usePoll";
 import { Banner } from "../ui/Banner";
@@ -9,6 +9,7 @@ import { Button } from "../ui/Button";
 import { DeleteDialog } from "../ui/DeleteDialog";
 import { Input, Seg } from "../ui/Field";
 import { StatusPill } from "../ui/StatusPill";
+import { PAUSE_REASON } from "../state/summary";
 import { Page } from "./InvestigationRoute";
 import { PromptBox } from "./PromptBox";
 
@@ -38,15 +39,6 @@ const ACTION: Record<InvestigationState, { label: string; steer?: boolean }> = {
   Stopped: { label: "Finish into a report" },
   Completed: { label: "Open report" },
   Synthesising: { label: "Open" },
-};
-
-const PAUSE_REASON: Record<PauseCause, string> = {
-  user: "Paused by you.",
-  spending_limit: "Reached the spending limit.",
-  model_unavailable: "The model service stopped responding.",
-  search_unavailable: "Web search stopped responding.",
-  key_rejected: "A key was rejected.",
-  credit_exhausted: "The model account ran out of credit.",
 };
 
 function line2(r: InvestigationRow): ReactNode {

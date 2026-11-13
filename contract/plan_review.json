@@ -869,7 +869,7 @@
       "id": "00000000-0000-4000-8000-000000000000",
       "last_activity_at": "2026-01-01T00:00:12.000Z",
       "nodes_max": 40,
-      "nodes_total": 0,
+      "nodes_total": 6,
       "pause_cause": null,
       "pause_detail": null,
       "prompt": "Is the Great Wall visible from space?",
