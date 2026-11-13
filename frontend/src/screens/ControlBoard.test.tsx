@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { forgetInvestigation } from "../state/investigationStore";
@@ -184,6 +184,52 @@ describe("ControlBoard event log", () => {
     fireEvent.scroll(log);
     await new Promise((r) => setTimeout(r, 20));
     expect(olderCalls(fn)).toHaveLength(3);
+  });
+
+  it("after a remount past more than 200 events, older rows load back to the hole", async () => {
+    // First visit: the board held events up to seq 60.
+    const fn1 = showWithLog({ ...mid, seq: 60, recent_events: events.filter((e) => e.seq <= 60) }, () => []);
+    await screen.findByRole("heading", { name: mid.investigation.prompt });
+    expect(olderCalls(fn1)).toEqual([]);
+    cleanup();
+    // Back after the rest of the run: recent events start at 141, far past what was held.
+    const fn = showWithLog({ ...last, recent_events: events.filter((e) => e.seq > 140) }, (url) => {
+      const before = Number(new URL(url, "http://x").searchParams.get("before"));
+      return events.filter((e) => e.seq < before && e.seq >= before - 200);
+    });
+    await screen.findByRole("heading", { name: last.investigation.prompt });
+    const log = document.querySelector('[data-slot="event-log"] .ng-log') as HTMLElement;
+    Object.defineProperty(log, "scrollHeight", { configurable: true, value: 1000 });
+    Object.defineProperty(log, "clientHeight", { configurable: true, value: 166 });
+    log.scrollTop = 834;
+    fireEvent.scroll(log);
+    await waitFor(() => expect(olderCalls(fn)).toHaveLength(1));
+    expect(olderCalls(fn)[0]).toContain("before=141");
+    // Rows from the hole (61..140) are now in the log.
+    const seqs = () => [...log.querySelectorAll("[data-seq]")].map((r) => Number(r.getAttribute("data-seq")));
+    await waitFor(() => expect(seqs().some((n) => n > 60 && n < 141)).toBe(true));
+    expect(Math.min(...seqs())).toBeLessThan(61);
+  });
+
+  it("a short list loads older rows without a scroll", async () => {
+    const fn = showWithLog({ ...last, recent_events: events.filter((e) => e.seq > 140) }, (url) => {
+      const before = Number(new URL(url, "http://x").searchParams.get("before"));
+      return before > 101 ? events.filter((e) => e.seq < before && e.seq >= before - 20) : [];
+    });
+    await screen.findByRole("heading", { name: last.investigation.prompt });
+    expect(olderCalls(fn)).toEqual([]);
+    const log = document.querySelector('[data-slot="event-log"] .ng-log') as HTMLElement;
+    // The rows do not fill the log (a filter on a long run): nothing to scroll.
+    Object.defineProperty(log, "scrollHeight", { configurable: true, value: 100 });
+    Object.defineProperty(log, "clientHeight", { configurable: true, value: 166 });
+    fireEvent.click(screen.getByRole("button", { name: /^Problems/ }));
+    // It keeps loading until a page comes back empty, then stops.
+    await waitFor(() => expect(olderCalls(fn).length).toBeGreaterThanOrEqual(3));
+    await new Promise((r) => setTimeout(r, 30));
+    const n = olderCalls(fn).length;
+    expect(olderCalls(fn)[n - 1]).toContain("before=101");
+    await new Promise((r) => setTimeout(r, 30));
+    expect(olderCalls(fn)).toHaveLength(n);
   });
 
   it("L collapses the log to its head row and back", async () => {

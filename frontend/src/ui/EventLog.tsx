@@ -91,6 +91,14 @@ export function EventLog({
     if (follow && logRef.current) logRef.current.scrollTop = 0;
   }, [follow, shown, liveShown.length, collapsed]);
 
+  // Rows that do not fill the log (a filter, a short page) cannot be scrolled to the end:
+  // ask for older rows until they do, or until there are none.
+  useLayoutEffect(() => {
+    const el = logRef.current;
+    if (!el || collapsed || older !== "more" || !onReachEnd) return;
+    if (el.clientHeight > 0 && el.scrollHeight <= el.clientHeight + 24) onReachEnd();
+  }, [older, shown, collapsed, onReachEnd]);
+
   const onScroll = () => {
     const el = logRef.current;
     if (!el) return;

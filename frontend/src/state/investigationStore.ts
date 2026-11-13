@@ -99,6 +99,14 @@ export function mergeEvents(a: DurableEvent[], b: DurableEvent[]): DurableEvent[
   return [...bySeq.values()].sort((x, y) => x.seq - y.seq);
 }
 
+/** The held events with a snapshot's `recent_events`. When they do not join up (the board was
+ * left while more events happened than `recent_events` carries), the held ones are dropped:
+ * older pages then load backwards from the new oldest, so no hole is left in the list. */
+export function joinRecent(held: DurableEvent[], recent: DurableEvent[]): DurableEvent[] {
+  if (held.length && recent.length && recent[0].seq > held[held.length - 1].seq + 1) return recent;
+  return mergeEvents(held, recent);
+}
+
 /** Add durable events to what is kept for `id` (older pages of the log fetched with `before=`).
  * De-duplicated by `seq`; the list stays in seq order. */
 export function addEvents(id: string, events: DurableEvent[]): void {
@@ -160,7 +168,7 @@ export function useInvestigation(id: string): InvestigationState {
         const opened: CatchUp[] = seen !== null && snapshot.seq > seen ? [{ afterSeq: seen, since: 0, count: snapshot.seq - seen, done: true }] : [];
         store.setState((s) => ({
           snapshot,
-          events: mergeEvents(s.events, loaded.recent_events ?? []),
+          events: joinRecent(s.events, loaded.recent_events ?? []),
           catchUps: [...s.catchUps, ...opened],
           gaps: gapRows([...s.catchUps, ...opened]),
           modelText: {},

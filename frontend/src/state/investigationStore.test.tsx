@@ -168,3 +168,31 @@ describe("catch-up gap", () => {
     await waitFor(() => expect(result.current.gaps).toEqual([{ afterSeq: 10, count: 42 }]));
   });
 });
+
+describe("remount after a long absence", () => {
+  const e = (seq: number) => ({ ...events[0], seq, type: "limit.changed", data: { spending_limit_usd: 5 } });
+  const range = (a: number, b: number) => Array.from({ length: b - a + 1 }, (_, i) => e(a + i));
+
+  it("recent events that do not join the held ones replace them, so no hole remains", async () => {
+    mockApi({ [`GET /api/investigations/${ID}`]: { ...emptySnapshot(ID), seq: 150, recent_events: range(1, 150) } });
+    const first = renderHook(() => useInvestigation(ID));
+    await waitFor(() => expect(first.result.current.events).toHaveLength(150));
+    first.unmount();
+    mockApi({ [`GET /api/investigations/${ID}`]: { ...emptySnapshot(ID), seq: 500, recent_events: range(301, 500) } });
+    const { result } = renderHook(() => useInvestigation(ID));
+    await waitFor(() => expect(result.current.snapshot?.seq).toBe(500));
+    expect(result.current.events.map((x) => x.seq)).toEqual(range(301, 500).map((x) => x.seq));
+    expect(result.current.gaps).toEqual([{ afterSeq: 150, count: 350 }]);
+  });
+
+  it("recent events that overlap the held ones are merged", async () => {
+    mockApi({ [`GET /api/investigations/${ID}`]: { ...emptySnapshot(ID), seq: 150, recent_events: range(1, 150) } });
+    const first = renderHook(() => useInvestigation(ID));
+    await waitFor(() => expect(first.result.current.events).toHaveLength(150));
+    first.unmount();
+    mockApi({ [`GET /api/investigations/${ID}`]: { ...emptySnapshot(ID), seq: 300, recent_events: range(101, 300) } });
+    const { result } = renderHook(() => useInvestigation(ID));
+    await waitFor(() => expect(result.current.snapshot?.seq).toBe(300));
+    expect(result.current.events.map((x) => x.seq)).toEqual(range(1, 300).map((x) => x.seq));
+  });
+});
