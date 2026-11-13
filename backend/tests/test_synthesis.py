@@ -322,3 +322,14 @@ async def test_gather_evidence_leaves_out_withdrawn_claims(db, tmp_path):
     await append_and_project(db, INV, [ev("claim.withdrawn", {
         "claim_ids": ["c-2"], "cause": "rerun"}, node_id="n-2", actor="user")])  # fmt: skip
     assert [c.id for c in (await gather_evidence(db, INV)).claims] == ["c-1"]
+
+
+async def test_rebuild_keeps_the_report(db, tmp_path):
+    from netgrip.store.rebuild import rebuild
+
+    engine = await seeded(db, tmp_path, client())
+    await synthesise(engine, INV)
+    before = (await reports(db))[0]["body"]
+    await rebuild(db)
+    [after] = await reports(db)
+    assert after["body"] == before

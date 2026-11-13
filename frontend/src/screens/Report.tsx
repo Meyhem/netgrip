@@ -206,7 +206,7 @@ function ReportText({ report, openId, onCite }: { report: ReportData; openId: st
                 const p = st.premise_node_id ? premiseByNode[st.premise_node_id] : undefined;
                 return (
                   <span key={i}>
-                    {p && <>Your question assumed <b>{p.text}</b>. </>}
+                    {p && <>Your question assumed <b>{p.text.replace(/[.]$/, "")}</b>. </>}
                     <ReportStatement
                       statement={st} form="inline" {...props}
                       premise={p?.display_id ? { label: p.display_id, claimId: st.claim_ids[0] ?? null } : null}
