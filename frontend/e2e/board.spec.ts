@@ -53,8 +53,8 @@ test("approve → the board fills and follows the run; trail, stored page, reloa
   await expect.poll(async () => (await logSeqs(page)).length).toBeGreaterThan(firstRows);
 
   // Click a node in the graph: the same node is selected in the left pane and inspected.
-  // Follow active re-centres on each newly started node; switch it off so the node holds still.
-  await page.locator('[data-slot="center"] .ng-toggle', { hasText: "Follow active" }).click();
+  // (Follow active is off by default, so the view holds still.)
+  await expect(page.locator('[data-slot="center"] .ng-toggle', { hasText: "Follow active" })).not.toHaveClass(/is-on/);
   const node = page.locator(".ng-canvas .ng-node").nth(1);
   const nodeId = (await node.getAttribute("data-node"))!;
   await node.click();
@@ -79,7 +79,6 @@ test("approve → the board fills and follows the run; trail, stored page, reloa
   expect(api.seq).toBeGreaterThanOrEqual(afterReload);
 
   // Trail: streamed model text shows on the open step of a running node.
-  await page.locator('[data-slot="center"] .ng-toggle', { hasText: "Follow active" }).click().catch(() => {});
   const trailTab = inspector(page).getByRole("tab", { name: /^Trail/ });
   await expect.poll(async () => {
     const live = await inspector(page).locator(".trail__step--open .trail__note").allTextContents();
@@ -213,7 +212,6 @@ test("narrow widths: the inspector is a sheet below 1180px; the left pane is a t
   await expect(inspector(page)).toBeHidden();
   await expect(left).toBeVisible();
   await expect(tabs).toBeHidden();
-  await page.locator('[data-slot="center"] .ng-toggle', { hasText: "Follow active" }).click();
   const node = canvas.locator(".ng-node").first();
   const nodeId = (await node.getAttribute("data-node"))!;
   await node.click();

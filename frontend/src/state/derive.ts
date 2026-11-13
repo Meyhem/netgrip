@@ -66,6 +66,7 @@ export function sections(s: Snapshot, events: DurableEvent[]): Sections {
   // A Paused or Stopped investigation runs nothing: nodes it halted mid-work keep the status
   // Running (they continue on Resume) but are not in Now.
   const halt = s.investigation.state === "Paused" ? "paused" : s.investigation.state === "Stopped" ? "stopped" : null;
+  const history = s.investigation.state === "Completed" ? "not run" : s.investigation.state === "Stopped" ? "stopped" : null;
   const now: NowRow[] = [];
   const held: GraphNode[] = [];
   const doneNodes: GraphNode[] = [];
@@ -99,7 +100,9 @@ export function sections(s: Snapshot, events: DurableEvent[]): Sections {
   // Running nodes held by the investigation's pause come first: they continue on Resume.
   const queued: { n: GraphNode; reason: string | null }[] = [
     ...held.map((n) => ({ n, reason: halt })),
-    ...[...scheduled, ...toStart, ...coordinators].map((n) => ({ n, reason: reasons[n.id] ?? null })),
+    // A Completed or Stopped investigation schedules nothing: the last schedule's reasons are
+    // stale, so its unstarted nodes read "not run" (Completed) or "stopped".
+    ...[...scheduled, ...toStart, ...coordinators].map((n) => ({ n, reason: history ?? reasons[n.id] ?? null })),
   ];
   const next: NextRow[] = queued.map(({ n, reason }, i) => {
     let waitText = reason ? waitReasonText(reason, nodes) : "";

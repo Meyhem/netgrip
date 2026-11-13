@@ -172,9 +172,16 @@ describe("BoardGraph", () => {
     expect(onSelect).toHaveBeenCalledTimes(3);
   });
 
-  it("Follow active pans to the most recently started node", () => {
+  it("Follow active is off by default; switched on, it pans to the most recently started node", () => {
     const nodes = graph().map((n) => (n.id === "D2a" ? { ...n, status: "Running" } as GraphNode : n));
     const { rerender, onSelect } = show(snap(nodes), [ev(10, "node.started", "D2")]);
+    expect(screen.getByLabelText("Follow active")).not.toBeChecked();
+    // Off: a newer start does not move the view.
+    const still = world().style.transform;
+    rerender(<BoardGraph s={snap(nodes)} events={[ev(10, "node.started", "D2"), ev(11, "node.started", "D2a")]} selectedId={null} onSelect={onSelect} live />);
+    expect(world().style.transform).toBe(still);
+    rerender(<BoardGraph s={snap(nodes)} events={[ev(10, "node.started", "D2")]} selectedId={null} onSelect={onSelect} live />);
+    fireEvent.click(screen.getByLabelText("Follow active"));
     expect(screen.getByLabelText("Follow active")).toBeChecked();
     const before = world().style.transform;
     act(() => {
@@ -186,5 +193,16 @@ describe("BoardGraph", () => {
     const held = world().style.transform;
     rerender(<BoardGraph s={snap(nodes)} events={[ev(10, "node.started", "D2a"), ev(13, "node.started", "D2")]} selectedId={null} onSelect={onSelect} live />);
     expect(world().style.transform).toBe(held);
+  });
+
+  it("dragging the canvas turns Follow active off", () => {
+    show(snap(graph()));
+    fireEvent.click(screen.getByLabelText("Follow active"));
+    expect(screen.getByLabelText("Follow active")).toBeChecked();
+    const canvas = document.querySelector(".ng-canvas")!;
+    fireEvent.mouseDown(canvas, { button: 0, clientX: 100, clientY: 100 });
+    fireEvent.mouseMove(window, { clientX: 160, clientY: 130 });
+    fireEvent.mouseUp(window);
+    expect(screen.getByLabelText("Follow active")).not.toBeChecked();
   });
 });

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { createStore, useStore, type StoreApi } from "zustand";
+import { useShallow } from "zustand/react/shallow";
 import { getJSON } from "../api/client";
 import { openStream } from "../api/stream";
 import type { DurableEvent, EphemeralEvent, Snapshot } from "../api/types";
@@ -10,8 +11,6 @@ export type ConnectionStatus = "loading" | "open" | "reconnecting" | "error";
 export interface InvestigationState {
   snapshot: Snapshot | null;
   status: ConnectionStatus;
-  /** The latest ephemeral messages (streamed model text and similar), oldest first. */
-  ephemeral: EphemeralEvent[];
   /** Every durable event seen so far, one per `seq`, oldest first: the snapshot's
    * `recent_events`, then each streamed event, plus older pages added with `addEvents`. */
   events: DurableEvent[];
@@ -114,8 +113,16 @@ export function addEvents(id: string, events: DurableEvent[]): void {
   store.setState((s) => ({ events: mergeEvents(s.events, events) }));
 }
 
-/** How many ephemeral messages are kept; they are never stored or replayed (D-11). */
-export const EPHEMERAL_KEEP = 50;
+/** Streamed model text arrives in many small deltas: they are folded into the store at most
+ * once per animation frame (a timer where there are no frames). */
+const nextFrame: (fn: () => void) => () => void = (fn) => {
+  if (typeof requestAnimationFrame === "function") {
+    const h = requestAnimationFrame(fn);
+    return () => cancelAnimationFrame(h);
+  }
+  const t = setTimeout(fn, 16);
+  return () => clearTimeout(t);
+};
 
 const stores = new Map<string, StoreApi<InvestigationState>>();
 const durableListeners = new Map<string, Set<(ev: DurableEvent) => void>>();
@@ -133,7 +140,7 @@ function storeFor(id: string): StoreApi<InvestigationState> {
   let store = stores.get(id);
   if (!store) {
     store = createStore<InvestigationState>(() => ({
-      snapshot: null, status: "loading", ephemeral: [], events: [], modelText: {}, gaps: [], catchUps: [], error: null,
+      snapshot: null, status: "loading", events: [], modelText: {}, gaps: [], catchUps: [], error: null,
     }));
     stores.set(id, store);
   }
@@ -151,11 +158,12 @@ export function forgetInvestigation(id: string, opts: { keepLastSeen?: boolean }
 
 /** Load the snapshot, then follow the stream from its `seq`, folding durable events in with
  * `reduce`. The stream closes when the component unmounts. */
-export function useInvestigation(id: string): InvestigationState {
+export function useInvestigation(id: string): BoardState {
   const store = storeFor(id);
   useEffect(() => {
     let cancelled = false;
     let close: (() => void) | null = null;
+    let stopFrames: (() => void) | null = null;
     store.setState({ status: "loading", error: null });
     getJSON<Snapshot>(`/api/investigations/${encodeURIComponent(id)}`).then(
       (loaded) => {
@@ -175,8 +183,27 @@ export function useInvestigation(id: string): InvestigationState {
         }));
         writeLastSeen(id, snapshot.seq);
         let reconnecting = false;
+        // Model-text deltas waiting for the next frame, and the frame's cancel.
+        let pending: EphemeralEvent[] = [];
+        let cancelFrame: (() => void) | null = null;
+        const flush = () => {
+          cancelFrame?.();
+          cancelFrame = null;
+          if (!pending.length) return;
+          const batch = pending;
+          pending = [];
+          store.setState((s) => ({ modelText: batch.reduce((m, ev) => applyModelText(m, ev), s.modelText) }));
+        };
+        const dropPending = () => {
+          cancelFrame?.();
+          cancelFrame = null;
+          pending = [];
+        };
+        stopFrames = dropPending;
         close = openStream(id, snapshot.seq, {
           onDurable: (ev) => {
+            // Text streamed before this event is applied first, so the event can end it.
+            flush();
             store.setState((s) => {
               if (!s.snapshot) return s;
               const catchUps = s.catchUps.map((c) => trackCatchUp(c, ev));
@@ -192,14 +219,16 @@ export function useInvestigation(id: string): InvestigationState {
             if (seq !== undefined) writeLastSeen(id, seq);
             for (const fn of [...(durableListeners.get(id) ?? [])]) fn(ev);
           },
-          onEphemeral: (ev) => store.setState((s) => ({
-            ephemeral: [...s.ephemeral, ev].slice(-EPHEMERAL_KEEP),
-            modelText: applyModelText(s.modelText, ev),
-          })),
+          onEphemeral: (ev) => {
+            if (ev.kind !== "model_text") return;
+            pending.push(ev);
+            if (!cancelFrame) cancelFrame = nextFrame(flush);
+          },
           onStatus: (status) => {
             if (status === "reconnecting") {
               reconnecting = true;
               // The connection dropped mid-step: the rest of that text is not replayed.
+              dropPending();
               store.setState({ status, modelText: {} });
             } else if (reconnecting) {
               reconnecting = false;
@@ -217,9 +246,30 @@ export function useInvestigation(id: string): InvestigationState {
     return () => {
       cancelled = true;
       close?.();
+      stopFrames?.();
     };
   }, [id, store]);
-  return useStore(store);
+  return useStore(store, useShallow(withoutModelText));
+}
+
+/** What the board needs on every durable event. Model text changes on every frame of
+ * streaming: only the parts that show it subscribe to it (`useModelText`). */
+export type BoardState = Omit<InvestigationState, "modelText">;
+function withoutModelText({ modelText: _skip, ...rest }: InvestigationState): BoardState {
+  return rest;
+}
+
+/** For tests: the model text held for `id`, and a listener on every store update. */
+export function readModelText(id: string): Record<string, ModelText> {
+  return storeFor(id).getState().modelText;
+}
+export function subscribeStore(id: string, fn: () => void): () => void {
+  return storeFor(id).subscribe(fn);
+}
+
+/** The model text being written now, oldest first (the event log's live rows). */
+export function useLiveModelText(id: string): ModelText[] {
+  return useStore(storeFor(id), useShallow((s) => liveModelText(s)));
 }
 
 /** Read part of what is kept for `id` without opening a stream (the board's `useInvestigation`

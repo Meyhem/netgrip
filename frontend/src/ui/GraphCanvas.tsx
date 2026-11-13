@@ -37,6 +37,8 @@ export interface GraphCanvasProps {
   showExcluded?: boolean;
   /** Folds every finished branch below the root (the user can still open one). */
   collapseCompleted?: boolean;
+  /** Called when the user drags the canvas (board: turns Follow active off). */
+  onPan?: () => void;
   /** A node to keep in view: the canvas pans to it whenever it changes (Follow active). */
   follow?: string | null;
 }
@@ -62,7 +64,7 @@ const DRAG_SLOP = 3;
  */
 export function GraphCanvas({
   nodes: allNodes, selectedId, onSelect, mode, toolbar, toolbarEnd, extras = NO_EXTRAS,
-  live: liveProp = true, running = true, activities = NO_ACTIVITIES, showExcluded = true, collapseCompleted = false, follow = null,
+  live: liveProp = true, running = true, activities = NO_ACTIVITIES, showExcluded = true, collapseCompleted = false, follow = null, onPan,
 }: GraphCanvasProps) {
   const board = mode === "board";
   const [manual, setManual] = useState<Set<string>>(() => new Set());
@@ -279,7 +281,10 @@ export function GraphCanvas({
     const sy = e.clientY;
     let last = { x: sx, y: sy };
     const move = (m: MouseEvent) => {
-      if (Math.abs(m.clientX - sx) > DRAG_SLOP || Math.abs(m.clientY - sy) > DRAG_SLOP) dragged.current = true;
+      if (!dragged.current && (Math.abs(m.clientX - sx) > DRAG_SLOP || Math.abs(m.clientY - sy) > DRAG_SLOP)) {
+        dragged.current = true;
+        onPan?.();
+      }
       const dx = m.clientX - last.x;
       const dy = m.clientY - last.y;
       last = { x: m.clientX, y: m.clientY };

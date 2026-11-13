@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { forgetInvestigation } from "../state/investigationStore";
 import { forgetSelection } from "../state/selection";
@@ -306,7 +306,7 @@ describe("ControlBoard event log", () => {
     await screen.findByRole("heading", { name: mid.investigation.prompt });
     const next = events.find((e) => e.seq > mid.seq && e.type === "node.step_completed")!;
     act(() => FakeEventSource.last.ephemeral({ investigation_id: ID, node_id: next.node_id, kind: "model_text", data: { step: 9, delta: "{\"action\":" } }));
-    expect(document.querySelector('[data-slot="event-log"] .ng-log__row--eph')).toHaveTextContent("{\"action\":");
+    await waitFor(() => expect(document.querySelector('[data-slot="event-log"] .ng-log__row--eph')).toHaveTextContent("{\"action\":"));
     act(() => { for (const e of events.filter((e) => e.seq > mid.seq && e.seq <= next.seq)) FakeEventSource.last.durable(e); });
     expect(document.querySelector('[data-slot="event-log"] .ng-log__row--eph')).toBeNull();
   });
@@ -381,6 +381,31 @@ describe("ControlBoard stopped mid-work", () => {
     // A halted board is free of live styling: graph, edges, inspector pill.
     await waitFor(() => expect(document.querySelector('[data-slot="inspector"] .inspector__head')).not.toBeNull());
     expect(document.querySelector("[class*='live']")).toBeNull();
+  });
+});
+
+describe("ControlBoard per investigation", () => {
+  it("moving to another investigation starts the board fresh (tab, sheet)", async () => {
+    const OTHER = "11111111-1111-4111-8111-111111111111";
+    const other = { ...mid, investigation: { ...mid.investigation, id: OTHER, prompt: "Another question" } };
+    mockApi({ [`GET /api/investigations/${ID}`]: mid, [`GET /api/investigations/${OTHER}`]: other, "GET /api/settings": settings() });
+    let go: (to: string) => void = () => {};
+    function Nav() { go = useNavigate(); return null; }
+    render(
+      <MemoryRouter initialEntries={[`/investigations/${ID}/board`]}>
+        <Nav />
+        <Routes><Route path="/investigations/:id/board" element={<InvestigationRoute board />} /></Routes>
+      </MemoryRouter>,
+    );
+    await screen.findByRole("heading", { name: mid.investigation.prompt });
+    fireEvent.click(within(screen.getByRole("tablist", { name: "Board" })).getByRole("tab", { name: "Log" }));
+    fireEvent.click(document.querySelector(".ng-canvas .ng-node")!);
+    expect(document.querySelector(".control-board")).toHaveClass("control-board--tab-log", "control-board--sheet-open");
+    act(() => go(`/investigations/${OTHER}/board`));
+    await screen.findByRole("heading", { name: "Another question" });
+    expect(document.querySelector(".control-board")).toHaveClass("control-board--tab-graph");
+    expect(document.querySelector(".control-board")).not.toHaveClass("control-board--sheet-open");
+    forgetInvestigation(OTHER);
   });
 });
 

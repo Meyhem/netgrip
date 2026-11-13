@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import {
-  applyModelText, dropModelText, forgetInvestigation, gapRows, liveModelText, mergeEvents, startCatchUp, trackCatchUp, useInvestigation,
+  applyModelText, dropModelText, forgetInvestigation, gapRows, mergeEvents, readModelText, startCatchUp, subscribeStore, trackCatchUp, useInvestigation, useLiveModelText,
 } from "./investigationStore";
 import { emptySnapshot, reduce } from "./reduce";
 import { FakeEventSource } from "../test/eventSource";
@@ -29,11 +29,9 @@ describe("useInvestigation", () => {
     act(() => {
       es.open();
       for (const e of events.slice(15)) es.durable(e);
-      es.ephemeral({ investigation_id: ID, node_id: null, kind: "model.text", data: { text: "…" } });
     });
     expect(result.current.status).toBe("open");
     expect(result.current.snapshot).toStrictEqual(snapshot);
-    expect(result.current.ephemeral).toEqual([{ investigation_id: ID, node_id: null, kind: "model.text", data: { text: "…" } }]);
     unmount();
     expect(es.closed).toBe(true);
   });
@@ -89,13 +87,41 @@ describe("live model text", () => {
     const mid = run.snapshots[0];
     forgetInvestigation(RID);
     mockApi({ [`GET /api/investigations/${RID}`]: mid });
-    const { result } = renderHook(() => useInvestigation(RID));
-    await waitFor(() => expect(result.current.snapshot).not.toBeNull());
+    const { result } = renderHook(() => ({ inv: useInvestigation(RID), live: useLiveModelText(RID) }));
+    await waitFor(() => expect(result.current.inv.snapshot).not.toBeNull());
     const next = run.events.find((e) => e.seq > mid.seq && e.type === "node.step_completed")!;
     act(() => FakeEventSource.last.ephemeral(mt(next.node_id!, 1, "{\"action\": \"se")));
-    expect(liveModelText(result.current).map((t) => t.text)).toEqual(["{\"action\": \"se"]);
+    await waitFor(() => expect(result.current.live.map((t) => t.text)).toEqual(["{\"action\": \"se"]));
+    // A delta still waiting for its frame is applied before a durable event that ends it.
+    act(() => FakeEventSource.last.ephemeral(mt(next.node_id!, 1, "arch")));
     act(() => { for (const e of run.events.filter((e) => e.seq > mid.seq && e.seq <= next.seq)) FakeEventSource.last.durable(e); });
-    expect(liveModelText(result.current)).toEqual([]);
+    expect(result.current.live).toEqual([]);
+    forgetInvestigation(RID);
+  });
+
+  it("model-text deltas are folded in at most once per frame; the board state does not change", async () => {
+    const mid = run.snapshots[0];
+    forgetInvestigation(RID);
+    mockApi({ [`GET /api/investigations/${RID}`]: mid });
+    let boardRenders = 0;
+    const { result } = renderHook(() => { boardRenders++; return useInvestigation(RID); });
+    await waitFor(() => expect(result.current.snapshot).not.toBeNull());
+    act(() => FakeEventSource.last.open());
+    const store = { updates: 0 };
+    const unsub = subscribeStore(RID, () => { store.updates++; });
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (f: FrameRequestCallback) => frames.push(f));
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+    const before = boardRenders;
+    const node = mid.nodes.find((n) => n.status === "Running")!.id;
+    act(() => { for (const d of ["a", "b", "c", "d"]) FakeEventSource.last.ephemeral(mt(node, 1, d)); });
+    expect(store.updates).toBe(0);
+    expect(frames).toHaveLength(1);
+    act(() => frames[0](0));
+    expect(store.updates).toBe(1);
+    expect(readModelText(RID)[node].text).toBe("abcd");
+    expect(boardRenders).toBe(before);
+    unsub();
     forgetInvestigation(RID);
   });
 });

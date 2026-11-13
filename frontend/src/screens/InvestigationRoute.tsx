@@ -58,6 +58,7 @@ export function InvestigationRoute({ board = false }: { board?: boolean }) {
   const name = board ? "ControlBoard" : screenFor(state);
   if (name === "PlanReview" || (name === "NewInvestigation" && drafting)) return <PlanReview id={id} />;
   if (name === "NewInvestigation") return <NewInvestigation draft={data.investigation} />;
-  if (name === "ControlBoard") return <ControlBoard id={id} />;
+  // Keyed by id: view state (selection sheet, tabs, graph view, log paging) starts fresh per investigation.
+  if (name === "ControlBoard") return <ControlBoard key={id} id={id} />;
   return <NotBuilt state={state} origin={data.investigation.pause_cause} />;
 }

@@ -9,8 +9,9 @@ export interface GraphView {
   followActive: boolean;
 }
 
-/** Show excluded is on by default (GraphCanvas README); Follow active as in the board preview. */
-export const DEFAULT_VIEW: GraphView = { collapseCompleted: false, showExcluded: true, followActive: true };
+/** Show excluded is on by default (GraphCanvas README). Follow active is off: on, it would
+ * move the view away from the node the user selected; a manual pan turns it off again. */
+export const DEFAULT_VIEW: GraphView = { collapseCompleted: false, showExcluded: true, followActive: false };
 
 /** "#" and the last applied sequence number, zero-padded to four digits (419 reads 0419). */
 export const seqLabel = (seq: number) => `#${String(seq).padStart(4, "0")}`;

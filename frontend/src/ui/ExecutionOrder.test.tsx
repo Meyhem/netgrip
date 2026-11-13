@@ -98,6 +98,20 @@ describe("ExecutionOrder", () => {
     expect(screen.getByText("Nothing queued. The orchestrator is deciding.")).toBeInTheDocument();
   });
 
+  it.each(["Completed", "Stopped"] as const)("%s: empty Next reads as history, not as a decision to come", (state) => {
+    const base = snap([graphNode({ id: "R", status: "Completed" })]);
+    show({ ...base, investigation: { ...base.investigation, state } });
+    expect(screen.getByText("Nothing was left in the queue.")).toBeInTheDocument();
+    expect(screen.queryByText(/orchestrator is deciding/)).toBeNull();
+  });
+
+  it.each([["Completed", "not run"], ["Stopped", "stopped"]] as const)("%s: pending nodes drop stale schedule reasons", (state, word) => {
+    const base = snap([R, kid("A"), kid("B")], { schedule: { order: ["B", "A"], reasons: { B: "slot", A: "dependency:B" }, slots: 6 } });
+    show({ ...base, investigation: { ...base.investigation, state } });
+    const next = [...document.querySelectorAll('.ng-qrow[data-section="next"]')];
+    expect(next.map((r) => r.querySelector(".ng-qrow__meta")!.textContent)).toEqual([`○ ${word}`, `○ ${word}`, `◔ ${word}`]);
+  });
+
   it("next shows position and wait reason in the scheduler's order", () => {
     const s = snap([R, kid("A"), kid("B")], { schedule: { order: ["B", "A"], reasons: { B: "slot", A: "dependency:B" }, slots: 6 } });
     show(s);

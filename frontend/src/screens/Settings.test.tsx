@@ -27,16 +27,19 @@ function api(extra: Record<string, unknown> = {}) {
 const show = () => render(<MemoryRouter><Settings /></MemoryRouter>);
 
 describe("Settings", () => {
-  it("changing Medium max nodes sends PATCH with only that field", async () => {
+  it("changing Medium max nodes sends PATCH with only that field", { timeout: 15_000 }, async () => {
     const f = api();
     show();
-    const input = await screen.findByLabelText("Medium max nodes");
+    // Under a loaded full-suite run the default 1 s waits were too short (an intermittent
+    // failure). "Saved" stays 2 s; waitFor also checks on every DOM change, so it sees it.
+    const slow = { timeout: 5000 };
+    const input = await screen.findByLabelText("Medium max nodes", {}, slow);
     expect(input).toHaveValue("40");
     fireEvent.change(input, { target: { value: "50" } });
     fireEvent.blur(input);
-    await waitFor(() => expect(callsTo(f, "PATCH", "/api/settings")).toHaveLength(1));
+    await waitFor(() => expect(callsTo(f, "PATCH", "/api/settings")).toHaveLength(1), slow);
     expect(JSON.parse(callsTo(f, "PATCH", "/api/settings")[0][1]!.body as string)).toEqual({ effort: { Medium: { max_nodes: 50 } } });
-    expect(await screen.findByText("Saved")).toBeInTheDocument();
+    expect(await screen.findByText("Saved", {}, slow)).toBeInTheDocument();
   });
 
   it("non-numeric input shows is-error and sends nothing", async () => {

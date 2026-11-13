@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ComponentProps, type ReactNode } from "react";
 import type { ClaimStatus as Status, DurableEvent, GraphNode, NodeDetail, Snapshot } from "../api/types";
 import { elapsed, money, timeOfDaySeconds } from "../lib/format";
 import { lastByNode } from "../state/derive";
@@ -90,10 +90,7 @@ interface Ctx { s: Snapshot; events: DurableEvent[]; node: GraphNode; detail: No
 
 /** ScreenNodeDetail / ScreenControlBoard region 4: the selected node, one tab at a time. */
 export function Inspector({ investigationId, s, events, nodeId, live: streamLive = true, nodeActions, composer }: InspectorProps) {
-  // Nothing runs while the investigation is Paused or Stopped: no pulse, no live trail, and a
-  // node still marked Running or Waiting on children takes the paused tone, not live.
   const halted = s.investigation.state === "Paused" || s.investigation.state === "Stopped";
-  const live = streamLive && !halted;
   const rootId = s.nodes.find((n) => n.parent_id === null)?.id ?? null;
   const id = nodeId ?? rootId;
   const { detail, status } = useNodeDetail(investigationId, id);
@@ -101,9 +98,14 @@ export function Inspector({ investigationId, s, events, nodeId, live: streamLive
   // The stored page open in the sheet, for this node only.
   const [page, setPage] = useState<{ nodeId: string | null; pageVersionId: string } | null>(null);
   const openPage = page && page.nodeId === id ? page.pageVersionId : null;
-  const modelText = useInvestigationSlice(investigationId, (st) => (id ? st.modelText[id] ?? null : null));
   // The row from the snapshot is current to the last applied event; the detail may lag a fetch.
   const node = s.nodes.find((n) => n.id === id) ?? detail?.node ?? null;
+  // `live` appears only on running or waiting work: the node is Included, Running or Waiting on
+  // children, and the investigation is not Paused or Stopped. Otherwise a node still marked
+  // Running or Waiting takes the paused tone. The pulse also needs the stream open.
+  const active = node?.status === "Running" || node?.status === "Waiting on children";
+  const running = !!node && node.inclusion === "Included" && active && !halted;
+  const live = streamLive && running;
   const displayIds = Object.fromEntries(s.nodes.map((n) => [n.id, n.display_id]));
   const instructionCount = detail ? detail.instructions.inherited.length + detail.instructions.own.length : null;
 
@@ -126,9 +128,8 @@ export function Inspector({ investigationId, s, events, nodeId, live: streamLive
       tab === "overview" ? <Overview {...ctx} />
       : tab === "claims" ? <ClaimsTab key={node.id} {...ctx} />
       : tab === "brief" ? <Brief brief={detail.brief} node={node} />
-      : tab === "trail" ? <Trail detail={detail} modelText={modelText}
-          live={live && (node.status === "Running" || node.status === "Waiting on children")} halted={halted}
-          finished={node.status === "Completed" || node.status === "Failed"} onOpenPage={(pageVersionId) => setPage({ nodeId: id, pageVersionId })} />
+      : tab === "trail" ? <LiveTrail investigationId={investigationId} detail={detail} live={live} running={running}
+          onOpenPage={(pageVersionId) => setPage({ nodeId: id, pageVersionId })} />
       : <InstructionsTab {...ctx} />;
   }
 
@@ -139,7 +140,7 @@ export function Inspector({ investigationId, s, events, nodeId, live: streamLive
           <div className="ng-row ng-row--nowrap">
             <span className="ng-tag">{KIND_CODE[node.kind]}</span>
             <span className="ng-mono ng-faint">{node.display_id} · depth {node.depth}</span>
-            <Pill spec={halted && (node.status === "Running" || node.status === "Waiting on children") ? { ...NODE_PILL[node.status], tone: NODE_PILL.Paused.tone } : NODE_PILL[node.status]} still={!live} />
+            <Pill spec={active && !running ? { ...NODE_PILL[node.status], tone: NODE_PILL.Paused.tone } : NODE_PILL[node.status]} still={!live} />
             {node.inclusion !== "Included" && <StatusPill kind="inclusion" state={node.inclusion} />}
             {nodeActions != null && <span className="ng-right">{nodeActions}</span>}
           </div>
@@ -161,6 +162,14 @@ export function Inspector({ investigationId, s, events, nodeId, live: streamLive
       {openPage && <PageSheet investigationId={investigationId} pageVersionId={openPage} onClose={() => setPage(null)} />}
     </>
   );
+}
+
+/** The Trail with the node's streamed model text. Only the trail re-renders on each frame of
+ * streamed text, not the inspector around it. */
+function LiveTrail({ investigationId, ...props }: Omit<ComponentProps<typeof Trail>, "modelText"> & { investigationId: string }) {
+  const id = props.detail.node.id;
+  const modelText = useInvestigationSlice(investigationId, (st) => st.modelText[id] ?? null);
+  return <Trail {...props} modelText={modelText} />;
 }
 
 function Overview(ctx: Ctx) {

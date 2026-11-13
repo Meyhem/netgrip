@@ -31,7 +31,7 @@ function ruleText(detail: NodeDetail, s: TrailStep, next: TrailStep | undefined)
 
 /** ScreenNodeDetail, Trail tab: one well per step, oldest first. The open step streams the
  * model's text (never stored, D-11); closed steps show only what was persisted. */
-export function Trail({ detail, modelText, onOpenPage, live, finished = false, halted = false }: {
+export function Trail({ detail, modelText, onOpenPage, live, running }: {
   detail: NodeDetail;
   /** The node's streamed model text from the store, if any. Shown only on the matching open step. */
   modelText: ModelText | null;
@@ -39,10 +39,10 @@ export function Trail({ detail, modelText, onOpenPage, live, finished = false, h
   /** True only while the node runs (Running or Waiting on children), the investigation is not
    * paused and the stream is open. Otherwise the open step is a plain well: no live border, no text. */
   live: boolean;
-  /** The node is Completed or Failed: a finished graph has no `live` in it, so verbs are muted. */
-  finished?: boolean;
-  /** The investigation is Paused or Stopped: nothing runs, so verbs are muted as well. */
-  halted?: boolean;
+  /** The node is running or waiting work: Included, Running or Waiting on children, in an
+   * investigation that is not Paused or Stopped. Only then do verbs carry `ng-live`; finished,
+   * excluded, paused, pending or halted nodes have muted verbs. */
+  running: boolean;
 }) {
   const steps = detail.trail;
   if (steps.length === 0) return <p className="ng-small ng-muted">No steps recorded yet.</p>;
@@ -57,7 +57,7 @@ export function Trail({ detail, modelText, onOpenPage, live, finished = false, h
         return [
           <div key={`s${s.step}`} data-step={s.step} className={cx("ng-well", "trail__step", open && "trail__step--open", retry && "trail__step--retry")}>
             <span className="ng-faint">step {s.step} · {timeOfDaySeconds(s.started_at)} · </span>
-            <span className={cx("trail__verb", retry ? "ng-warn" : !finished && !halted && "ng-live")}>{verb(s).toUpperCase()}</span>
+            <span className={cx("trail__verb", retry ? "ng-warn" : running && "ng-live")}>{verb(s).toUpperCase()}</span>
             {what && <> {what}</>}
             {s.page_version_id && <> <button type="button" className="trail__page" onClick={() => onOpenPage(s.page_version_id!)}>stored page</button></>}
             {text !== null && (

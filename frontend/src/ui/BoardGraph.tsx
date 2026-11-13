@@ -59,6 +59,7 @@ export function BoardGraph({ s, events, selectedId, onSelect, live }: BoardGraph
       showExcluded={view.showExcluded}
       collapseCompleted={view.collapseCompleted}
       follow={view.followActive ? active : null}
+      onPan={() => setView((v) => (v.followActive ? { ...v, followActive: false } : v))}
       toolbar={<GraphToolbar counts={c} seq={s.seq} />}
       toolbarEnd={<GraphToggles view={view} onChange={setView} />}
     />

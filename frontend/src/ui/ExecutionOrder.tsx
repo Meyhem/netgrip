@@ -80,6 +80,8 @@ function whyText(row: NotRunningRow, s: Snapshot, inclusion: Map<string, Durable
  * Done, Not running, always in that order. */
 export function ExecutionOrder({ s, events, selectedId, onSelect, live = true }: ExecutionOrderProps) {
   const paused = s.investigation.state === "Paused";
+  // Completed or Stopped: the board is history, nothing is being decided.
+  const history = s.investigation.state === "Completed" || s.investigation.state === "Stopped";
   const derived = useMemo(() => sections(s, events), [s, events]);
   const now = derived.now;
   const clockNow = useNow(now.length > 0);
@@ -198,7 +200,11 @@ export function ExecutionOrder({ s, events, selectedId, onSelect, live = true }:
         <span className="ng-label">Next</span>
         <span className="ng-queue__count">{`${rows.next.length} in order`}</span>
       </div>
-      {rows.next.length ? renderRows(rows.next) : <div className="ng-pad ng-small ng-muted">Nothing queued. The orchestrator is deciding.</div>}
+      {rows.next.length ? renderRows(rows.next) : (
+        <div className="ng-pad ng-small ng-muted">
+          {history ? "Nothing was left in the queue." : "Nothing queued. The orchestrator is deciding."}
+        </div>
+      )}
       <div className="ng-queue__head">
         <span className="ng-label ng-ok">Done</span>
         <span className="ng-queue__count">{`${rows.done.length} · newest first`}</span>

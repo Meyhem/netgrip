@@ -2,14 +2,14 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { getJSON } from "../api/client";
 import type { InvestigationState, Snapshot } from "../api/types";
-import { liveModelText, useInvestigation } from "../state/investigationStore";
+import { useInvestigation, useLiveModelText } from "../state/investigationStore";
 import { useOlderEvents } from "../state/olderEvents";
 import { useSelection } from "../state/selection";
 import { Banner } from "../ui/Banner";
 import { BoardGraph } from "../ui/BoardGraph";
 import { BoardHeader } from "../ui/BoardHeader";
 import { Button } from "../ui/Button";
-import { EventLog } from "../ui/EventLog";
+import { EventLog, type EventLogProps } from "../ui/EventLog";
 import { ExecutionOrder } from "../ui/ExecutionOrder";
 import { Inspector } from "../ui/Inspector";
 import { cx } from "../ui/cx";
@@ -122,6 +122,12 @@ function Synthesising({ claims }: { claims: number | null }) {
   );
 }
 
+/** The event log with the live model-text rows. Only this part of the board re-renders on
+ * each frame of streamed text. */
+function LiveEventLog({ id, ...props }: Omit<EventLogProps, "ephemeral"> & { id: string }) {
+  return <EventLog {...props} ephemeral={useLiveModelText(id)} />;
+}
+
 /** ScreenControlBoard: one investigation, three panes over one store and one selection. Opens
  * from the snapshot and follows the stream (useInvestigation). Read-only in Phase 5. */
 export function ControlBoard({ id }: { id: string }) {
@@ -178,7 +184,7 @@ export function ControlBoard({ id }: { id: string }) {
       }
       graph={<BoardGraph s={snapshot} events={events} selectedId={selectedId} onSelect={pick} live={status === "open"} />}
       eventLog={
-        <EventLog events={events} nodes={snapshot.nodes} seq={snapshot.seq} ephemeral={liveModelText(state)} gaps={gaps}
+        <LiveEventLog id={id} events={events} nodes={snapshot.nodes} seq={snapshot.seq} gaps={gaps}
           selectedId={selectedId} onSelect={pick} collapsed={logCollapsed} onToggle={() => setLogCollapsed((c) => !c)}
           onReachEnd={loadOlder} older={older} />
       }
