@@ -10,11 +10,14 @@ export interface SendOptions {
   payload?: Record<string, unknown>;
   /** Which of the command's events confirms it. Defaults to the first one. */
   until?: (ev: DurableEvent) => boolean;
+  /** Any durable event, whoever caused it, that ends is-sent. For effects that arrive later
+   * and without the command's id (a pause takes effect once the running steps finish). */
+  settledBy?: (ev: DurableEvent) => boolean;
 }
 
 export interface CommandError { key: string; code: string; message: string }
 
-interface Pending { id: string; until?: (ev: DurableEvent) => boolean }
+interface Pending { id: string; until?: (ev: DurableEvent) => boolean; settledBy?: (ev: DurableEvent) => boolean }
 
 /** Commands with client-generated ids (steering.md, "the life of any command"): `isSent(key)` is
  * true from the click until a durable event carrying that command's id arrives on the stream.
@@ -27,9 +30,10 @@ export function useCommand(investigationId: string) {
   useEffect(
     () =>
       subscribeDurable(investigationId, (ev) => {
-        if (!ev.command_id) return;
         setPending((p) => {
-          const done = Object.keys(p).filter((k) => p[k].id === ev.command_id && (!p[k].until || p[k].until!(ev)));
+          const done = Object.keys(p).filter(
+            (k) => p[k].settledBy?.(ev) || (ev.command_id && p[k].id === ev.command_id && (!p[k].until || p[k].until!(ev))),
+          );
           if (!done.length) return p;
           const next = { ...p };
           for (const k of done) delete next[k];
@@ -44,7 +48,7 @@ export function useCommand(investigationId: string) {
       const key = opts.key ?? type;
       const id = crypto.randomUUID();
       setError(null);
-      setPending((p) => ({ ...p, [key]: { id, until: opts.until } }));
+      setPending((p) => ({ ...p, [key]: { id, until: opts.until, settledBy: opts.settledBy } }));
       try {
         await sendCommand(investigationId, type, { id, nodeId: opts.nodeId, payload: opts.payload });
         return true;
@@ -68,5 +72,6 @@ export function useCommand(investigationId: string) {
 
   const isSent = useCallback((key: string) => key in pending, [pending]);
 
-  return { send, isSent, error, clearError: () => setError(null) };
+  const clearError = useCallback(() => setError(null), []);
+  return { send, isSent, error, clearError };
 }

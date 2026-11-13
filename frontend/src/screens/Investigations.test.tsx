@@ -76,8 +76,25 @@ describe("Investigations", () => {
     expect(primary).toHaveLength(1);
     expect(primary[0]).toHaveTextContent(label);
     expect(primary[0].classList.contains("ng-btn--steer")).toBe(steer);
+    if (["Running", "Paused", "Stopped"].includes(state)) return; // these send a command
     fireEvent.click(primary[0]);
     expect(await screen.findByText("opened")).toBeInTheDocument();
+  });
+
+  it.each<[InvestigationState, string, string, string]>([
+    ["Running", "Pause", "pause", "Pausing…"],
+    ["Paused", "Resume", "resume", "Resuming…"],
+    ["Stopped", "Finish into a report", "finish_now", "Finishing…"],
+  ])("%s row: %s sends %s and shows %s until the state changes", async (state, label, type, sent) => {
+    const f = api([row({ state, pause_cause: state === "Paused" ? "user" : null })], {
+      "POST /api/investigations/inv-1/commands": () => new Response(JSON.stringify({ recorded: true, duplicate: false }), { status: 202 }),
+    });
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: new RegExp(label) }));
+    expect(await screen.findByRole("button", { name: sent })).toBeDisabled();
+    const body = JSON.parse(callsTo(f, "POST", "/api/investigations/inv-1/commands")[0][1]!.body as string);
+    expect(body).toMatchObject({ type, node_id: null });
+    expect(screen.queryByText("opened")).toBeNull();
   });
 
   it('Paused row shows cause and "Nothing is lost"', async () => {

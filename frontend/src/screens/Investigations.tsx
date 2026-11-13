@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { createInvestigation, deleteInvestigation, getJSON } from "../api/client";
+import { createInvestigation, deleteInvestigation, getJSON, sendCommand } from "../api/client";
 import type { InvestigationRow, InvestigationState, Settings, Storage } from "../api/types";
 import { bytes, clock, money, moneyOf } from "../lib/format";
 import { usePoll } from "../lib/usePoll";
@@ -31,12 +31,12 @@ export function sortRows(rows: InvestigationRow[]): InvestigationRow[] {
 }
 
 /** One action per state; Synthesising has nothing to do but watch. */
-const ACTION: Record<InvestigationState, { label: string; steer?: boolean }> = {
+const ACTION: Record<InvestigationState, { label: string; steer?: boolean; command?: string; sent?: string }> = {
   Draft: { label: "Continue" },
   Planning: { label: "Review plan", steer: true },
-  Running: { label: "‖ Pause" },
-  Paused: { label: "Resume", steer: true },
-  Stopped: { label: "Finish into a report" },
+  Running: { label: "‖ Pause", command: "pause", sent: "Pausing…" },
+  Paused: { label: "Resume", steer: true, command: "resume", sent: "Resuming…" },
+  Stopped: { label: "Finish into a report", command: "finish_now", sent: "Finishing…" },
   Completed: { label: "Open report" },
   Synthesising: { label: "Open" },
 };
@@ -81,6 +81,21 @@ function Row({ r, onOpen, onDelete }: { r: InvestigationRow; onOpen: () => void;
     return () => document.removeEventListener("mousedown", close);
   }, [menu]);
   const draft = r.state === "Draft";
+  // The command is in flight from the click until the row's state changes (the list polls).
+  const [sentIn, setSentIn] = useState<InvestigationState | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  const sent = sentIn === r.state;
+  const act = async () => {
+    if (!action.command) return onOpen();
+    setFailed(null);
+    setSentIn(r.state);
+    try {
+      await sendCommand(r.id, action.command);
+    } catch (e) {
+      setSentIn(null);
+      setFailed(e instanceof Error ? e.message : "The command was not sent.");
+    }
+  };
   return (
     <tr className="clickable" onClick={onOpen}>
       <td>
@@ -99,7 +114,8 @@ function Row({ r, onOpen, onDelete }: { r: InvestigationRow; onOpen: () => void;
       <td className="is-num">{runTime(r)}</td>
       <td onClick={(e) => e.stopPropagation()}>
         <div className="ng-row ng-row--nowrap row-actions" ref={menuRef}>
-          <Button size="sm" variant={action.steer ? "steer" : "default"} onClick={onOpen}>{action.label}</Button>
+          <Button size="sm" variant={action.steer ? "steer" : "default"} onClick={() => void act()} sent={sent} sentLabel={action.sent}>{action.label}</Button>
+          {failed && <span className="ng-small ng-danger" role="alert">{failed}</span>}
           <Button size="sm" variant="quiet" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>More</Button>
           {menu && (
             <div className="ng-menu row-menu" role="menu">

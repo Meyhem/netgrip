@@ -14,7 +14,11 @@ import { DeleteDialog } from "./DeleteDialog";
 import { StatusPill } from "./StatusPill";
 
 /** ScreenControlBoard region 1: state, the prompt, budget, run controls and the overflow. */
-export function BoardHeader({ s, status, runControls }: { s: Snapshot; status: ConnectionStatus; runControls?: ReactNode }) {
+export function BoardHeader({ s, status, runControls, focusAction }: {
+  s: Snapshot; status: ConnectionStatus; runControls?: ReactNode;
+  /** "Run everything", shown beside the focus line while the user runs only a branch. */
+  focusAction?: ReactNode;
+}) {
   const inv = s.investigation;
   const id = inv.id;
   const navigate = useNavigate();
@@ -60,6 +64,7 @@ export function BoardHeader({ s, status, runControls }: { s: Snapshot; status: C
         <div className="ng-row ng-row--nowrap">
           <StatusPill kind="investigation" state={inv.state} origin={inv.pause_cause} reconnecting={status === "reconnecting"} />
           <span className="ng-mono ng-muted">{line}</span>
+          {focus && focusAction}
           {refuted > 0 && (
             <span className="ng-pill ng-pill--danger"><i>✕</i>{refuted === 1 ? "Premise refuted" : `${refuted} premises refuted`}</span>
           )}
@@ -77,7 +82,6 @@ export function BoardHeader({ s, status, runControls }: { s: Snapshot; status: C
         <BudgetMeter label="Depth" value={c.depth} max={c.maxDepth} format="count" />
       </div>
       <div className="ng-row ng-row--nowrap board-head__controls" ref={menuRef}>
-        {/* Phase 6: RunControls */}
         {runControls}
         <Button variant="quiet" aria-label="More" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>⋯</Button>
         {menu && (

@@ -47,6 +47,28 @@ function show(s: Snapshot, status: "open" | "reconnecting" = "open") {
 
 const head = () => document.querySelector(".ng-board__head")!;
 
+describe("BoardHeader focus", () => {
+  it('reads "Running only D2" with a Run everything button while a branch runs alone', () => {
+    const s = snap({}, { focus_node_id: "D1" });
+    render(
+      <MemoryRouter>
+        <BoardHeader s={s} status="open" focusAction={<button>Run everything</button>} />
+      </MemoryRouter>,
+    );
+    expect(head()).toHaveTextContent("Running only D1");
+    expect(screen.getByRole("button", { name: "Run everything" })).toBeInTheDocument();
+  });
+
+  it("has no Run everything without a focus", () => {
+    render(
+      <MemoryRouter>
+        <BoardHeader s={snap()} status="open" focusAction={<button>Run everything</button>} />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole("button", { name: "Run everything" })).toBeNull();
+  });
+});
+
 describe("BoardHeader", () => {
   it("shows state, effort, preset, run time and running count, the prompt and three meters", () => {
     show(snap());

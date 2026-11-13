@@ -4,6 +4,7 @@ import { getJSON } from "../api/client";
 import type { InvestigationState, Snapshot } from "../api/types";
 import { useInvestigation, useLiveModelText } from "../state/investigationStore";
 import { useOlderEvents } from "../state/olderEvents";
+import { useCommand } from "../state/useCommand";
 import { useSelection } from "../state/selection";
 import { Banner } from "../ui/Banner";
 import { BoardGraph } from "../ui/BoardGraph";
@@ -12,6 +13,7 @@ import { Button } from "../ui/Button";
 import { EventLog, type EventLogProps } from "../ui/EventLog";
 import { ExecutionOrder } from "../ui/ExecutionOrder";
 import { Inspector } from "../ui/Inspector";
+import { RunControls } from "../ui/RunControls";
 import { cx } from "../ui/cx";
 import { Page } from "./InvestigationRoute";
 
@@ -139,6 +141,14 @@ export function ControlBoard({ id }: { id: string }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [tab, setTab] = useState<BoardTab>("graph");
   const synthesisClaims = useSynthesisClaims(id, snapshot?.investigation.state);
+  const command = useCommand(id);
+  // A refused command: the server's message, for 6 s (steering.md, "the life of any command").
+  const { error: commandError, clearError } = command;
+  useEffect(() => {
+    if (!commandError) return;
+    const t = setTimeout(clearError, 6000);
+    return () => clearTimeout(t);
+  }, [commandError, clearError]);
   // Selecting a node from any pane opens the inspector sheet (narrow widths), even when the
   // node was already selected.
   const pick = useCallback((nodeId: string | null) => {
@@ -176,7 +186,17 @@ export function ControlBoard({ id }: { id: string }) {
       onCloseSheet={() => setSheetOpen(false)}
       tab={tab}
       onTab={setTab}
-      header={<BoardHeader s={snapshot} status={status} runControls={null /* Phase 6: RunControls */} />}
+      banner={commandError ? <Banner tone="warn" title={commandError.message} /> : undefined}
+      header={
+        <BoardHeader s={snapshot} status={status}
+          runControls={<RunControls s={snapshot} command={command} />}
+          focusAction={
+            <Button size="sm" sent={command.isSent("run_everything")} sentLabel="Running everything…"
+              onClick={() => void command.send("run_everything", { settledBy: (ev) => ev.type === "focus.changed" })}>
+              Run everything
+            </Button>
+          } />
+      }
       executionOrder={
         synthesising
           ? <Synthesising claims={synthesisClaims} />

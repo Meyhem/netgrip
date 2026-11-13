@@ -136,6 +136,11 @@ export function subscribeDurable(id: string, fn: (ev: DurableEvent) => void): ()
   return () => { set.delete(fn); };
 }
 
+/** Deliver `ev` to the subscribers as if the stream had (for tests of what reacts to events). */
+export function emitDurable(id: string, ev: DurableEvent): void {
+  for (const fn of [...(durableListeners.get(id) ?? [])]) fn(ev);
+}
+
 function storeFor(id: string): StoreApi<InvestigationState> {
   let store = stores.get(id);
   if (!store) {
