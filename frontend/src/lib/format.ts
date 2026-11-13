@@ -34,3 +34,9 @@ export function timeOfDay(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
+
+/** Local time of day with seconds, as "14:02:31". */
+export function timeOfDaySeconds(iso: string): string {
+  const d = new Date(iso);
+  return `${timeOfDay(iso)}:${String(d.getSeconds()).padStart(2, "0")}`;
+}

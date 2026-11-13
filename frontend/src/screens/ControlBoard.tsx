@@ -1,9 +1,11 @@
-import type { ReactNode } from "react";
-import { useInvestigation } from "../state/investigationStore";
+import { useEffect, useState, type ReactNode } from "react";
+import { liveModelText, useInvestigation } from "../state/investigationStore";
+import { useOlderEvents } from "../state/olderEvents";
 import { useSelection } from "../state/selection";
 import { Banner } from "../ui/Banner";
 import { BoardGraph } from "../ui/BoardGraph";
 import { BoardHeader } from "../ui/BoardHeader";
+import { EventLog } from "../ui/EventLog";
 import { ExecutionOrder } from "../ui/ExecutionOrder";
 import { cx } from "../ui/cx";
 import { Page } from "./InvestigationRoute";
@@ -42,8 +44,22 @@ export function BoardLayout({ header, banner, executionOrder, graph, eventLog, i
 /** ScreenControlBoard: one investigation, three panes over one store and one selection. Opens
  * from the snapshot and follows the stream (useInvestigation). Read-only in Phase 5. */
 export function ControlBoard({ id }: { id: string }) {
-  const { snapshot, status, error, events } = useInvestigation(id);
+  const state = useInvestigation(id);
+  const { snapshot, status, error, events, gaps } = state;
   const { selectedId, select } = useSelection(id);
+  const { older, loadOlder } = useOlderEvents(id, events, snapshot?.seq ?? 0);
+  const [logCollapsed, setLogCollapsed] = useState(false);
+  // `L` toggles the log (ScreenControlBoard keyboard).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== "l" || e.metaKey || e.ctrlKey || e.altKey) return;
+      if ((e.target as HTMLElement | null)?.closest?.("input, textarea, select, [contenteditable]")) return;
+      e.preventDefault();
+      setLogCollapsed((c) => !c);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   if (!snapshot) {
     return error ? <Page><Banner tone="warn" title="Netgrip cannot reach its service.">Reload to try again. Nothing is lost.</Banner></Page> : null;
   }
@@ -55,7 +71,11 @@ export function ControlBoard({ id }: { id: string }) {
       header={<BoardHeader s={snapshot} status={status} runControls={null /* Phase 6: RunControls */} />}
       executionOrder={<ExecutionOrder s={snapshot} events={events} selectedId={selectedId} onSelect={select} live={status === "open"} />}
       graph={<BoardGraph s={snapshot} events={events} selectedId={selectedId} onSelect={select} live={status === "open"} />}
-      eventLog={null}
+      eventLog={
+        <EventLog events={events} nodes={snapshot.nodes} seq={snapshot.seq} ephemeral={liveModelText(state)} gaps={gaps}
+          selectedId={selectedId} onSelect={select} collapsed={logCollapsed} onToggle={() => setLogCollapsed((c) => !c)}
+          onReachEnd={loadOlder} older={older} />
+      }
       inspector={<div className="ng-pane__scroll" data-node-id={inspected ?? undefined} />}
     />
   );

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { forgetInvestigation } from "../state/investigationStore";
@@ -124,5 +124,97 @@ describe("ControlBoard", () => {
     expect(document.querySelector(`.ng-canvas [data-node="${d1.id}"]`)).toHaveClass("is-selected");
     act(() => FakeEventSource.last.fail());
     expect(document.querySelector(".ng-canvas .ng-pulse")).toBeNull();
+  });
+});
+
+describe("ControlBoard event log", () => {
+  const last = snapshots[snapshots.length - 1];
+  const OLDER = `/api/investigations/${ID}/events`;
+
+  function showWithLog(snapshot: typeof mid, older: (url: string) => unknown) {
+    const fetchFn = mockApi({ [`GET /api/investigations/${ID}`]: snapshot, "GET /api/settings": settings(), [`GET ${OLDER}`]: older });
+    render(
+      <MemoryRouter initialEntries={[`/investigations/${ID}/board`]}>
+        <Routes><Route path="/investigations/:id/board" element={<InvestigationRoute board />} /></Routes>
+      </MemoryRouter>,
+    );
+    return fetchFn;
+  }
+  const olderCalls = (fn: ReturnType<typeof mockApi>) => fn.mock.calls.map(([u]) => String(u)).filter((u) => u.startsWith(OLDER));
+
+  it("the dock shows the log from the snapshot's recent events, newest first", async () => {
+    const recent = events.filter((e) => e.seq > last.seq - 50 && e.seq <= last.seq);
+    showWithLog({ ...last, recent_events: recent }, () => []);
+    await screen.findByRole("heading", { name: last.investigation.prompt });
+    const seqs = [...document.querySelectorAll('[data-slot="event-log"] .ng-log__row .ng-log__seq')].map((s) => s.textContent);
+    expect(seqs[0]).toBe(`#0${last.seq}`);
+    expect(seqs.length).toBeGreaterThan(0);
+    expect(seqs.length).toBeLessThan(recent.length); // schedule and spend rows are left out
+  });
+
+  it("older rows load on reaching the end, with before=, until none are returned", async () => {
+    const recent = events.filter((e) => e.seq > 140 && e.seq <= last.seq);
+    const fn = showWithLog({ ...last, recent_events: recent }, (url) => {
+      const before = Number(new URL(url, "http://x").searchParams.get("before"));
+      return before > 120 ? events.filter((e) => e.seq < before && e.seq >= before - 20) : [];
+    });
+    await screen.findByRole("heading", { name: last.investigation.prompt });
+    // Opening does not fetch the whole history.
+    expect(olderCalls(fn)).toEqual([]);
+    const log = document.querySelector('[data-slot="event-log"] .ng-log') as HTMLElement;
+    Object.defineProperty(log, "scrollHeight", { configurable: true, value: 1000 });
+    Object.defineProperty(log, "clientHeight", { configurable: true, value: 166 });
+    const toEnd = async (n: number) => {
+      log.scrollTop = 834;
+      fireEvent.scroll(log);
+      await waitFor(() => expect(olderCalls(fn)).toHaveLength(n));
+      await waitFor(() => expect(log.closest('[data-older]')).not.toHaveAttribute("data-older", "loading"));
+    };
+    await toEnd(1);
+    expect(olderCalls(fn)[0]).toContain("before=141");
+    expect(olderCalls(fn)[0]).toContain("limit=");
+    const seqs = () => [...log.querySelectorAll(".ng-log__seq")].map((s) => Number(s.textContent!.slice(1)));
+    await waitFor(() => expect(Math.min(...seqs())).toBeLessThan(141));
+    await toEnd(2);
+    expect(olderCalls(fn)[1]).toContain("before=121");
+    await toEnd(3);
+    expect(olderCalls(fn)[2]).toContain("before=101");
+    // None returned: it stops asking.
+    log.scrollTop = 834;
+    fireEvent.scroll(log);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(olderCalls(fn)).toHaveLength(3);
+  });
+
+  it("L collapses the log to its head row and back", async () => {
+    showWithLog({ ...last, recent_events: events.slice(-20) }, () => []);
+    await screen.findByRole("heading", { name: last.investigation.prompt });
+    const dock = document.querySelector('[data-slot="event-log"]')!;
+    expect(dock.querySelector(".ng-log")).not.toBeNull();
+    fireEvent.keyDown(window, { key: "l" });
+    expect(dock.querySelector(".ng-log")).toBeNull();
+    expect(dock).toHaveTextContent("Event log");
+    fireEvent.keyDown(window, { key: "L" });
+    expect(dock.querySelector(".ng-log")).not.toBeNull();
+  });
+
+  it("clicking a log row selects its node everywhere", async () => {
+    showWithLog({ ...last, recent_events: events.slice(-40) }, () => []);
+    await screen.findByRole("heading", { name: last.investigation.prompt });
+    const row = [...document.querySelectorAll('[data-slot="event-log"] .ng-log__row')]
+      .find((r) => r.querySelector(".ng-log__who")!.textContent === "D1")!;
+    fireEvent.click(row);
+    const d1 = last.nodes.find((n) => n.display_id === "D1")!;
+    expect(document.querySelector('[data-slot="inspector"] [data-node-id]')).toHaveAttribute("data-node-id", d1.id);
+  });
+
+  it("streamed model text shows as a live row until its step completes", async () => {
+    showWithLog(mid, () => []);
+    await screen.findByRole("heading", { name: mid.investigation.prompt });
+    const next = events.find((e) => e.seq > mid.seq && e.type === "node.step_completed")!;
+    act(() => FakeEventSource.last.ephemeral({ investigation_id: ID, node_id: next.node_id, kind: "model_text", data: { step: 9, delta: "{\"action\":" } }));
+    expect(document.querySelector('[data-slot="event-log"] .ng-log__row--eph')).toHaveTextContent("{\"action\":");
+    act(() => { for (const e of events.filter((e) => e.seq > mid.seq && e.seq <= next.seq)) FakeEventSource.last.durable(e); });
+    expect(document.querySelector('[data-slot="event-log"] .ng-log__row--eph')).toBeNull();
   });
 });

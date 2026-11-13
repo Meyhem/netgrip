@@ -57,3 +57,8 @@ html, body, #root { height: 100%; margin: 0; }
 .board-head__nodes { width: 100px; }
 .board-head__depth { width: 84px; }
 .board-head__controls { position: relative; }
+
+/* EventLog, docked under the graph: the head row and a 166px scrolling log (board preview). */
+.board-log .ng-panel__head { min-height: 34px; padding-block: 4px; }
+.board-log .ng-log { height: 166px; overflow: auto; padding: var(--space-1) 0; }
+.board-log .ng-log__row[data-seq], .board-log .ng-log__row--eph { cursor: pointer; }
