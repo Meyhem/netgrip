@@ -164,6 +164,16 @@ def test_dependencies_gate_start():
     assert eligible(done) == ["b"]
 
 
+def test_dependency_left_failed_unblocks_its_dependant():
+    root = gn("r", "Pending", "Synthesis", 0, 0, None)
+    owed = [root, gn("a", "Failed", seq=1), gn("b", seq=2, deps=["a"])]
+    assert eligible(owed) == []  # the retry decision is still owed: a may run again
+    assert schedule(owed, 2).reasons == {"b": "dependency:a"}
+    left = [root, gn("a", "Failed", seq=1, failure_handled=True), gn("b", seq=2, deps=["a"])]
+    assert eligible(left) == ["b"]
+    assert schedule(left, 2).reasons == {}
+
+
 def test_premise_checks_run_first():
     graph = [gn("r", kind="Synthesis", depth=0, parent=None), gn("deep", depth=1, seq=1),
              gn("d2", depth=2, seq=2, parent="deep"), gn("p", kind="Premise check", depth=1, seq=5),
@@ -393,3 +403,17 @@ async def test_delete_of_running_investigation_while_a_node_awaits_begin(db, tmp
     assert await db.read("SELECT 1 FROM events WHERE investigation_id = ?", [INV]) == []
     async with db.tx() as tx:  # the writer is still usable
         await tx.execute("SELECT 1")
+
+
+async def test_dependant_of_a_failed_node_runs_with_the_failure_in_its_brief(db, tmp_path):
+    await seed(db, [("n-1", proposed("D1")), ("n-2", proposed("D2", depends_on=["n-1"]))])
+    script = BASE_SCRIPT | {"node.decide:n-1": [{"raise": "request"}],
+                            "node.decide:n-2": [conclude()]}  # fmt: skip
+    engine = make_engine(db, tmp_path, TrackingClient(script))
+    await run_to_end(engine)
+    assert await state(db) == "Completed"
+    assert await statuses(db) == {"n-r": "Pending", "n-1": "Failed", "n-2": "Completed"}
+    started = [d for _, n, d in await events(db, "node.started") if n == "n-2"]
+    deps = started[0]["brief"]["known"]["dependency_results"]
+    assert len(deps) == 1 and deps[0]["display_id"] == "D1" and deps[0]["verdict"] is None
+    assert "refused the request" in deps[0]["failed"]

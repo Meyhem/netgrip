@@ -1158,6 +1158,7 @@
             "dependency_results": [
               {
                 "display_id": "P1",
+                "failed": null,
                 "verdict": {
                   "confidence": "high",
                   "text": "No. Astronauts at about 400 km report that the Wall is very hard or impossible to see without aid: it is narrow and the colour of the terrain. The belief predates spaceflight."
@@ -1407,6 +1408,7 @@
             "dependency_results": [
               {
                 "display_id": "P1",
+                "failed": null,
                 "verdict": {
                   "confidence": "high",
                   "text": "No. Astronauts at about 400 km report that the Wall is very hard or impossible to see without aid: it is narrow and the colour of the terrain. The belief predates spaceflight."
@@ -2553,6 +2555,7 @@
             "dependency_results": [
               {
                 "display_id": "P1",
+                "failed": null,
                 "verdict": {
                   "confidence": "high",
                   "text": "No. Astronauts at about 400 km report that the Wall is very hard or impossible to see without aid: it is narrow and the colour of the terrain. The belief predates spaceflight."
@@ -2560,6 +2563,7 @@
               },
               {
                 "display_id": "D1",
+                "failed": null,
                 "verdict": {
                   "confidence": "medium",
                   "text": "The first-hand accounts agree: from low Earth orbit the Wall is not seen with the naked eye."
@@ -2881,6 +2885,7 @@
             "dependency_results": [
               {
                 "display_id": "P1",
+                "failed": null,
                 "verdict": {
                   "confidence": "high",
                   "text": "No. Astronauts at about 400 km report that the Wall is very hard or impossible to see without aid: it is narrow and the colour of the terrain. The belief predates spaceflight."
@@ -2888,6 +2893,7 @@
               },
               {
                 "display_id": "D1",
+                "failed": null,
                 "verdict": {
                   "confidence": "medium",
                   "text": "The first-hand accounts agree: from low Earth orbit the Wall is not seen with the naked eye."
@@ -2895,6 +2901,7 @@
               },
               {
                 "display_id": "D2",
+                "failed": null,
                 "verdict": {
                   "confidence": "medium",
                   "text": "The sources consulted bear on the task but do not settle it alone."
@@ -3569,6 +3576,7 @@
               "dependency_results": [
                 {
                   "display_id": "P1",
+                  "failed": null,
                   "verdict": {
                     "confidence": "high",
                     "text": "No. Astronauts at about 400 km report that the Wall is very hard or impossible to see without aid: it is narrow and the colour of the terrain. The belief predates spaceflight."
@@ -3682,6 +3690,7 @@
               "dependency_results": [
                 {
                   "display_id": "P1",
+                  "failed": null,
                   "verdict": {
                     "confidence": "high",
                     "text": "No. Astronauts at about 400 km report that the Wall is very hard or impossible to see without aid: it is narrow and the colour of the terrain. The belief predates spaceflight."
@@ -3689,6 +3698,7 @@
                 },
                 {
                   "display_id": "D1",
+                  "failed": null,
                   "verdict": {
                     "confidence": "medium",
                     "text": "The first-hand accounts agree: from low Earth orbit the Wall is not seen with the naked eye."
@@ -3763,6 +3773,7 @@
               "dependency_results": [
                 {
                   "display_id": "P1",
+                  "failed": null,
                   "verdict": {
                     "confidence": "high",
                     "text": "No. Astronauts at about 400 km report that the Wall is very hard or impossible to see without aid: it is narrow and the colour of the terrain. The belief predates spaceflight."
@@ -3825,6 +3836,7 @@
               "dependency_results": [
                 {
                   "display_id": "P1",
+                  "failed": null,
                   "verdict": {
                     "confidence": "high",
                     "text": "No. Astronauts at about 400 km report that the Wall is very hard or impossible to see without aid: it is narrow and the colour of the terrain. The belief predates spaceflight."
@@ -3832,6 +3844,7 @@
                 },
                 {
                   "display_id": "D1",
+                  "failed": null,
                   "verdict": {
                     "confidence": "medium",
                     "text": "The first-hand accounts agree: from low Earth orbit the Wall is not seen with the naked eye."
@@ -3839,6 +3852,7 @@
                 },
                 {
                   "display_id": "D2",
+                  "failed": null,
                   "verdict": {
                     "confidence": "medium",
                     "text": "The sources consulted bear on the task but do not settle it alone."

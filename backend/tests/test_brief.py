@@ -156,3 +156,25 @@ async def test_brief_is_json_serialisable(graph):
     await _claim(graph, "c1", "The wall height is 5 metres")
     b = await build_brief(graph, "n-1a")
     assert json.loads(json.dumps(b.model_dump(mode="json")))["root_goal"] == GOAL
+
+
+async def fail(db, node_id, reason, left=True):
+    evs = [ev("node.failed", {"reason": reason, "auto_retry_used": False}, node_id, actor="node")]
+    if left:
+        evs.append(ev("node.left_failed", {"reason": "auto_retry_used"}, node_id))
+    await append_and_project(db, INV, evs)
+
+
+async def test_dependency_left_failed_is_listed_with_its_reason(graph):
+    await fail(graph, "n-1", "every page was unobtainable")
+    b = await build_brief(graph, "n-2")
+    assert [(d.display_id, d.verdict, d.failed) for d in b.known.dependency_results] == [
+        ("D1", None, "every page was unobtainable")
+    ]
+    assert "D1: failed, no verdict (every page was unobtainable)" in render_brief(b)
+
+
+async def test_dependency_failed_but_not_yet_decided_is_absent(graph):
+    await fail(graph, "n-1", "boom", left=False)  # the retry decision is still owed
+    b = await build_brief(graph, "n-2")
+    assert b.known.dependency_results == []

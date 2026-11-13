@@ -1,8 +1,9 @@
 """The node brief: everything a node is told, and nothing else (domain 4.4).
 
 A node gets the root goal verbatim, the path of ancestors, its own task, and what is known: the
-claims relevant to its question, the verdicts of the nodes it declared a dependency on, and the
-applied instructions of itself and its ancestors. Never the whole graph, never sibling outputs.
+claims relevant to its question, the verdicts of the nodes it declared a dependency on (or, for
+one left Failed, its failure reason), and the applied instructions of itself and its
+ancestors. Never the whole graph, never sibling outputs.
 The brief is stored in `node.started.data.brief` (`model_dump(mode="json")`).
 """
 
@@ -41,6 +42,7 @@ class KnownClaim(BaseModel):
 class DependencyResult(BaseModel):
     display_id: str
     verdict: dict | None = None
+    failed: str | None = None  # the reason, when the dependency ended Failed (no verdict)
 
 
 class InheritedInstruction(BaseModel):
@@ -105,15 +107,29 @@ async def build_brief(db: Database, node_id: str, evidence: EvidenceService | No
             for r in rows
         ]
 
-    # Verdicts of the declared dependencies that completed. Only these; never siblings.
+    # Verdicts of the declared dependencies that completed, and the reasons of those left
+    # Failed. Only these; never siblings.
     deps = await db.read(
-        "SELECT n.display_id, n.verdict FROM node_deps d JOIN nodes n ON n.id = d.depends_on_id"
-        " WHERE d.node_id = ? AND n.inclusion = 'Included' AND n.status = 'Completed'"
+        "SELECT n.id, n.display_id, n.status, n.verdict FROM node_deps d"
+        " JOIN nodes n ON n.id = d.depends_on_id WHERE d.node_id = ? AND n.inclusion = 'Included'"
+        " AND (n.status = 'Completed' OR (n.status = 'Failed' AND n.failure_handled = 1))"
         " ORDER BY n.seq",
         [node_id],
     )
-    results = [DependencyResult(display_id=d["display_id"], verdict=_load(d["verdict"]))
-               for d in deps]  # fmt: skip
+    results = []
+    for d in deps:
+        if d["status"] == "Completed":
+            results.append(
+                DependencyResult(display_id=d["display_id"], verdict=_load(d["verdict"]))
+            )
+            continue
+        failed = await db.read(
+            "SELECT data FROM events WHERE investigation_id = ? AND node_id = ?"
+            " AND type = 'node.failed' ORDER BY seq DESC LIMIT 1",
+            [inv, d["id"]],
+        )
+        reason = json.loads(failed[0]["data"])["reason"] if failed else "unknown"
+        results.append(DependencyResult(display_id=d["display_id"], failed=reason))
 
     # Known claims: those sharing words with the question, best first, capped.
     svc = evidence or EvidenceService(db)
@@ -170,7 +186,12 @@ def render_brief(brief: Brief) -> str:
         out += [f"- {i.text} (from {i.from_display_id})" for i in k.instructions]
     if k.dependency_results:
         out += ["", "Results of the nodes you depend on:"]
-        out += [f"- {d.display_id}: {json.dumps(d.verdict)}" for d in k.dependency_results]
+        out += [
+            f"- {d.display_id}: failed, no verdict ({d.failed})"
+            if d.failed is not None
+            else f"- {d.display_id}: {json.dumps(d.verdict)}"
+            for d in k.dependency_results
+        ]
     if k.claims:
         out += ["", "Already known (claim, status):"]
         out += [f"- {c.text} [{c.status}]" for c in k.claims]

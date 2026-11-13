@@ -19,6 +19,7 @@ class GraphNode:
     depends_on: tuple[str, ...] = ()
     inclusion: str = "Included"
     paused: bool = False
+    failure_handled: bool = False  # Failed, and the decision to leave it Failed is recorded
 
 
 @dataclass(frozen=True)
@@ -36,13 +37,20 @@ def _children(graph: list[GraphNode]) -> dict[str, list[GraphNode]]:
     return kids
 
 
+def _settled(n: GraphNode) -> bool:
+    """A dependency no longer holds its dependants back: Completed, or Failed and left Failed
+    (no retry coming). The dependant's brief then names it as failed, with its reason."""
+    return n.status == "Completed" or (n.status == "Failed" and n.failure_handled)
+
+
 def _blocking_dependency(n: GraphNode, by_id: dict[str, GraphNode]) -> str | None:
-    return next((d for d in n.depends_on if d in by_id and by_id[d].status != "Completed"), None)
+    return next((d for d in n.depends_on if d in by_id and not _settled(by_id[d])), None)
 
 
 def eligible(graph: list[GraphNode]) -> list[str]:
-    """Pending, Included, not paused, every dependency Completed (G2); or a coordinator
-    Waiting on children whose included children have all finished, to aggregate (G3).
+    """Pending, Included, not paused, every dependency Completed or left Failed (G2); or a
+    coordinator Waiting on children whose included children have all finished, to aggregate
+    (G3).
     The root is not scheduled: synthesis answers it. Premise checks first, then by depth,
     then by creation."""
     by_id = {n.id: n for n in graph}
@@ -81,7 +89,7 @@ def schedule(graph: list[GraphNode], slots: int) -> Schedule:
 
 async def load_graph(db: Database, investigation_id: str) -> list[GraphNode]:
     rows = await db.read(
-        "SELECT id, status, kind, depth, seq, parent_id, inclusion FROM nodes"
+        "SELECT id, status, kind, depth, seq, parent_id, inclusion, failure_handled FROM nodes"
         " WHERE investigation_id = ? ORDER BY seq",
         [investigation_id],
     )
@@ -102,6 +110,7 @@ async def load_graph(db: Database, investigation_id: str) -> list[GraphNode]:
             depends_on=tuple(deps.get(r["id"], ())),
             inclusion=r["inclusion"],
             paused=r["status"] == "Paused",
+            failure_handled=bool(r["failure_handled"]),
         )  # fmt: skip
         for r in rows
     ]
