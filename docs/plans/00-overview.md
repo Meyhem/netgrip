@@ -1,26 +1,15 @@
 # Netgrip implementation plans: overview and shared contracts
 
-Eight phases, one file each. Every phase ends in software that runs, has automated tests, and has a written verification section. Later phases depend on earlier ones; do them in order.
-
-| # | Plan | Ends with |
-|---|---|---|
-| 1 | [Backend foundation](01-backend-foundation.md) | Event log, state tables, rebuild, commands, settings, HTTP API and live stream, all under test |
-| 2 | [App shell and first screens](02-app-shell-screens.md) | Investigations, New investigation and Settings screens working against the real API |
-| 3 | [Planning and plan review](03-planning-plan-review.md) | A prompt becomes a plan graph; the user re-plans by instruction and approves it |
-| 4 | [Research engine](04-research-engine.md) | Investigations run to the end against fake model and web, survive a kill, pause on outages and at the spending limit |
-| 5 | [Control board](05-control-board.md) | The running investigation is visible: execution order, graph, event log, inspector |
-| 6 | [Steering](06-steering.md) | Every intervention in domain spec 4.9 works from the board |
-| 7 | [Real web acquisition](07-web-acquisition.md) | Tavily, escalating fetcher, browser pool, extractor; first live run |
-| 8 | [Synthesis and report](08-synthesis-report.md) | The report, its screen, Markdown export, delete with disk accounting |
+The eight implementation phases are built and their per-phase plans are removed (they live in git history). This file stays as the reference for the shared contracts below: events, commands, routes, layout, default settings. Code comments cite it.
 
 **Sources of truth.** `docs/domain-spec.md` (rules P1…R2), `docs/tech-spec-netgrip.md` (C-xx, D-xx, N-xx), `design-system/project/` (brand book `README.md`, `steering.md`, `screens.md`, one `README.md` + `preview.html` per component and screen). Where a plan and one of these disagree, the spec or design system wins; fix the plan.
 
-## Rules for every task in every plan
+## Rules for every task
 
 - Test first: write the listed tests, see them fail, implement, see them pass.
-- Finish each task with: run the phase's test commands, `git add`, commit with the message the task gives, `git push origin main` (CLAUDE.md). Never commit the data directory, keys or fetched pages.
+- Finish each task with: run the relevant tests, `git add`, commit with the message the task gives, `git push origin main` (CLAUDE.md). Never commit the data directory, keys or fetched pages.
 - Use the domain's words exactly, in code and in copy. State names are the strings in the tables below.
-- Engine tests never touch the network (D-15). Live calls are manual and are listed under each phase's verification.
+- Engine tests never touch the network (D-15). Live calls are manual.
 
 ## Build-time choices (mine; the tech spec defers them)
 
@@ -211,9 +200,9 @@ List rows (and the snapshot's `investigation`) carry derived fields, computed th
 
 ## How "stick to the design" is checked
 
-1. **Class contract test** (`frontend/src/design.contract.test.ts`, Phase 2): every `ng-…` class used in `frontend/src` exists in `design-system/project/components/bundle.css`; `frontend/src` contains no colour literal (`#hex`, `rgb(`, `hsl(`) and no font-family literal. Colours and type come from `tokens.css` only.
-2. **Vocabulary test** (`frontend/src/ui/vocab.test.ts`, Phase 2): the state → glyph, word, tone table equals the StatusPill and ClaimStatus READMEs.
-3. **Screen check, per phase:** open the screen at the size in its preview's first line (`<!-- @dsCard … height=N page width=N -->`) beside `design-system/project/components/<Screen>/preview.html` and compare regions against the numbered list in the screen's README. Each plan names the screens to compare.
+1. **Class contract test** (`frontend/src/design.contract.test.ts`): every `ng-…` class used in `frontend/src` exists in `design-system/project/components/bundle.css`; `frontend/src` contains no colour literal (`#hex`, `rgb(`, `hsl(`) and no font-family literal. Colours and type come from `tokens.css` only.
+2. **Vocabulary test** (`frontend/src/ui/vocab.test.ts`): the state → glyph, word, tone table equals the StatusPill and ClaimStatus READMEs.
+3. **Screen check, per screen:** open the screen at the size in its preview's first line (`<!-- @dsCard … height=N page width=N -->`) beside `design-system/project/components/<Screen>/preview.html` and compare regions against the numbered list in the screen's README.
 4. **No new visual components.** If a screen needs something the design system lacks, add it to the design system first (`design-system/build`), republish, then use it.
 
 ## Decisions I made that the specs leave open
@@ -223,4 +212,4 @@ List rows (and the snapshot's `investigation`) carry derived fields, computed th
 - The root cannot be instructed after approval (Q-08); the command answers `409 root_locked`.
 - "Reads like a conclusion" is a local text heuristic in the browser, not a model call. It only changes the composer's foot; the instruction is still sent.
 - Hardened browser means our own launch settings and init script; no third-party stealth package (D-12).
-- **Not planned: "Ask a follow-up"** (domain I4, marked proposed). ScreenReport shows it as the steer button, but neither spec says how a follow-up changes the graph, the budget or the report. Until that is decided, Phase 8 leaves the button out and "Export Markdown" is not promoted to steer. This is the one known departure from the design.
+- **Not planned: "Ask a follow-up"** (domain I4, marked proposed). ScreenReport shows it as the steer button, but neither spec says how a follow-up changes the graph, the budget or the report. Until that is decided, the button is left out and "Export Markdown" is not promoted to steer. This is the one known departure from the design.
