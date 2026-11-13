@@ -251,6 +251,7 @@ async def _route(ctx: NodeContext, step: str, answer: dict) -> Next:
     # Counted only once a usable answer is committed: a call lost to an outage or the
     # spending limit runs the step again and must not use up the node's decisions.
     ctx.state.decisions += 1
+    ctx.state.excluded.clear()  # a route excluded after unusable answers is open again
     return nxt
 
 
@@ -268,7 +269,7 @@ async def aggregate(ctx: NodeContext, _: Any) -> Next:
     await _activity(ctx, "Aggregating", "aggregate")
     rows = await ctx.deps.db.read(
         "SELECT display_id, question, status, verdict FROM nodes WHERE parent_id = ?"
-        " AND inclusion = 'Included' ORDER BY seq",
+        " AND inclusion = 'Included' AND off_topic = 0 ORDER BY seq",  # E3: off-topic left out
         [ctx.node.id],
     )
     lines = [f"- {r['display_id']} ({r['question']}): {r['status']}, verdict {r['verdict']}"

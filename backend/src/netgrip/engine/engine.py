@@ -74,7 +74,9 @@ class Engine:
         self.search = search
         self.fetcher = fetcher
         self.clock = clock
-        self.pages = pages
+        # One page store for every runtime: its in-flight fetch sharing (V8) and per-site
+        # politeness only work when concurrent investigations go through the same one.
+        self.pages = pages or PageStore(db, config.data_dir)
         self.planning = PlanningQueue()
         self.runtimes: dict[str, InvestigationRuntime] = {}
         self._background: set[asyncio.Task] = set()

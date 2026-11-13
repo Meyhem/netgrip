@@ -447,3 +447,38 @@ async def test_ordinary_node_decides_on_standard_tier(db, tmp_path):
     deps = make_deps(db, tmp_path, {"node.decide": [conclude()]})
     await run(deps)
     assert {c.tier for c in deps.model.calls if c.purpose == "node.decide"} == {"standard"}
+
+
+async def test_aggregate_leaves_out_off_topic_children(db, tmp_path):
+    deps = make_deps(db, tmp_path, {
+        "node.decide": [decide("split", children=[{"question": "Who first claimed it?"},
+                                                  {"question": "Recipes from Xi'an?"}]),
+                        conclude("Combined answer")],
+    })  # fmt: skip
+    await run(deps)
+    a, b = [n for _, n, d in await events(db, "node.proposed") if d["parent_id"] == "n-1"]
+    done = {"open_questions": [], "off_topic": False}
+    await append_and_project(db, INV, [
+        ev("node.approved", {"budget": {"sources": 1, "child_nodes": 0}}, node_id=a),
+        ev("node.approved", {"budget": {"sources": 1, "child_nodes": 0}}, node_id=b),
+        ev("node.completed", done | {"verdict": {"text": "A 1932 cartoon", "confidence": "high"}},
+           node_id=a, actor="node"),
+        ev("node.completed", done | {"verdict": {"text": "NOODLES", "confidence": "high"}},
+           node_id=b, actor="node"),
+        ev("node.off_topic", {"reason": "not about the Wall"}, node_id=b),
+    ])  # fmt: skip
+    await run(deps)
+    agg = deps.model.calls[-1].messages[-1].content
+    assert "A 1932 cartoon" in agg and "NOODLES" not in agg
+
+
+async def test_excluded_route_is_open_again_after_a_usable_decision(db, tmp_path):
+    empty = decide("search", query="")  # unusable: a search needs a query
+    deps = make_deps(db, tmp_path, {
+        "node.decide": [empty, empty, empty, decide("read", url=BLOCKED), conclude()],
+    }, pages={BLOCKED: {"unobtainable": True}}, search={"default": []})  # fmt: skip
+    await run(deps)
+    decides = [c for c in deps.model.calls if c.purpose == "node.decide"]
+    assert "search" not in decides[3].response_schema["properties"]["action"]["enum"]
+    assert "search" in decides[4].response_schema["properties"]["action"]["enum"]
+    assert (await node_row(db, "n-1"))["status"] == "Completed"

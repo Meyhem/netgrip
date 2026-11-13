@@ -21,13 +21,20 @@ from typing import Any, Literal
 from netgrip.adapters.model import (
     Message,
     ModelClient,
+    ModelError,
     ModelMalformed,
     ModelRejected,
     ModelRequest,
 )
 from netgrip.adapters.schema import nullable, obj, string_enum
 from netgrip.boundary.events import EventDraft
-from netgrip.engine.budget import CallContext, LimitCheck, allocate_budget, call_model
+from netgrip.engine.budget import (
+    CallContext,
+    LimitCheck,
+    SpendingLimitReached,
+    allocate_budget,
+    call_model,
+)
 from netgrip.engine.clock import Clock
 from netgrip.engine.ids import next_display_id
 from netgrip.evidence.service import Claim, EvidenceService
@@ -144,25 +151,33 @@ def _skeleton(nodes: list[dict]) -> str:
     return "\n".join(lines)
 
 
-async def _ask(call: CallContext, req: ModelRequest) -> dict | None:
-    """The parsed answer, or None after ATTEMPTS unusable answers (their spend is recorded)."""
-    for _ in range(ATTEMPTS):
-        try:
-            resp = await call_model(call, req)
-        except ModelMalformed:
-            continue
-        except ModelRejected as e:
-            if e.kind != "request":
-                raise
-            # The provider refuses this request as it is (not an outage): asking again will
-            # not help, so the caller's fallback for an unusable answer applies.
-            log.warning("%s: the model refused the request (%s)", req.purpose, e)
-            return None
-        try:
-            return resp.parsed if resp.parsed is not None else json.loads(resp.text)
-        except ValueError:
-            continue
-    return None
+async def _ask(ctx: OrchestratorContext, call: CallContext, req: ModelRequest) -> dict | None:
+    """The parsed answer, or None after ATTEMPTS unusable answers (their spend is recorded).
+    When an outage or the spending limit stops it after paid unusable answers, that spend is
+    committed before the error propagates (B5): the caller's rerun starts a new call."""
+    try:
+        for _ in range(ATTEMPTS):
+            try:
+                resp = await call_model(call, req)
+            except ModelMalformed:
+                continue
+            except ModelRejected as e:
+                if e.kind != "request":
+                    raise
+                # The provider refuses this request as it is (not an outage): asking again
+                # will not help, so the caller's fallback for an unusable answer applies.
+                log.warning("%s: the model refused the request (%s)", req.purpose, e)
+                return None
+            try:
+                return resp.parsed if resp.parsed is not None else json.loads(resp.text)
+            except ValueError:
+                continue
+        return None
+    except (ModelError, SpendingLimitReached):
+        if call.pending_events:
+            await _commit(ctx, call, [])
+            call.pending_events = []
+        raise
 
 
 # --- Gating proposals (O1, O2) ---------------------------------------------------------------
@@ -242,6 +257,7 @@ async def review_proposals(ctx: OrchestratorContext, proposals: list[NodeRef]) -
             " node (give that node's display id in duplicate_of). List only rejections."
         )
         answer = await _ask(
+            ctx,
             call,
             ModelRequest(
                 purpose="orchestrator.review",
@@ -317,6 +333,7 @@ async def on_node_returned(ctx: OrchestratorContext, node: NodeRef) -> bool:
     )
     call = _call(ctx, settings)
     answer = await _ask(
+        ctx,
         call,
         ModelRequest(
             purpose="node.relevance",
@@ -447,6 +464,7 @@ async def decide_next(ctx: OrchestratorContext) -> Literal["continue", "conclude
     )
     call = _call(ctx, settings)
     answer = await _ask(
+        ctx,
         call,
         ModelRequest(
             purpose="orchestrator.next",

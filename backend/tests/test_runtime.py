@@ -417,3 +417,44 @@ async def test_dependant_of_a_failed_node_runs_with_the_failure_in_its_brief(db,
     deps = started[0]["brief"]["known"]["dependency_results"]
     assert len(deps) == 1 and deps[0]["display_id"] == "D1" and deps[0]["verdict"] is None
     assert "refused the request" in deps[0]["failed"]
+
+
+async def test_runtimes_share_one_page_store(db, tmp_path):
+    await seed(db, [("n-1", proposed("D1"))])
+    await seed(db, [("m-1", proposed("D1"))], inv="inv-2", root="m-r")
+    engine = make_engine(db, tmp_path, TrackingClient(BASE_SCRIPT))
+    assert engine.pages is not None
+    for inv in (INV, "inv-2"):
+        engine.start_runtime(inv)
+        await engine.runtimes[inv].wait()
+    assert engine.runtimes[INV]._deps.pages is engine.pages
+    assert engine.runtimes["inv-2"]._deps.pages is engine.pages
+
+
+async def test_return_work_bug_stays_owed_and_runs_on_resume(db, tmp_path, monkeypatch):
+    from netgrip.engine import orchestrator
+
+    real = orchestrator.on_node_returned
+    calls = []
+
+    async def flaky(octx, node):
+        calls.append(node)
+        if len(calls) == 1:
+            raise RuntimeError("bug in the gate")
+        return await real(octx, node)
+
+    monkeypatch.setattr(orchestrator, "on_node_returned", flaky)
+    await seed(db, [("n-1", proposed("D1"))])
+    client = TrackingClient(BASE_SCRIPT)
+    engine = make_engine(db, tmp_path, client)
+    await run_to_end(engine)
+    # Not concluded past the owed gate: still Running, no live loop, nothing retried yet.
+    assert await state(db) == "Running"
+    assert not engine.runtimes[INV].active
+    assert "orchestrator.next" not in [c.purpose for c in client.calls]
+    assert calls == ["n-1"]
+    await engine.submit(cmd("resume"))
+    await engine.runtimes[INV].wait()
+    assert calls == ["n-1", "n-1"]
+    assert [n for _, n, _ in await events(db, "node.relevance_checked")] == ["n-1"]
+    assert await state(db) == "Completed"

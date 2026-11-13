@@ -354,3 +354,17 @@ async def test_refused_orchestrator_request_falls_back_without_pausing(db, tmp_p
     assert [t for t, n, _ in await events(db) if n == "n-1" and t.startswith("node.relevance")
             ] == ["node.relevance_checked"]  # fmt: skip
     assert len([c for c in client.calls if c.purpose == "node.relevance"]) == 1
+
+
+async def test_paid_unusable_answer_before_an_outage_is_recorded(db, tmp_path):
+    await seed(db, [("n-1", proposed("D1"))])
+    paid_bad = {"raise": "malformed", "usage": {"cost_usd": "0.02"}}
+    script = BASE_SCRIPT | {
+        "node.relevance": [paid_bad, UNAVAILABLE, *BASE_SCRIPT["node.relevance"]]
+    }
+    engine = make_engine(db, tmp_path, TrackingClient(script))
+    await run_to_end(engine)
+    assert await state(db) == "Completed"
+    fast = [d["amount_usd"] for _, n, d in await events(db, "spend.recorded")
+            if n is None and d["tier"] == "fast"]  # fmt: skip
+    assert sorted(fast) == ["0.01", "0.02"]  # the malformed answer's spend is not lost

@@ -9,21 +9,26 @@ Pause and stop act at step boundaries only: the node's `boundary` says pause or 
 step in flight finishes and commits, and its `NodeContext` is kept, so resume continues the
 node from its next step. A paused investigation enters Paused once nothing is in flight.
 
-Hooks for later tasks:
-System pauses (Task 7, N-05, B4):
+System pauses (N-05, B4):
 - An outage (ModelUnavailable, SearchUnavailable) in a node is retried with delays 1, 2, 4 ...
   capped at 30 s, within the "retry before pausing" setting, shown as `Retrying` on the node.
-  Then the investigation pauses (origin system). The node keeps its context: its interrupted
-  step was not committed, so it runs again on resume (no reset event).
-- A rejected key or exhausted credit pauses at once; a rejected key is marked on the key.
+  Then the investigation pauses (origin system) and the node is recorded back to Pending
+  (`node.reset {reason: "outage"}`). It keeps its context: its interrupted step was not
+  committed, so it runs again on resume.
+- A rejected key or exhausted credit pauses at once; a rejected key is marked on the key. A
+  refused request (`ModelRejected("request")`) is no pause: the node fails with that reason.
 - The spending limit is checked by `call_model` before every model call (node steps and
   orchestrator calls alike) and before nodes are started: at or over the limit nothing is
-  called; SpendingLimitReached becomes a `spending_limit` pause. A step that made its calls
+  called; SpendingLimitReached becomes a `spending_limit` pause. So besides step boundaries,
+  this pause also acts at a model-call boundary inside a step: a step that made its calls
   finishes and commits; one stopped before its call runs again on resume; a returned node's
   orchestrator work stays owed and runs on resume.
 - Orchestrator calls get the same outage backoff as node steps (`retry_unavailable`).
 - `start()` on an investigation whose nodes were reset by recovery (Task 8) just schedules
   them: a fresh context starts the node over.
+- Return work that fails for a reason other than the provider (a bug) stays owed and is
+  retried on the next resume or start; meanwhile the loop never concludes. With nothing else
+  to run it ends, leaving the investigation Running (resume restarts it).
 """
 
 import asyncio
@@ -43,7 +48,6 @@ from netgrip.engine.orchestrator import OrchestratorContext
 from netgrip.engine.scheduler import GraphNode, Schedule, load_graph, schedule
 from netgrip.engine.synthesis import synthesise
 from netgrip.evidence.service import EvidenceService
-from netgrip.store.pages import PageStore
 from netgrip.store.projections import append_and_project, append_and_project_in_tx
 from netgrip.store.settings import get_settings, mark_key
 
@@ -126,6 +130,7 @@ class InvestigationRuntime:
         self._retry_limit = 300.0
         self._halt = asyncio.Event()  # set by a pause or stop request: cuts backoff short
         self._owed: set[str] = set()  # returned nodes whose orchestrator work is still to do
+        self._deferred: list[str] = []  # owed work that failed unexpectedly: retried on launch
 
     # --- control -----------------------------------------------------------------------------
 
@@ -139,6 +144,8 @@ class InvestigationRuntime:
 
     def _launch(self) -> None:
         self._gen += 1
+        self._suspended += [n for n in self._deferred if n not in self._suspended]
+        self._deferred.clear()
         self._stopping = False
         self._pause = None
         self._halt.clear()
@@ -206,7 +213,7 @@ class InvestigationRuntime:
         clock = e.clock or SystemClock()
         self._deps = Deps(
             db=e.db, model=e.model_client, search=e.search, fetcher=e.fetcher,
-            pages=e.pages or PageStore(e.db, e.config.data_dir), evidence=evidence,
+            pages=e.pages, evidence=evidence,
             clock=clock, bus=e.bus, prices=prices, limit_reached=self._limit_reached,
         )  # fmt: skip
         self._octx = OrchestratorContext(
@@ -273,6 +280,11 @@ class InvestigationRuntime:
                         await self._emit_schedule(sched)
                         for nid in sched.order[: max(free, 0)]:
                             self._start_node(nid)
+                        if not self._tasks and self._deferred:
+                            # Owed return work failed unexpectedly: never conclude past it.
+                            log.error("runtime of %s: return work of %s owed; resume retries",
+                                      self.id, self._deferred)  # fmt: skip
+                            return
                         if not self._tasks:
                             try:
                                 decision = await self._retrying(
@@ -304,7 +316,7 @@ class InvestigationRuntime:
             log.exception("runtime of %s failed", self.id)
 
     async def _graph(self) -> list[GraphNode]:
-        busy = set(self._tasks) | set(self._suspended)
+        busy = set(self._tasks) | set(self._suspended) | set(self._deferred)
         return [
             GraphNode(**{**n.__dict__, "status": "Running"}) if n.id in busy else n
             for n in await load_graph(self.engine.db, self.id)
@@ -384,7 +396,7 @@ class InvestigationRuntime:
 
     async def _steps(self, nid: str) -> bool:
         """Run the node's steps. True when it returned (completed, failed or waits on
-        children) and its return work is now owed; False when it was suspended or failed."""
+        children) and its return work is now owed; False when it was suspended."""
         ctx = self._ctxs.get(nid)
         try:
             if ctx is None:
@@ -421,11 +433,8 @@ class InvestigationRuntime:
             log.exception("node %s of %s failed unexpectedly", nid, self.id)
             self._ctxs.pop(nid, None)
             await self._fail(nid, f"internal error: {type(e).__name__}")
-            try:
-                await orchestrator.on_node_failed(self._octx, nid)
-            except Exception:
-                log.exception("retry decision for failed node %s of %s failed", nid, self.id)
-            return False
+            self._owed.add(nid)  # the retry decision is return work, with its error handling
+            return True
         if not ctx.state.done and ctx.node.status not in ("Completed", "Failed", "Rejected"):
             self._suspended.append(nid)  # returned at a boundary: continue it on resume
             return False
@@ -451,6 +460,12 @@ class InvestigationRuntime:
         except (ModelError, SearchError) as e:
             self._suspended.append(nid)
             await self._on_provider_error(nid, e)
+            return
+        except Exception:
+            # Not the provider: retrying at once would likely fail the same way. It stays
+            # owed and runs again on the next resume or start (recovery owes it after a kill).
+            log.exception("return work of node %s of %s failed", nid, self.id)
+            self._deferred.append(nid)
             return
         self._owed.discard(nid)
 
