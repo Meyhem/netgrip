@@ -398,6 +398,9 @@ class ReportCreated(_Data):
     report_id: str
     ended_early: bool
     cut_short_by: str | None = None
+    # The structured report (D-16), so a rebuild of the state tables keeps it. Absent on the
+    # placeholder reports of earlier phases.
+    body: dict[str, Any] | None = None
 
 
 # --- Phase 6: steering -----------------------------------------------------------------------

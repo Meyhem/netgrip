@@ -29,6 +29,7 @@ STATE_TABLES: list[str] = [
     "claim_sources",
     "contradictions",
     "node_steps",
+    "reports",
 ]
 
 # Column holding the investigation id, for tables where it is not `investigation_id`.
@@ -496,6 +497,19 @@ async def _concluding(tx: Tx, event: Event) -> None:
             int(event.data.get("ended_early", False)),
             event.investigation_id,
         ],
+    )
+
+
+@projector("report.created")
+async def _report_created(tx: Tx, event: Event) -> None:
+    """One report per investigation: a new synthesis replaces the old one."""
+    body = event.data.get("body")
+    if body is None:
+        return
+    await tx.execute("DELETE FROM reports WHERE investigation_id = ?", [event.investigation_id])
+    await tx.execute(
+        "INSERT INTO reports(id, investigation_id, created_at, body) VALUES (?, ?, ?, ?)",
+        [event.data["report_id"], event.investigation_id, event.at, json.dumps(body)],
     )
 
 

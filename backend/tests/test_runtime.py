@@ -363,7 +363,7 @@ async def test_run_reaches_completed(db, tmp_path):
     changes = [(d["from"], d["to"]) for _, _, d in await events(db, "investigation.state_changed")]
     assert changes[-2:] == [("Running", "Synthesising"), ("Synthesising", "Completed")]
     [(_, _, report)] = await events(db, "report.created")
-    assert set(report) == {"report_id", "ended_early", "cut_short_by"}
+    assert set(report) == {"report_id", "ended_early", "cut_short_by", "body"}
     assert report["ended_early"] is False and report["cut_short_by"] is None
     relevance = [c for c in client.calls if c.purpose == "node.relevance"]
     assert len(relevance) == 3  # every Completed node checked before synthesis

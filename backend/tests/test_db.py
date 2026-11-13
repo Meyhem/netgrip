@@ -19,7 +19,7 @@ async def test_migrations_run_once(tmp_path):
     for _ in range(2):
         db = await open_db(path)
         rows = await db.read("SELECT version FROM schema_version")
-        assert [r["version"] for r in rows] == list(range(1, 11))
+        assert [r["version"] for r in rows] == list(range(1, 12))
         await db.close()
 
 
