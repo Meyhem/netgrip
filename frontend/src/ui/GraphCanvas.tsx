@@ -27,6 +27,10 @@ export interface GraphCanvasProps {
   extras?: Record<string, NodeExtra>;
   /** Board: false stops every pulse (investigation Paused, stream not open). */
   live?: boolean;
+  /** Board mode: false while the investigation is Paused or Stopped. Nothing runs then: no live
+   * edges, and nodes still marked Running are drawn halted. Not the stream status: a dropped
+   * stream stops the pulse (`live`) without recolouring. */
+  running?: boolean;
   /** Board: the latest activity detail per node id, for the running nodes' ActivityLine. */
   activities?: Record<string, ActivityDetail>;
   /** Off hides Ignored and Superseded nodes with their branches. On by default. */
@@ -58,7 +62,7 @@ const DRAG_SLOP = 3;
  */
 export function GraphCanvas({
   nodes: allNodes, selectedId, onSelect, mode, toolbar, toolbarEnd, extras = NO_EXTRAS,
-  live: liveProp = true, activities = NO_ACTIVITIES, showExcluded = true, collapseCompleted = false, follow = null,
+  live: liveProp = true, running = true, activities = NO_ACTIVITIES, showExcluded = true, collapseCompleted = false, follow = null,
 }: GraphCanvasProps) {
   const board = mode === "board";
   const [manual, setManual] = useState<Set<string>>(() => new Set());
@@ -145,13 +149,13 @@ export function GraphCanvas({
   // The chain from the root to each running node (board mode only; nothing is live in a plan).
   const live = useMemo(() => {
     const out = new Set<string>();
-    if (mode !== "board") return out;
+    if (mode !== "board" || !running) return out;
     for (const n of nodes) {
       if (n.status !== "Running" || n.inclusion !== "Included") continue;
       for (let cur: Node | undefined = n; cur && !out.has(cur.id); cur = cur.parent_id ? byId.get(cur.parent_id) : undefined) out.add(cur.id);
     }
     return out;
-  }, [nodes, byId, mode]);
+  }, [nodes, byId, mode, running]);
 
   const edgeClass = (e: LayoutEdge) => {
     const isOff = off(e.from) || off(e.to);
@@ -364,6 +368,7 @@ export function GraphCanvas({
                 onSelect={selectHere}
                 sub={subs[n.id]}
                 live={liveProp}
+                halted={!running}
                 activity={activities[n.id] ?? null}
                 mark={extra.mark}
                 removed={extra.removed}

@@ -179,15 +179,18 @@ test("pause, then stop: nothing runs while paused, and the stopped board is hist
   await expect(page.locator('[data-slot="execution-order"]')).toContainText("Nothing runs while paused");
   await expect(nowRows(page)).toHaveCount(0);
   await expect(page.locator(".ng-pulse")).toHaveCount(0);
+  // Paused once nothing is in flight: nothing is live, even on nodes halted mid-work.
+  await expect(page.locator("[class*='live']")).toHaveCount(0);
   await command(request, id, "stop");
   await expect(pill(page)).toHaveText(/Stopped/, { timeout: 30_000 });
   await page.reload();
   await expect(pill(page)).toHaveText(/Stopped/);
   await expect(page.locator(".ng-canvas .ng-node").first()).toBeVisible();
   // Nodes it halted mid-work keep the status Running (they continue on Resume), but nothing
-  // runs now: none is in Now and nothing pulses.
+  // runs now: none is in Now, nothing pulses and nothing is styled live.
   await expect(nowRows(page)).toHaveCount(0);
   await expect(page.locator(".ng-pulse")).toHaveCount(0);
+  await expect(page.locator("[class*='live']")).toHaveCount(0);
 });
 
 test("narrow widths: the inspector is a sheet below 1180px; the left pane is a tab below 900px", async ({ page, request }) => {

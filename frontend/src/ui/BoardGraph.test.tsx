@@ -86,6 +86,21 @@ describe("BoardGraph", () => {
     expect(document.querySelector('[data-edge="D2>D2a"]')).not.toHaveClass("ng-edge--live");
   });
 
+  it.each(["Paused", "Stopped"] as const)("%s: running and waiting nodes are drawn halted, no live class anywhere", (state) => {
+    show(snap(graph(), {}, state), [ev(10, "node.started", "D2"), ev(11, "node.activity", "D2", { activity: "Reading", detail: "britannica.com", retry: null })]);
+    expect(nodeEl("D2")).toHaveClass("ng-node--paused");
+    expect(nodeEl("D2")).not.toHaveClass("ng-node--running");
+    expect(nodeEl("R")).toHaveClass("ng-node--paused");
+    expect(nodeEl("D2")!.querySelector(".ng-activity")).toBeNull();
+    expect(document.querySelector(".ng-canvas")!.innerHTML).not.toMatch(/live|ng-pulse/);
+  });
+
+  it("a dropped stream stops the pulse but keeps the running colours", () => {
+    show(snap(graph()), [], null, vi.fn(), false);
+    expect(nodeEl("D2")).toHaveClass("ng-node--running");
+    expect(document.querySelector('[data-edge="R>D2"]')).toHaveClass("ng-edge--live");
+  });
+
   it("no pulse when paused or not live", () => {
     const { unmount } = show(snap(graph()), [], null, vi.fn(), false);
     expect(document.querySelector(".ng-canvas .ng-pulse")).toBeNull();

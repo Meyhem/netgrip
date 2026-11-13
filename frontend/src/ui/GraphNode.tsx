@@ -48,6 +48,9 @@ export interface GraphNodeProps {
   style?: CSSProperties;
   /** Board mode: false stops the running glyph's pulse (investigation Paused, stream not open). */
   live?: boolean;
+  /** Board mode: the investigation is Paused or Stopped. A node still marked Running or Waiting
+   * on children is then drawn with the paused class and no activity line: nothing runs. */
+  halted?: boolean;
   /** Board mode: the detail of the node's latest activity event. While Running, line 3 is then
    * the ActivityLine. */
   activity?: ActivityDetail | null;
@@ -58,7 +61,7 @@ export interface ActivityDetail {
   retry?: { n: number; m: number } | null;
 }
 
-export function GraphNode({ node, selected, onSelect, mode, sub, mark, removed, fold, onFold, style, live = true, activity }: GraphNodeProps) {
+export function GraphNode({ node, selected, onSelect, mode, sub, mark, removed, fold, onFold, style, live = true, halted = false, activity }: GraphNodeProps) {
   const excluded = removed || node.inclusion !== "Included";
   const planned = mode === "plan" && node.status === "Proposed";
   const [glyph, word] = removed
@@ -70,16 +73,17 @@ export function GraphNode({ node, selected, onSelect, mode, sub, mark, removed, 
         : planned
           ? ["◌", "Planned"]
           : STATUS_WORD[node.status];
-  const pulses = live && !excluded && mode === "board" && node.status === "Running";
+  const stilled = halted && mode === "board" && (node.status === "Running" || node.status === "Waiting on children");
+  const pulses = live && !stilled && !excluded && mode === "board" && node.status === "Running";
   const markText = mark !== undefined ? mark : node.instruction_count > 0 ? `✎︎ ${node.instruction_count}` : null;
   const line3 = sub !== undefined ? sub : nodeSub(node);
-  const activityLine = mode === "board" && !excluded && node.status === "Running" && node.activity && activity
+  const activityLine = mode === "board" && !excluded && !stilled && node.status === "Running" && node.activity && activity
     ? <ActivityLine activity={node.activity} detail={activity.detail} retry={activity.retry ?? null} />
     : null;
 
   return (
     <div
-      className={cx("ng-node", excluded ? "ng-node--excluded" : STATUS_CLASS[node.status], selected && "is-selected")}
+      className={cx("ng-node", excluded ? "ng-node--excluded" : stilled ? STATUS_CLASS.Paused : STATUS_CLASS[node.status], selected && "is-selected")}
       style={style}
       role="button"
       tabIndex={0}

@@ -177,6 +177,15 @@ describe("Trail", () => {
     expect(stepWells()).toHaveLength(3);
   });
 
+  it("a halted node's trail (investigation Paused or Stopped) carries no ng-live", () => {
+    const halted = nodeDetail({ ...D, status: "Running" }, {
+      trail: [step(1, { name: "plan", activity: "Planning" }), step(2, { ended_at: null })],
+    });
+    render(<Trail detail={halted} modelText={null} onOpenPage={() => {}} live={false} halted />);
+    expect(document.querySelector(".trail [class*='live']")).toBeNull();
+    expect(stepWells()).toHaveLength(2);
+  });
+
   it("an empty trail says so", () => {
     render(<Trail detail={nodeDetail(D)} modelText={null} onOpenPage={() => {}} live />);
     expect(screen.getByText("No steps recorded yet.")).toBeInTheDocument();

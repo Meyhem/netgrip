@@ -378,6 +378,9 @@ describe("ControlBoard stopped mid-work", () => {
     act(() => FakeEventSource.last.open());
     expect(document.querySelectorAll('.ng-qrow[data-section="now"]')).toHaveLength(0);
     expect(document.querySelector(".ng-pulse")).toBeNull();
+    // A halted board is free of live styling: graph, edges, inspector pill.
+    await waitFor(() => expect(document.querySelector('[data-slot="inspector"] .inspector__head')).not.toBeNull());
+    expect(document.querySelector("[class*='live']")).toBeNull();
   });
 });
 

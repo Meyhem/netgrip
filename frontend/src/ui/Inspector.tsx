@@ -90,8 +90,10 @@ interface Ctx { s: Snapshot; events: DurableEvent[]; node: GraphNode; detail: No
 
 /** ScreenNodeDetail / ScreenControlBoard region 4: the selected node, one tab at a time. */
 export function Inspector({ investigationId, s, events, nodeId, live: streamLive = true, nodeActions, composer }: InspectorProps) {
-  // Nothing runs while the investigation is Paused or Stopped: no pulse, no live trail.
-  const live = streamLive && s.investigation.state !== "Paused" && s.investigation.state !== "Stopped";
+  // Nothing runs while the investigation is Paused or Stopped: no pulse, no live trail, and a
+  // node still marked Running or Waiting on children takes the paused tone, not live.
+  const halted = s.investigation.state === "Paused" || s.investigation.state === "Stopped";
+  const live = streamLive && !halted;
   const rootId = s.nodes.find((n) => n.parent_id === null)?.id ?? null;
   const id = nodeId ?? rootId;
   const { detail, status } = useNodeDetail(investigationId, id);
@@ -125,7 +127,7 @@ export function Inspector({ investigationId, s, events, nodeId, live: streamLive
       : tab === "claims" ? <ClaimsTab key={node.id} {...ctx} />
       : tab === "brief" ? <Brief brief={detail.brief} node={node} />
       : tab === "trail" ? <Trail detail={detail} modelText={modelText}
-          live={live && (node.status === "Running" || node.status === "Waiting on children")}
+          live={live && (node.status === "Running" || node.status === "Waiting on children")} halted={halted}
           finished={node.status === "Completed" || node.status === "Failed"} onOpenPage={(pageVersionId) => setPage({ nodeId: id, pageVersionId })} />
       : <InstructionsTab {...ctx} />;
   }
@@ -137,7 +139,7 @@ export function Inspector({ investigationId, s, events, nodeId, live: streamLive
           <div className="ng-row ng-row--nowrap">
             <span className="ng-tag">{KIND_CODE[node.kind]}</span>
             <span className="ng-mono ng-faint">{node.display_id} · depth {node.depth}</span>
-            <Pill spec={NODE_PILL[node.status]} still={!live} />
+            <Pill spec={halted && (node.status === "Running" || node.status === "Waiting on children") ? { ...NODE_PILL[node.status], tone: NODE_PILL.Paused.tone } : NODE_PILL[node.status]} still={!live} />
             {node.inclusion !== "Included" && <StatusPill kind="inclusion" state={node.inclusion} />}
             {nodeActions != null && <span className="ng-right">{nodeActions}</span>}
           </div>

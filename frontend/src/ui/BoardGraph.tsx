@@ -18,6 +18,8 @@ export interface BoardGraphProps {
 /** The board's centre: the 40px graph toolbar and the running graph (GraphCanvas, board mode). */
 export function BoardGraph({ s, events, selectedId, onSelect, live }: BoardGraphProps) {
   const [view, setView] = useState<GraphView>(DEFAULT_VIEW);
+  // A Paused or Stopped investigation runs nothing, whatever its nodes' last status says.
+  const running = s.investigation.state !== "Paused" && s.investigation.state !== "Stopped";
   const c = useMemo(() => counts(s), [s]);
 
   const activities = useMemo(() => {
@@ -51,7 +53,8 @@ export function BoardGraph({ s, events, selectedId, onSelect, live }: BoardGraph
       selectedId={selectedId}
       onSelect={onSelect}
       mode="board"
-      live={live && s.investigation.state !== "Paused" && s.investigation.state !== "Stopped"}
+      live={live && running}
+      running={running}
       activities={activities}
       showExcluded={view.showExcluded}
       collapseCompleted={view.collapseCompleted}
