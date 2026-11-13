@@ -152,3 +152,43 @@ class PageStore:
         if not rows:
             raise KeyError(page_version_id)
         return self._path(rows[0]["text_sha"], ".txt").read_text(encoding="utf-8")
+
+    async def drop_unreferenced(self, tx) -> list[tuple[str, str]]:
+        """In the caller's transaction: remove the page versions no `investigation_pages` row
+        references and repoint `pages` at what remains. Returns the (raw, text) shas of the
+        versions removed; `remove_files` deletes the files they no longer share."""
+        gone = await tx.fetchall(
+            "SELECT raw_sha, text_sha FROM page_versions WHERE id NOT IN"
+            " (SELECT page_version_id FROM investigation_pages)"
+        )
+        await tx.execute(
+            "DELETE FROM page_versions WHERE id NOT IN"
+            " (SELECT page_version_id FROM investigation_pages)"
+        )
+        await tx.execute(
+            "UPDATE pages SET latest_version_id = (SELECT v.id FROM page_versions v"
+            " WHERE v.url = pages.url ORDER BY v.fetched_at DESC LIMIT 1)"
+            " WHERE latest_version_id NOT IN (SELECT id FROM page_versions)"
+        )
+        await tx.execute("DELETE FROM pages WHERE latest_version_id IS NULL")
+        return [(r["raw_sha"], r["text_sha"]) for r in gone]
+
+    async def remove_files(self, shas: list[tuple[str, str]]) -> int:
+        """Delete the files of removed versions that no remaining version uses; returns the
+        bytes freed."""
+        freed = 0
+        for raw_sha, text_sha in dict.fromkeys(shas):
+            for sha, suffix, column in ((raw_sha, "", "raw_sha"), (text_sha, ".txt", "text_sha")):
+                used = await self.db.read(
+                    f"SELECT 1 FROM page_versions WHERE {column} = ? LIMIT 1", [sha]
+                )
+                path = self._path(sha, suffix)
+                if used or not path.exists():
+                    continue
+                freed += path.stat().st_size
+                path.unlink(missing_ok=True)
+                try:
+                    path.parent.rmdir()  # the fan-out directory, once empty
+                except OSError:
+                    pass
+        return freed

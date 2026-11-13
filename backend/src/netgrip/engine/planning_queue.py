@@ -51,6 +51,16 @@ class PlanningQueue:
         while (task := self._workers.get(investigation_id)) is not None:
             await asyncio.wait({task})
 
+    async def cancel(self, investigation_id: str) -> None:
+        """Drop the investigation's queued jobs and cancel the running one; returns when its
+        worker has ended, so nothing of it writes afterwards."""
+        if (queued := self._jobs.get(investigation_id)) is not None:
+            queued.clear()
+        task = self._workers.get(investigation_id)
+        if task is not None:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
     async def stop(self) -> None:
         """Cancel every worker and wait for them to end. Queued jobs are dropped."""
         tasks = list(self._workers.values())

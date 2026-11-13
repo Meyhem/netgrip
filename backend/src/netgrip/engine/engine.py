@@ -26,6 +26,7 @@ from netgrip.store.db import Database, Tx
 from netgrip.store.pages import PageStore
 from netgrip.store.projections import ID_COLUMNS, STATE_TABLES, append_and_project_in_tx
 from netgrip.store.settings import Effort, get_settings, resolve_investigation_settings
+from netgrip.store.usage import DiskUsage
 
 log = logging.getLogger(__name__)
 
@@ -80,6 +81,7 @@ class Engine:
         # politeness only work when concurrent investigations go through the same one.
         self.pages = pages or PageStore(db, config.data_dir)
         self.planning = PlanningQueue()
+        self.usage = DiskUsage(db, config.data_dir)
         self.runtimes: dict[str, InvestigationRuntime] = {}
         self._background: set[asyncio.Task] = set()
 
@@ -171,12 +173,17 @@ class Engine:
             await append_and_project_in_tx(tx, inv, [draft], self.bus)
         return CommandAck(recorded=True, duplicate=False)
 
-    async def delete_investigation(self, id: str) -> None:
-        """Its runtime is abandoned first (steps in flight are dropped), so nothing writes
-        events for it after the delete."""
+    async def delete_investigation(self, id: str) -> int:
+        """Stop everything that could write for it and wait until it has ended, then remove
+        its events, commands, state, evidence, report and page links in one transaction, then
+        the page versions and files no other investigation uses. Returns the bytes freed.
+        Nothing is pruned any other way (C-10)."""
         rt = self.runtimes.pop(id, None)
         if rt is not None:
             await rt.stop(abandon=True)
+        await self.planning.cancel(id)
+        await self._cancel_background(id)
+        rows_bytes = await self.usage.rows(id)
         async with self.db.tx() as tx:
             if await tx.fetchone("SELECT 1 FROM investigations WHERE id = ?", [id]) is None:
                 raise CommandRejected("not_found", "No such investigation")
@@ -185,9 +192,21 @@ class Engine:
                     f"DELETE FROM {table} WHERE {ID_COLUMNS.get(table, 'investigation_id')} = ?",
                     [id],
                 )
+            for table in ("extractions", "reconciled_claims", "investigation_pages"):
+                await tx.execute(f"DELETE FROM {table} WHERE investigation_id = ?", [id])
             await tx.execute("DELETE FROM events WHERE investigation_id = ?", [id])
             await tx.execute("DELETE FROM commands WHERE investigation_id = ?", [id])
+            shas = await self.pages.drop_unreferenced(tx)
             tx.after_commit(lambda: self.bus.end(id))
+        self.usage.forget(id)
+        return rows_bytes + await self.pages.remove_files(shas)
+
+    async def _cancel_background(self, id: str) -> None:
+        """Synthesis and finishing run as background tasks named after the investigation."""
+        mine = [t for t in self._background if t.get_name() in (f"finish:{id}", f"synthesis:{id}")]
+        for t in mine:
+            t.cancel()
+        await asyncio.gather(*mine, return_exceptions=True)
 
     def publish_ephemeral(self, item: Ephemeral) -> None:
         self.bus.publish(item)

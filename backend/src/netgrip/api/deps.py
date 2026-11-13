@@ -2,6 +2,7 @@ from fastapi import Request
 
 from netgrip.engine.engine import Engine
 from netgrip.store.db import Database
+from netgrip.store.usage import DiskUsage
 
 
 def get_engine(request: Request) -> Engine:
@@ -10,3 +11,7 @@ def get_engine(request: Request) -> Engine:
 
 def get_db(request: Request) -> Database:
     return request.app.state.engine.db
+
+
+def get_usage(request: Request) -> DiskUsage:
+    return request.app.state.engine.usage

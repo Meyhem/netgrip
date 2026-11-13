@@ -8,13 +8,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, Field
 
-from netgrip.api.deps import get_db, get_engine
+from netgrip.api.deps import get_db, get_engine, get_usage
 from netgrip.boundary.commands import CommandAck
 from netgrip.boundary.events import Actor
 from netgrip.engine.engine import Engine
 from netgrip.engine.orchestrator import synthesis_claims
 from netgrip.store import eventlog
 from netgrip.store.db import Database, Row
+from netgrip.store.usage import DiskUsage
 
 router = APIRouter(prefix="/api/investigations")
 
@@ -174,10 +175,17 @@ async def _row(db: Database, id: str) -> Row:
 
 
 @router.get("")
-async def list_investigations(db: Annotated[Database, Depends(get_db)]) -> list[dict]:
+async def list_investigations(
+    db: Annotated[Database, Depends(get_db)],
+    usage: Annotated[DiskUsage | None, Depends(get_usage)] = None,
+) -> list[dict]:
     rows = await db.read("SELECT * FROM investigations ORDER BY last_activity_at DESC, id")
     nodes, premises = await _row_parts(db, [r["id"] for r in rows])
-    return [list_row(r, nodes[r["id"]], premises[r["id"]]) for r in rows]
+    out = [list_row(r, nodes[r["id"]], premises[r["id"]]) for r in rows]
+    if usage is not None:  # disk use per investigation (D-21), cached until its log moves
+        for row in out:
+            row["disk_bytes"] = await usage.of(row["id"])
+    return out
 
 
 @router.post("", status_code=202)
@@ -194,7 +202,11 @@ async def delete_investigation(id: str, engine: Annotated[Engine, Depends(get_en
 
 
 @router.get("/{id}")
-async def snapshot(id: str, db: Annotated[Database, Depends(get_db)]) -> dict:
+async def snapshot(
+    id: str,
+    db: Annotated[Database, Depends(get_db)],
+    usage: Annotated[DiskUsage | None, Depends(get_usage)] = None,
+) -> dict:
     r = await _row(db, id)
     node_rows = await db.read("SELECT * FROM nodes WHERE investigation_id = ? ORDER BY seq", [id])
     premise_rows = await db.read(
@@ -204,6 +216,7 @@ async def snapshot(id: str, db: Annotated[Database, Depends(get_db)]) -> dict:
         "settings": json.loads(r["settings"]),
         "root_goal": r["root_goal"],
         "ended_early": bool(r["ended_early"]),
+        "disk_bytes": await usage.of(id) if usage is not None else 0,
     }
     deps: dict[str, list[str]] = {}
     for d in await db.read(

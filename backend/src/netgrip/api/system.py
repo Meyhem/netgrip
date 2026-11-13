@@ -45,10 +45,13 @@ async def pools(engine: Annotated[Engine, Depends(get_engine)]) -> dict:
 async def storage(engine: Annotated[Engine, Depends(get_engine)]) -> dict:
     data_dir = engine.config.data_dir
     count = await engine.db.read("SELECT COUNT(*) FROM investigations")
+    pages = await engine.db.read("SELECT COUNT(*) FROM page_versions")
     return {
+        # The size on disk, so the per-investigation figures (a shared page counts for each)
+        # can sum to more than this (D-21).
         "total_bytes": _size(data_dir),
         "investigations": count[0][0],
-        "pages": 0,
+        "pages": pages[0][0],
         "data_dir": str(data_dir),
     }
 
