@@ -24,6 +24,7 @@ from netgrip.adapters.model import (
     ToolCall,
     Usage,
 )
+from netgrip.adapters.schema import fill_nulls, strict_problems
 from netgrip.adapters.search import SearchHit, SearchRejected, SearchUnavailable
 
 SCENARIOS = Path(__file__).parent / "fake_scenarios"
@@ -93,6 +94,9 @@ class FakeModelClient:
 
     async def complete(self, req: ModelRequest) -> ModelResponse:
         self.calls.append(req)
+        if req.response_schema is not None and (bad := strict_problems(req.response_schema)):
+            # The real adapter sends "strict": true; such a schema would be refused there.
+            raise AssertionError(f"{req.purpose}: schema not strict-valid: {bad}")
         entry = self._next(req)
         if self.delay_s:
             await asyncio.sleep(self.delay_s)
@@ -117,11 +121,14 @@ class FakeModelClient:
         if req.response_schema is not None:
             try:
                 answer = parsed if parsed is not None else json.loads(text)
+                # A strict provider answers every field: omitted optional ones come as null.
+                answer = fill_nulls(answer, req.response_schema)
                 jsonschema.validate(answer, req.response_schema)
             except (ValueError, jsonschema.ValidationError) as e:
                 raise ModelMalformed(
                     "fake: answer does not satisfy the schema", Usage(**usage)
                 ) from e
+            parsed, text = answer, json.dumps(answer)
         return ModelResponse(
             text=text,
             parsed=parsed,

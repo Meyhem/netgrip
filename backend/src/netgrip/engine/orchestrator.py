@@ -13,11 +13,19 @@ transaction (actor `orchestrator`, no node id on the spend).
 """
 
 import json
+import logging
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from netgrip.adapters.model import Message, ModelClient, ModelMalformed, ModelRequest
+from netgrip.adapters.model import (
+    Message,
+    ModelClient,
+    ModelMalformed,
+    ModelRejected,
+    ModelRequest,
+)
+from netgrip.adapters.schema import nullable, obj, string_enum
 from netgrip.boundary.events import EventDraft
 from netgrip.engine.budget import CallContext, LimitCheck, allocate_budget, call_model
 from netgrip.engine.clock import Clock
@@ -26,6 +34,8 @@ from netgrip.evidence.service import Claim, EvidenceService
 from netgrip.store.db import Database
 from netgrip.store.projections import Publisher, append_and_project
 from netgrip.store.settings import Effort, ModelPrice
+
+log = logging.getLogger(__name__)
 
 BUDGET = "budget"
 DUPLICATE = "duplicate"
@@ -141,6 +151,13 @@ async def _ask(call: CallContext, req: ModelRequest) -> dict | None:
             resp = await call_model(call, req)
         except ModelMalformed:
             continue
+        except ModelRejected as e:
+            if e.kind != "request":
+                raise
+            # The provider refuses this request as it is (not an outage): asking again will
+            # not help, so the caller's fallback for an unusable answer applies.
+            log.warning("%s: the model refused the request (%s)", req.purpose, e)
+            return None
         try:
             return resp.parsed if resp.parsed is not None else json.loads(resp.text)
         except ValueError:
@@ -150,25 +167,21 @@ async def _ask(call: CallContext, req: ModelRequest) -> dict | None:
 
 # --- Gating proposals (O1, O2) ---------------------------------------------------------------
 
-REVIEW_SCHEMA = {
-    "type": "object",
-    "properties": {
+REVIEW_SCHEMA = obj(
+    {
         "decisions": {
             "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
+            "items": obj(
+                {
                     "display_id": {"type": "string"},
                     "approve": {"type": "boolean"},
                     "reason": {"type": "string"},
-                    "duplicate_of": {"type": ["string", "null"]},
-                },
-                "required": ["display_id", "approve", "reason"],
-            },
+                    "duplicate_of": nullable({"type": "string"}),
+                }
+            ),
         }
-    },
-    "required": ["decisions"],
-}
+    }
+)
 
 
 def _code_rules(nodes: list[dict], ids: list[str], effort: Effort) -> dict[str, bool]:
@@ -261,7 +274,7 @@ async def review_proposals(ctx: OrchestratorContext, proposals: list[NodeRef]) -
                 dup,
             )
         else:
-            dec = Decision(nid, True, verdicts.get(nid, {}).get("reason", ""))
+            dec = Decision(nid, True, verdicts.get(nid, {}).get("reason") or "")
         decisions.append(dec)
         if dec.approve:
             budget = allocate_budget(effort, by_id[nid]["depth"]).as_dict()
@@ -275,11 +288,7 @@ async def review_proposals(ctx: OrchestratorContext, proposals: list[NodeRef]) -
 
 # --- Relevance gate on return (E3) -----------------------------------------------------------
 
-RELEVANCE_SCHEMA = {
-    "type": "object",
-    "properties": {"relevant": {"type": "boolean"}, "reason": {"type": "string"}},
-    "required": ["relevant", "reason"],
-}
+RELEVANCE_SCHEMA = obj({"relevant": {"type": "boolean"}, "reason": {"type": "string"}})
 
 
 async def on_node_returned(ctx: OrchestratorContext, node: NodeRef) -> bool:
@@ -385,25 +394,23 @@ async def on_node_failed(ctx: OrchestratorContext, node: NodeRef) -> bool:
 
 # --- Deciding what next (O3) -----------------------------------------------------------------
 
-NEXT_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "decision": {"enum": ["continue", "conclude"]},
-        "verify": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "claim_id": {"type": "string"},
-                    "question": {"type": "string"},
-                    "justification": {"type": "string"},
-                },
-                "required": ["claim_id", "question"],
-            },
-        },
-    },
-    "required": ["decision"],
-}
+NEXT_SCHEMA = obj(
+    {
+        "decision": string_enum(["continue", "conclude"]),
+        "verify": nullable(
+            {
+                "type": "array",
+                "items": obj(
+                    {
+                        "claim_id": {"type": "string"},
+                        "question": {"type": "string"},
+                        "justification": nullable({"type": "string"}),
+                    }
+                ),
+            }
+        ),
+    }
+)
 
 
 async def _conclude(
@@ -451,7 +458,7 @@ async def decide_next(ctx: OrchestratorContext) -> Literal["continue", "conclude
         ),
     )
     known = {c.id for c in claims}
-    wanted = [v for v in (answer or {}).get("verify", []) if v["claim_id"] in known]
+    wanted = [v for v in (answer or {}).get("verify") or [] if v["claim_id"] in known]
     if not answer or answer["decision"] != "continue" or not wanted:
         return await _conclude(ctx, call, None)
 

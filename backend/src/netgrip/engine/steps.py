@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 
 from netgrip.adapters.fetcher import FetchAttempt
 from netgrip.adapters.model import Message, ModelMalformed, ModelRequest
+from netgrip.adapters.schema import nullable, obj, string_enum
 from netgrip.engine import limiter
 from netgrip.engine.agent import NodeContext
 from netgrip.engine.brief import render_brief
@@ -47,26 +48,19 @@ _EXTRACT_SYSTEM = (
     "Reputable or Weak), give its publication date if stated, and its origin: the original "
     "publisher or wire report the page attributes, if any."
 )
-_EXTRACT_SCHEMA = {
-    "type": "object",
-    "properties": {
+_EXTRACT_SCHEMA = obj(
+    {
         "claims": {
             "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "text": {"type": "string"},
-                    "stance": {"enum": ["supports", "contradicts"]},
-                },
-                "required": ["text", "stance"],
-            },
+            "items": obj(
+                {"text": {"type": "string"}, "stance": string_enum(["supports", "contradicts"])}
+            ),
         },
-        "credibility": {"enum": ["Primary", "Reputable", "Weak"]},
-        "published_at": {"type": ["string", "null"]},
-        "origin": {"type": ["string", "null"]},
-    },
-    "required": ["claims", "credibility"],
-}
+        "credibility": string_enum(["Primary", "Reputable", "Weak"]),
+        "published_at": nullable({"type": "string"}),
+        "origin": nullable({"type": "string"}),
+    }
+)
 
 
 # --- helpers ---------------------------------------------------------------------------------
@@ -106,36 +100,29 @@ def _allowed(ctx: NodeContext, aggregate: bool) -> list[str]:
 
 
 def _schema(ctx: NodeContext, allowed: list[str]) -> dict:
-    verdict = {
-        "type": "object",
-        "properties": {
-            "text": {"type": "string"},
-            "confidence": {"enum": ["low", "medium", "high"]},
-        },
-        "required": ["text", "confidence"],
-    }
-    child = {
-        "type": "object",
-        "properties": {
-            "question": {"type": "string"},
-            "kind": {"enum": CHILD_KINDS},
-            "justification": {"type": "string"},
-            "out_of_scope": {"type": "string"},
-            "done_when": {"type": "string"},
-        },
-        "required": ["question"],
-    }
+    """Strict: every field is present; the ones the action does not use are null."""
+    text = {"type": "string"}
+    verdict = obj({"text": text, "confidence": string_enum(["low", "medium", "high"])})
+    child = obj(
+        {
+            "question": text,
+            "kind": nullable(string_enum(CHILD_KINDS)),
+            "justification": nullable(text),
+            "out_of_scope": nullable(text),
+            "done_when": nullable(text),
+        }
+    )
     props: dict[str, Any] = {
-        "action": {"enum": allowed},
-        "query": {"type": "string"},
-        "url": {"type": "string"},
-        "children": {"type": "array", "items": child},
-        "verdict": verdict,
-        "open_questions": {"type": "array", "items": {"type": "string"}},
+        "action": string_enum(allowed),
+        "query": nullable(text),
+        "url": nullable(text),
+        "children": nullable({"type": "array", "items": child}),
+        "verdict": nullable(verdict),
+        "open_questions": nullable({"type": "array", "items": text}),
     }
     if ctx.node.kind == PREMISE_CHECK:
-        props["premise_outcome"] = {"enum": ["confirmed", "refuted", "unverifiable"]}
-    return {"type": "object", "properties": props, "required": ["action"]}
+        props["premise_outcome"] = nullable(string_enum(["confirmed", "refuted", "unverifiable"]))
+    return obj(props)
 
 
 def _problem(ctx: NodeContext, answer: dict) -> str | None:

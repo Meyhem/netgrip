@@ -104,6 +104,10 @@ async def retry_unavailable[T](
                 raise
 
 
+def _rejected_request(exc: Exception) -> bool:
+    return isinstance(exc, ModelRejected) and exc.kind == "request"
+
+
 class InvestigationRuntime:
     def __init__(self, engine: "Engine", investigation_id: str) -> None:
         self.engine = engine
@@ -401,6 +405,14 @@ class InvestigationRuntime:
             self._request_limit_pause()
             return False
         except (ModelError, SearchError) as e:
+            if _rejected_request(e):
+                # Not an outage and not the key: this request will be refused again as it is.
+                # The node fails with the provider's reason; its failure handling is owed.
+                log.warning("node %s of %s: the model refused the request (%s)", nid, self.id, e)
+                self._ctxs.pop(nid, None)
+                await self._fail(nid, f"The model refused the request: {e}")
+                self._owed.add(nid)
+                return True
             self._suspended.append(nid)
             await self._on_provider_error(nid, e)
             await self._reset_interrupted(nid)
@@ -408,10 +420,7 @@ class InvestigationRuntime:
         except Exception as e:
             log.exception("node %s of %s failed unexpectedly", nid, self.id)
             self._ctxs.pop(nid, None)
-            await append_and_project(self.engine.db, self.id, [EventDraft(
-                type="node.failed", actor="node", node_id=nid,
-                data={"reason": f"internal error: {type(e).__name__}", "auto_retry_used": False},
-            )], self.engine.bus)  # fmt: skip
+            await self._fail(nid, f"internal error: {type(e).__name__}")
             try:
                 await orchestrator.on_node_failed(self._octx, nid)
             except Exception:
@@ -423,6 +432,12 @@ class InvestigationRuntime:
         self._ctxs.pop(nid, None)
         self._owed.add(nid)
         return True
+
+    async def _fail(self, nid: str, reason: str) -> None:
+        await append_and_project(self.engine.db, self.id, [EventDraft(
+            type="node.failed", actor="node", node_id=nid,
+            data={"reason": reason, "auto_retry_used": False},
+        )], self.engine.bus)  # fmt: skip
 
     async def _return_work(self, nid: str) -> None:
         """The orchestrator's work on a returned node. It stays owed (and runs on resume) when
@@ -492,6 +507,8 @@ class InvestigationRuntime:
 
     @staticmethod
     def _cause(exc: Exception) -> str:
+        """The pause cause of a provider error. A model request refusal is not a pause: a node
+        fails with it (`_steps`) and an orchestrator call falls back (`orchestrator._ask`)."""
         if isinstance(exc, ModelRejected | SearchRejected):
             cause = {"key": "key_rejected", "credit": "credit_exhausted"}.get(exc.kind)
             if cause:

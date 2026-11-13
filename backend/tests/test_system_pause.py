@@ -314,3 +314,43 @@ async def test_spending_limit_stop_does_not_count_a_decision(db, tmp_path):
     engine, _ = await _capped(db, tmp_path)
     ctx = engine.runtimes[INV]._ctxs["n-1"]
     assert ctx.state.decisions == 1
+
+
+REQUEST = {"raise": "request"}
+
+
+async def test_refused_request_fails_the_node_instead_of_pausing(db, tmp_path):
+    await seed(db, [("n-1", proposed("D1"))])
+    client = TrackingClient(BASE_SCRIPT | {"node.decide": [REQUEST]})  # refused every time
+    engine = make_engine(db, tmp_path, client)
+    await run_to_end(engine)
+    assert not [d for _, _, d in await events(db, "investigation.state_changed")
+                if d["to"] == "Paused"]  # fmt: skip
+    assert engine.clock.sleeps == []  # not treated as an outage
+    failed = [d for _, n, d in await events(db, "node.failed") if n == "n-1"]
+    assert failed and all("refused the request" in d["reason"] for d in failed)
+    assert "fake: request rejected" in failed[0]["reason"]
+    assert len(failed) == 2  # the one automatic retry was refused too
+    assert (await statuses(db))["n-1"] == "Failed"
+    assert await state(db) == "Completed"
+
+
+async def test_refused_request_then_retry_succeeds(db, tmp_path):
+    await seed(db, [("n-1", proposed("D1"))])
+    client = TrackingClient(BASE_SCRIPT | {"node.decide": [REQUEST, conclude()]})
+    engine = make_engine(db, tmp_path, client)
+    await run_to_end(engine)
+    assert [d["reason"] for _, _, d in await events(db, "node.reset")] == ["auto_retry"]
+    assert (await statuses(db))["n-1"] == "Completed"
+    assert await state(db) == "Completed"
+
+
+async def test_refused_orchestrator_request_falls_back_without_pausing(db, tmp_path):
+    await seed(db, [("n-1", proposed("D1"))])
+    client = TrackingClient(BASE_SCRIPT | {"node.relevance": [REQUEST]})
+    engine = make_engine(db, tmp_path, client)
+    await run_to_end(engine)
+    assert await state(db) == "Completed"
+    assert [t for t, n, _ in await events(db) if n == "n-1" and t.startswith("node.relevance")
+            ] == ["node.relevance_checked"]  # fmt: skip
+    assert len([c for c in client.calls if c.purpose == "node.relevance"]) == 1
