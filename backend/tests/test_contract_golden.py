@@ -5,12 +5,16 @@ undo, another instruction, approve): its durable events and the final snapshot.
 `contract/run.json`: the fake Great Wall run from draft to Completed on the scripted web, one
 node at a time (so the order is fixed): its durable events, a snapshot taken mid-run (P1
 reading its second page) and the final snapshot.
+`contract/steering.json`: the approved Great Wall plan, then the user's interventions with no
+research running (pause and resume a branch, go deeper, focus, ignore and restore, an
+instruction, finish now): its durable events and the final snapshot.
 The frontend reduces those events from an empty snapshot and must reach the same snapshots.
 
 Ids and timestamps are made deterministic (R12): `uuid.uuid4` and the event-log clock are
 replaced by counters for the run. Regenerate with `NETGRIP_WRITE_GOLDEN=1 uv run pytest`.
 """
 
+import asyncio
 import json
 import os
 import uuid
@@ -33,6 +37,7 @@ from netgrip.store.db import open_db
 CONTRACT = Path(__file__).resolve().parents[2] / "contract"
 GOLDEN = CONTRACT / "plan_review.json"
 RUN_GOLDEN = CONTRACT / "run.json"
+STEERING_GOLDEN = CONTRACT / "steering.json"
 PROMPT = "Is the Great Wall visible from space?"
 INVESTIGATION_ID = "00000000-0000-4000-8000-000000000000"
 
@@ -208,3 +213,73 @@ async def test_the_run_is_deterministic_and_reaches_completed(tmp_path, determin
         "page.unobtainable", "claim.updated", "claim.contradiction_recorded", "limit.changed",
         "system.recovered",
     }  # fmt: skip
+
+
+# --- Steering (Phase 6) ------------------------------------------------------------------------
+
+
+async def run_steering(path: Path) -> dict:
+    path.mkdir(parents=True, exist_ok=True)
+    db = await open_db(path / "golden.sqlite")
+    engine = Engine(
+        db,
+        Config(data_dir=path, fake=True),
+        EventBus(),
+        FakeModelClient.from_scenario("great_wall"),
+    )
+    await engine.start()
+    try:
+        inv = INVESTIGATION_ID
+        n = 0
+
+        async def submit(type: str, node: str | None = None, **payload) -> None:
+            nonlocal n
+            n += 1
+            command_id = uuid.UUID(f"00000000-0000-4000-9000-{n:012d}")
+            await engine.submit(Command(id=command_id, type=type, investigation_id=inv,
+                                        node_id=node, payload=payload))  # fmt: skip
+            await engine.planning.idle(inv)
+            await asyncio.gather(*engine._background)
+
+        await engine.create_investigation(uuid.UUID(inv), PROMPT, {})
+        await submit("draft_plan")
+        await submit("approve_plan")
+        ids = {r["display_id"]: r["id"] for r in await db.read("SELECT id, display_id FROM nodes")}
+        d1, d2 = ids["D1"], ids["D2"]
+        await submit("pause_branch", d1)
+        await submit("resume_branch", d1)
+        await submit("go_deeper", d2)
+        await submit("run_only_branch", d1)
+        await submit("run_everything")
+        await submit("ignore_branch", d2)
+        await submit("restore_branch", d2)
+        await submit("add_instruction", d1, text="Prefer primary sources")
+        await submit("finish_now")
+        events = [e.model_dump(mode="json") for e in await eventlog.read(db, inv)]
+        return {"events": events, "snapshot": await contract_snapshot(inv, db)}
+    finally:
+        await engine.stop()
+        await db.close()
+
+
+async def test_steering_contract_matches_the_golden_file(tmp_path, deterministic):
+    text = dump(await run_steering(tmp_path))
+    if os.environ.get("NETGRIP_WRITE_GOLDEN") == "1":
+        STEERING_GOLDEN.write_text(text, encoding="utf-8")
+    assert STEERING_GOLDEN.exists(), "contract/steering.json is missing; NETGRIP_WRITE_GOLDEN=1"
+    assert STEERING_GOLDEN.read_text(encoding="utf-8") == text, (
+        "the steering contract changed; review it and regenerate with NETGRIP_WRITE_GOLDEN=1"
+    )
+
+
+async def test_the_steering_scenario_covers_the_interventions(tmp_path, deterministic):
+    result = await run_steering(tmp_path)
+    types = {e["type"] for e in result["events"]}
+    for t in ("node.paused", "node.resumed", "node.budget_changed", "focus.changed",
+              "node.inclusion_changed", "instruction.queued", "instruction.applied",
+              "investigation.concluding", "report.created"):  # fmt: skip
+        assert t in types, t
+    snap = result["snapshot"]
+    assert snap["investigation"]["state"] == "Completed"
+    assert snap["investigation"]["ended_early"] is True
+    assert snap["focus_node_id"] is None

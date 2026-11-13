@@ -1,0 +1,979 @@
+{
+  "events": [
+    {
+      "actor": "user",
+      "at": "2026-01-01T00:00:01.000Z",
+      "command_id": "00000000-0000-4000-8000-000000000000",
+      "data": {
+        "prompt": "Is the Great Wall visible from space?",
+        "settings": {
+          "effort": "Medium",
+          "effort_budget": {
+            "max_depth": 4,
+            "max_nodes": 40,
+            "parallel": 4,
+            "sources_per_node": 8,
+            "sources_to_confirm": 2
+          },
+          "excluded_domains": [],
+          "page_reuse": "1d",
+          "prefer": "none",
+          "preset": "balanced",
+          "spending_limit_usd": 5.0,
+          "tiers": {
+            "fast": "anthropic/claude-haiku-5.5",
+            "standard": "anthropic/claude-sonnet-5.5",
+            "strong": "anthropic/claude-opus-5.5",
+            "verifier": "openai/gpt-5.2"
+          }
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 1,
+      "type": "investigation.created",
+      "v": 1
+    },
+    {
+      "actor": "user",
+      "at": "2026-01-01T00:00:02.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "cause": null,
+        "detail": null,
+        "from": "Draft",
+        "origin": "user",
+        "to": "Planning"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 2,
+      "type": "investigation.state_changed",
+      "v": 1
+    },
+    {
+      "actor": "user",
+      "at": "2026-01-01T00:00:02.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {},
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 3,
+      "type": "plan.draft_requested",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:03.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-opus-5.5",
+        "tier": "strong",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 4,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:04.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 5,
+      "type": "investigation.root_goal_set",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:04.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "node_id": "00000000-0000-4000-8000-000000000002",
+        "premise_id": "00000000-0000-4000-8000-000000000008",
+        "text": "The Wall is visible to the naked eye from low Earth orbit."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 6,
+      "type": "premise.extracted",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:04.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "depends_on": [],
+        "depth": 0,
+        "display_id": "R",
+        "done_when": null,
+        "justification": "The root goal of the investigation.",
+        "kind": "Synthesis",
+        "out_of_scope": null,
+        "parent_id": null,
+        "proposed_by": "planner",
+        "question": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists."
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000001",
+      "seq": 7,
+      "type": "node.proposed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:04.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "depends_on": [],
+        "depth": 1,
+        "display_id": "P1",
+        "done_when": "Two independent primary sources (astronaut accounts or measurements) agree or disagree.",
+        "justification": "The question takes this as given; if it is false the report must say so first.",
+        "kind": "Premise check",
+        "out_of_scope": "Visibility from the Moon or from aircraft.",
+        "parent_id": "00000000-0000-4000-8000-000000000001",
+        "proposed_by": "planner",
+        "question": "Is the Great Wall of China visible to the naked eye from low Earth orbit?"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 8,
+      "type": "node.proposed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:04.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "depends_on": [
+          "00000000-0000-4000-8000-000000000002"
+        ],
+        "depth": 1,
+        "display_id": "D1",
+        "done_when": "At least three first-hand accounts from different missions are compared.",
+        "justification": "First-hand accounts are the most direct evidence for or against the claim.",
+        "kind": "Divergent",
+        "out_of_scope": "Photographs taken with telephoto lenses.",
+        "parent_id": "00000000-0000-4000-8000-000000000001",
+        "proposed_by": "planner",
+        "question": "What do astronauts and the historical record report about seeing the Wall?"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000003",
+      "seq": 9,
+      "type": "node.proposed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:04.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "depends_on": [
+          "00000000-0000-4000-8000-000000000002"
+        ],
+        "depth": 1,
+        "display_id": "D2",
+        "done_when": "The angular size and contrast of the Wall are computed and compared with eye resolution.",
+        "justification": "Physics sets a hard bound that does not depend on anyone's testimony.",
+        "kind": "Deep-dive",
+        "out_of_scope": "Satellites and radar imaging.",
+        "parent_id": "00000000-0000-4000-8000-000000000001",
+        "proposed_by": "planner",
+        "question": "How do the Wall's width and contrast compare with the limits of the human eye at orbital altitude?"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000004",
+      "seq": 10,
+      "type": "node.proposed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:04.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "depends_on": [
+          "00000000-0000-4000-8000-000000000003",
+          "00000000-0000-4000-8000-000000000002"
+        ],
+        "depth": 2,
+        "display_id": "D2a",
+        "done_when": "Both numbers are found in sources and the ratio is stated.",
+        "justification": "Gives the two numbers the comparison in D2 needs.",
+        "kind": "Deep-dive",
+        "out_of_scope": "Effects of atmosphere and lighting.",
+        "parent_id": "00000000-0000-4000-8000-000000000004",
+        "proposed_by": "planner",
+        "question": "What angular resolution does the human eye reach, and what is the Wall's apparent width at 400 km?"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000005",
+      "seq": 11,
+      "type": "node.proposed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:04.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "depends_on": [
+          "00000000-0000-4000-8000-000000000002"
+        ],
+        "depth": 1,
+        "display_id": "D3",
+        "done_when": "Typical marketing uses are listed with sources.",
+        "justification": "Shows how widespread the belief is among visitors.",
+        "kind": "Divergent",
+        "out_of_scope": "Marketing claims about other landmarks.",
+        "parent_id": "00000000-0000-4000-8000-000000000001",
+        "proposed_by": "planner",
+        "question": "How is the claim used in tourism marketing?"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000006",
+      "seq": 12,
+      "type": "node.proposed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:04.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "depends_on": [
+          "00000000-0000-4000-8000-000000000003",
+          "00000000-0000-4000-8000-000000000004",
+          "00000000-0000-4000-8000-000000000002"
+        ],
+        "depth": 1,
+        "display_id": "V1",
+        "done_when": "Each account is marked consistent or inconsistent with the computed limits.",
+        "justification": "Cross-checks testimony against calculation before any conclusion is drawn.",
+        "kind": "Verification",
+        "out_of_scope": "New evidence beyond D1 and D2.",
+        "parent_id": "00000000-0000-4000-8000-000000000001",
+        "proposed_by": "planner",
+        "question": "Do the accounts in D1 and the physics in D2 agree?"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000007",
+      "seq": 13,
+      "type": "node.proposed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:04.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000001",
+      "data": {
+        "diff": {
+          "kept": [],
+          "notes": [],
+          "proposed": [
+            "00000000-0000-4000-8000-000000000001",
+            "00000000-0000-4000-8000-000000000002",
+            "00000000-0000-4000-8000-000000000003",
+            "00000000-0000-4000-8000-000000000004",
+            "00000000-0000-4000-8000-000000000005",
+            "00000000-0000-4000-8000-000000000006",
+            "00000000-0000-4000-8000-000000000007"
+          ],
+          "superseded": []
+        },
+        "instruction_id": null,
+        "version": 1
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 14,
+      "type": "plan.version_created",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:05.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000002",
+      "data": {
+        "budget": {
+          "child_nodes": 20,
+          "sources": 8
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000001",
+      "seq": 15,
+      "type": "node.approved",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:05.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000002",
+      "data": {
+        "budget": {
+          "child_nodes": 20,
+          "sources": 8
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000002",
+      "seq": 16,
+      "type": "node.approved",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:05.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000002",
+      "data": {
+        "budget": {
+          "child_nodes": 20,
+          "sources": 8
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000003",
+      "seq": 17,
+      "type": "node.approved",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:05.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000002",
+      "data": {
+        "budget": {
+          "child_nodes": 20,
+          "sources": 8
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000004",
+      "seq": 18,
+      "type": "node.approved",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:05.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000002",
+      "data": {
+        "budget": {
+          "child_nodes": 10,
+          "sources": 6
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000005",
+      "seq": 19,
+      "type": "node.approved",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:05.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000002",
+      "data": {
+        "budget": {
+          "child_nodes": 20,
+          "sources": 8
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000006",
+      "seq": 20,
+      "type": "node.approved",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:05.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000002",
+      "data": {
+        "budget": {
+          "child_nodes": 20,
+          "sources": 8
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000007",
+      "seq": 21,
+      "type": "node.approved",
+      "v": 1
+    },
+    {
+      "actor": "user",
+      "at": "2026-01-01T00:00:05.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000002",
+      "data": {
+        "cause": null,
+        "detail": null,
+        "from": "Planning",
+        "origin": "user",
+        "to": "Running"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 22,
+      "type": "investigation.state_changed",
+      "v": 1
+    },
+    {
+      "actor": "user",
+      "at": "2026-01-01T00:00:06.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000003",
+      "data": {
+        "node_ids": [
+          "00000000-0000-4000-8000-000000000003"
+        ]
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000003",
+      "seq": 23,
+      "type": "node.paused",
+      "v": 1
+    },
+    {
+      "actor": "user",
+      "at": "2026-01-01T00:00:07.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000004",
+      "data": {
+        "node_ids": [
+          "00000000-0000-4000-8000-000000000003"
+        ]
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000003",
+      "seq": 24,
+      "type": "node.resumed",
+      "v": 1
+    },
+    {
+      "actor": "user",
+      "at": "2026-01-01T00:00:08.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000005",
+      "data": {
+        "budget": {
+          "00000000-0000-4000-8000-000000000004": {
+            "child_nodes": 30,
+            "depth_extra": 1,
+            "sources": 12
+          },
+          "00000000-0000-4000-8000-000000000005": {
+            "child_nodes": 15,
+            "depth_extra": 1,
+            "sources": 9
+          }
+        },
+        "cause": "go_deeper"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000004",
+      "seq": 25,
+      "type": "node.budget_changed",
+      "v": 1
+    },
+    {
+      "actor": "user",
+      "at": "2026-01-01T00:00:09.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000006",
+      "data": {
+        "node_id": "00000000-0000-4000-8000-000000000003"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000003",
+      "seq": 26,
+      "type": "focus.changed",
+      "v": 1
+    },
+    {
+      "actor": "user",
+      "at": "2026-01-01T00:00:10.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000007",
+      "data": {
+        "node_id": null
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 27,
+      "type": "focus.changed",
+      "v": 1
+    },
+    {
+      "actor": "user",
+      "at": "2026-01-01T00:00:11.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000008",
+      "data": {
+        "by": "user",
+        "inclusion": "Ignored",
+        "instruction_id": null,
+        "node_ids": [
+          "00000000-0000-4000-8000-000000000004",
+          "00000000-0000-4000-8000-000000000005"
+        ]
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000004",
+      "seq": 28,
+      "type": "node.inclusion_changed",
+      "v": 1
+    },
+    {
+      "actor": "user",
+      "at": "2026-01-01T00:00:12.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000009",
+      "data": {
+        "by": "user",
+        "inclusion": "Included",
+        "instruction_id": null,
+        "node_ids": [
+          "00000000-0000-4000-8000-000000000004",
+          "00000000-0000-4000-8000-000000000005"
+        ]
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000004",
+      "seq": 29,
+      "type": "node.inclusion_changed",
+      "v": 1
+    },
+    {
+      "actor": "user",
+      "at": "2026-01-01T00:00:13.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000010",
+      "data": {
+        "instruction_id": "00000000-0000-4000-8000-000000000009",
+        "text": "Prefer primary sources",
+        "waiting_for": null
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000003",
+      "seq": 30,
+      "type": "instruction.queued",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:14.000Z",
+      "command_id": null,
+      "data": {
+        "at_step": null,
+        "diff": {
+          "kept": [],
+          "notes": [],
+          "proposed": [],
+          "superseded": []
+        },
+        "instruction_id": "00000000-0000-4000-8000-000000000009"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000003",
+      "seq": 31,
+      "type": "instruction.applied",
+      "v": 1
+    },
+    {
+      "actor": "user",
+      "at": "2026-01-01T00:00:15.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000011",
+      "data": {
+        "cut_short_by": null,
+        "ended_early": true
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 32,
+      "type": "investigation.concluding",
+      "v": 1
+    },
+    {
+      "actor": "user",
+      "at": "2026-01-01T00:00:15.000Z",
+      "command_id": "00000000-0000-4000-9000-000000000011",
+      "data": {
+        "cause": null,
+        "detail": null,
+        "from": "Running",
+        "origin": "user",
+        "to": "Synthesising"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 33,
+      "type": "investigation.state_changed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:16.000Z",
+      "command_id": null,
+      "data": {
+        "cut_short_by": null,
+        "ended_early": true,
+        "report_id": "00000000-0000-4000-8000-000000000010"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 34,
+      "type": "report.created",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:00:16.000Z",
+      "command_id": null,
+      "data": {
+        "cause": null,
+        "detail": null,
+        "from": "Synthesising",
+        "origin": "orchestrator",
+        "to": "Completed"
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 35,
+      "type": "investigation.state_changed",
+      "v": 1
+    }
+  ],
+  "snapshot": {
+    "focus_node_id": null,
+    "instructions": [
+      {
+        "applied_seq": 31,
+        "diff": {
+          "kept": [],
+          "notes": [],
+          "proposed": [],
+          "superseded": []
+        },
+        "id": "00000000-0000-4000-8000-000000000009",
+        "node_id": "00000000-0000-4000-8000-000000000003",
+        "queued_seq": 30,
+        "state": "applied",
+        "text": "Prefer primary sources",
+        "undone": false,
+        "waiting_for": null
+      }
+    ],
+    "investigation": {
+      "disk_bytes": 0,
+      "effort": "Medium",
+      "ended_early": true,
+      "id": "00000000-0000-4000-8000-000000000000",
+      "last_activity_at": "2026-01-01T00:00:16.000Z",
+      "nodes_max": 55,
+      "nodes_total": 6,
+      "pause_cause": null,
+      "pause_detail": null,
+      "prompt": "Is the Great Wall visible from space?",
+      "root_goal": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+      "run_seconds": 0,
+      "running_count": 0,
+      "settings": {
+        "effort": "Medium",
+        "effort_budget": {
+          "max_depth": 4,
+          "max_nodes": 40,
+          "parallel": 4,
+          "sources_per_node": 8,
+          "sources_to_confirm": 2
+        },
+        "excluded_domains": [],
+        "page_reuse": "1d",
+        "prefer": "none",
+        "preset": "balanced",
+        "spending_limit_usd": 5.0,
+        "tiers": {
+          "fast": "anthropic/claude-haiku-5.5",
+          "standard": "anthropic/claude-sonnet-5.5",
+          "strong": "anthropic/claude-opus-5.5",
+          "verifier": "openai/gpt-5.2"
+        }
+      },
+      "spend_approximate": false,
+      "spending_limit_usd": 5.0,
+      "spent_usd": 0.01,
+      "state": "Completed",
+      "summary": null
+    },
+    "nodes": [
+      {
+        "activity": null,
+        "brief": null,
+        "budget": {
+          "child_nodes": 20,
+          "sources": 8
+        },
+        "depends_on": [],
+        "depth": 0,
+        "display_id": "R",
+        "done_when": null,
+        "excluded_at": null,
+        "excluded_by": null,
+        "excluded_instruction_id": null,
+        "failure_reason": null,
+        "finished_at": null,
+        "finished_seq": null,
+        "id": "00000000-0000-4000-8000-000000000001",
+        "inclusion": "Included",
+        "instruction_count": 0,
+        "justification": "The root goal of the investigation.",
+        "kind": "Synthesis",
+        "out_of_scope": null,
+        "parent_id": null,
+        "paused_from": null,
+        "plan_version_added": 1,
+        "proposed_by": "planner",
+        "question": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
+        "rejection_reason": null,
+        "spent_usd": 0.0,
+        "status": "Pending",
+        "verdict": null
+      },
+      {
+        "activity": null,
+        "brief": null,
+        "budget": {
+          "child_nodes": 20,
+          "sources": 8
+        },
+        "depends_on": [],
+        "depth": 1,
+        "display_id": "P1",
+        "done_when": "Two independent primary sources (astronaut accounts or measurements) agree or disagree.",
+        "excluded_at": null,
+        "excluded_by": null,
+        "excluded_instruction_id": null,
+        "failure_reason": null,
+        "finished_at": null,
+        "finished_seq": null,
+        "id": "00000000-0000-4000-8000-000000000002",
+        "inclusion": "Included",
+        "instruction_count": 0,
+        "justification": "The question takes this as given; if it is false the report must say so first.",
+        "kind": "Premise check",
+        "out_of_scope": "Visibility from the Moon or from aircraft.",
+        "parent_id": "00000000-0000-4000-8000-000000000001",
+        "paused_from": null,
+        "plan_version_added": 1,
+        "proposed_by": "planner",
+        "question": "Is the Great Wall of China visible to the naked eye from low Earth orbit?",
+        "rejection_reason": null,
+        "spent_usd": 0.0,
+        "status": "Pending",
+        "verdict": null
+      },
+      {
+        "activity": null,
+        "brief": null,
+        "budget": {
+          "child_nodes": 20,
+          "sources": 8
+        },
+        "depends_on": [
+          "00000000-0000-4000-8000-000000000002"
+        ],
+        "depth": 1,
+        "display_id": "D1",
+        "done_when": "At least three first-hand accounts from different missions are compared.",
+        "excluded_at": null,
+        "excluded_by": null,
+        "excluded_instruction_id": null,
+        "failure_reason": null,
+        "finished_at": null,
+        "finished_seq": null,
+        "id": "00000000-0000-4000-8000-000000000003",
+        "inclusion": "Included",
+        "instruction_count": 1,
+        "justification": "First-hand accounts are the most direct evidence for or against the claim.",
+        "kind": "Divergent",
+        "out_of_scope": "Photographs taken with telephoto lenses.",
+        "parent_id": "00000000-0000-4000-8000-000000000001",
+        "paused_from": null,
+        "plan_version_added": 1,
+        "proposed_by": "planner",
+        "question": "What do astronauts and the historical record report about seeing the Wall?",
+        "rejection_reason": null,
+        "spent_usd": 0.0,
+        "status": "Pending",
+        "verdict": null
+      },
+      {
+        "activity": null,
+        "brief": null,
+        "budget": {
+          "child_nodes": 30,
+          "depth_extra": 1,
+          "sources": 12
+        },
+        "depends_on": [
+          "00000000-0000-4000-8000-000000000002"
+        ],
+        "depth": 1,
+        "display_id": "D2",
+        "done_when": "The angular size and contrast of the Wall are computed and compared with eye resolution.",
+        "excluded_at": null,
+        "excluded_by": null,
+        "excluded_instruction_id": null,
+        "failure_reason": null,
+        "finished_at": null,
+        "finished_seq": null,
+        "id": "00000000-0000-4000-8000-000000000004",
+        "inclusion": "Included",
+        "instruction_count": 0,
+        "justification": "Physics sets a hard bound that does not depend on anyone's testimony.",
+        "kind": "Deep-dive",
+        "out_of_scope": "Satellites and radar imaging.",
+        "parent_id": "00000000-0000-4000-8000-000000000001",
+        "paused_from": null,
+        "plan_version_added": 1,
+        "proposed_by": "planner",
+        "question": "How do the Wall's width and contrast compare with the limits of the human eye at orbital altitude?",
+        "rejection_reason": null,
+        "spent_usd": 0.0,
+        "status": "Pending",
+        "verdict": null
+      },
+      {
+        "activity": null,
+        "brief": null,
+        "budget": {
+          "child_nodes": 15,
+          "depth_extra": 1,
+          "sources": 9
+        },
+        "depends_on": [
+          "00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000003"
+        ],
+        "depth": 2,
+        "display_id": "D2a",
+        "done_when": "Both numbers are found in sources and the ratio is stated.",
+        "excluded_at": null,
+        "excluded_by": null,
+        "excluded_instruction_id": null,
+        "failure_reason": null,
+        "finished_at": null,
+        "finished_seq": null,
+        "id": "00000000-0000-4000-8000-000000000005",
+        "inclusion": "Included",
+        "instruction_count": 0,
+        "justification": "Gives the two numbers the comparison in D2 needs.",
+        "kind": "Deep-dive",
+        "out_of_scope": "Effects of atmosphere and lighting.",
+        "parent_id": "00000000-0000-4000-8000-000000000004",
+        "paused_from": null,
+        "plan_version_added": 1,
+        "proposed_by": "planner",
+        "question": "What angular resolution does the human eye reach, and what is the Wall's apparent width at 400 km?",
+        "rejection_reason": null,
+        "spent_usd": 0.0,
+        "status": "Pending",
+        "verdict": null
+      },
+      {
+        "activity": null,
+        "brief": null,
+        "budget": {
+          "child_nodes": 20,
+          "sources": 8
+        },
+        "depends_on": [
+          "00000000-0000-4000-8000-000000000002"
+        ],
+        "depth": 1,
+        "display_id": "D3",
+        "done_when": "Typical marketing uses are listed with sources.",
+        "excluded_at": null,
+        "excluded_by": null,
+        "excluded_instruction_id": null,
+        "failure_reason": null,
+        "finished_at": null,
+        "finished_seq": null,
+        "id": "00000000-0000-4000-8000-000000000006",
+        "inclusion": "Included",
+        "instruction_count": 0,
+        "justification": "Shows how widespread the belief is among visitors.",
+        "kind": "Divergent",
+        "out_of_scope": "Marketing claims about other landmarks.",
+        "parent_id": "00000000-0000-4000-8000-000000000001",
+        "paused_from": null,
+        "plan_version_added": 1,
+        "proposed_by": "planner",
+        "question": "How is the claim used in tourism marketing?",
+        "rejection_reason": null,
+        "spent_usd": 0.0,
+        "status": "Pending",
+        "verdict": null
+      },
+      {
+        "activity": null,
+        "brief": null,
+        "budget": {
+          "child_nodes": 20,
+          "sources": 8
+        },
+        "depends_on": [
+          "00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000003",
+          "00000000-0000-4000-8000-000000000004"
+        ],
+        "depth": 1,
+        "display_id": "V1",
+        "done_when": "Each account is marked consistent or inconsistent with the computed limits.",
+        "excluded_at": null,
+        "excluded_by": null,
+        "excluded_instruction_id": null,
+        "failure_reason": null,
+        "finished_at": null,
+        "finished_seq": null,
+        "id": "00000000-0000-4000-8000-000000000007",
+        "inclusion": "Included",
+        "instruction_count": 0,
+        "justification": "Cross-checks testimony against calculation before any conclusion is drawn.",
+        "kind": "Verification",
+        "out_of_scope": "New evidence beyond D1 and D2.",
+        "parent_id": "00000000-0000-4000-8000-000000000001",
+        "paused_from": null,
+        "plan_version_added": 1,
+        "proposed_by": "planner",
+        "question": "Do the accounts in D1 and the physics in D2 agree?",
+        "rejection_reason": null,
+        "spent_usd": 0.0,
+        "status": "Pending",
+        "verdict": null
+      }
+    ],
+    "plan_failed": null,
+    "plan_version": 1,
+    "premises": [
+      {
+        "id": "00000000-0000-4000-8000-000000000008",
+        "node_id": "00000000-0000-4000-8000-000000000002",
+        "outcome": null,
+        "text": "The Wall is visible to the naked eye from low Earth orbit."
+      }
+    ],
+    "schedule": {
+      "order": [],
+      "reasons": {},
+      "slots": 0
+    },
+    "seq": 35
+  }
+}

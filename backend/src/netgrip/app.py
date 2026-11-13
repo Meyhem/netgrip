@@ -32,7 +32,7 @@ def create_app(config: Config, frontend_dist: Path | None = None) -> FastAPI:
         web: dict = {}
         if config.fake:
             model_client = FakeModelClient.from_scenario(
-                "great_wall",
+                config.fake_scenario,
                 repeat_last=True,
                 per_investigation=True,
                 delay_s=config.fake_delay_ms / 1000,

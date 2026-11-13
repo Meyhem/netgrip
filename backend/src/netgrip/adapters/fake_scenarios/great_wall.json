@@ -525,5 +525,31 @@
         "decision": "conclude"
       }
     }
+  ],
+  "node.replan": [
+    {
+      "parsed": {
+        "children": [
+          {
+            "ref": "D2a",
+            "kind": "Deep-dive",
+            "question": "Which astronauts have said whether they saw the Wall from low Earth orbit, and with what aid?",
+            "justification": "First-hand accounts from orbit are the direct test of the claim.",
+            "out_of_scope": "Accounts from the Moon.",
+            "done_when": "Each account is cited with its mission and any aid used.",
+            "depends_on_refs": []
+          },
+          {
+            "ref": "D2n",
+            "kind": "Deep-dive",
+            "question": "What do official space agency statements say about the Wall?",
+            "justification": "You asked to concentrate on one kind of source.",
+            "out_of_scope": "Press summaries.",
+            "done_when": "Each statement is cited from the agency's own page.",
+            "depends_on_refs": []
+          }
+        ]
+      }
+    }
   ]
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptySnapshot, HANDLED, PHASE_4_TYPES, reduce } from "./reduce";
-import { planReviewContract, runContract } from "../test/contract";
+import { planReviewContract, runContract, steeringContract } from "../test/contract";
 import type { DurableEvent, Snapshot } from "../api/types";
 
 const { events, snapshot } = planReviewContract();
@@ -137,5 +137,43 @@ describe("reduce: Phase 4 events the run does not reach", () => {
       const e = ev(type, data, p1.id);
       expect(reduce(mid, e), type).toStrictEqual({ ...mid, seq: e.seq, investigation: { ...mid.investigation, last_activity_at: at } });
     }
+  });
+});
+
+
+describe("reduce: steering (contract/steering.json)", () => {
+  const steering = steeringContract();
+  const start = emptySnapshot(steering.snapshot.investigation.id);
+
+  it("reducing the interventions from an empty snapshot equals the final snapshot", () => {
+    expect(fold(start, steering.events)).toStrictEqual(steering.snapshot);
+  });
+
+  it("covers every Phase 6 event type the reducer handles", () => {
+    const types = new Set(steering.events.map((e) => e.type));
+    for (const t of ["node.paused", "node.resumed", "node.budget_changed", "focus.changed"]) {
+      expect(types.has(t)).toBe(true);
+      expect(HANDLED.has(t)).toBe(true);
+    }
+  });
+
+  it("a branch pause remembers what it interrupted and a resume restores it", () => {
+    const at = (type: string) => steering.events.findIndex((e) => e.type === type);
+    const paused = fold(start, steering.events.slice(0, at("node.paused") + 1));
+    const ids = steering.events[at("node.paused")].data.node_ids as string[];
+    for (const id of ids) {
+      const n = paused.nodes.find((x) => x.id === id)!;
+      expect(n.status).toBe("Paused");
+      expect(n.paused_from).toBe("Pending");
+    }
+    const resumed = fold(paused, steering.events.slice(at("node.paused") + 1, at("node.resumed") + 1));
+    for (const id of ids) expect(resumed.nodes.find((x) => x.id === id)).toMatchObject({ status: "Pending", paused_from: null });
+  });
+
+  it("go deeper raises the branch budget and the node ceiling", () => {
+    const i = steering.events.findIndex((e) => e.type === "node.budget_changed");
+    const before = fold(start, steering.events.slice(0, i));
+    const after = reduce(before, steering.events[i]);
+    expect(after.investigation.nodes_max).toBeGreaterThan(before.investigation.nodes_max);
   });
 });

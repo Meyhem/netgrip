@@ -12,6 +12,9 @@ class Config:
     port: int = 8321
     fake: bool = False
     fake_delay_ms: int = 0  # fake mode only: each fake model call takes this long
+    fake_scenario: str = (
+        "great_wall"  # fake mode only: the scripted model (adapters/fake_scenarios)
+    )
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -19,7 +22,10 @@ class Config:
         port = int(os.environ.get("NETGRIP_PORT", "8321"))
         fake = os.environ.get("NETGRIP_FAKE", "").lower() in {"1", "true", "yes"}
         delay = int(os.environ.get("NETGRIP_FAKE_DELAY_MS", "0") or 0)
-        return cls(data_dir=data_dir, port=port, fake=fake, fake_delay_ms=delay)
+        scenario = os.environ.get("NETGRIP_FAKE_SCENARIO", "great_wall") or "great_wall"
+        return cls(
+            data_dir=data_dir, port=port, fake=fake, fake_delay_ms=delay, fake_scenario=scenario
+        )
 
     @property
     def is_loopback(self) -> bool:

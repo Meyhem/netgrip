@@ -15,3 +15,9 @@ export function planReviewContract(): { events: DurableEvent[]; snapshot: Snapsh
 export function runContract(): { events: DurableEvent[]; snapshots: Snapshot[] } {
   return read("run.json");
 }
+
+/** The golden steering run written by backend/tests/test_contract_golden.py: the approved plan,
+ * then the user's interventions, with the final snapshot. */
+export function steeringContract(): { events: DurableEvent[]; snapshot: Snapshot } {
+  return read("steering.json");
+}
