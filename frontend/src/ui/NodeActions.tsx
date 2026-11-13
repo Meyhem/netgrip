@@ -174,7 +174,7 @@ export function NodeActions({ state }: { state: NodeActionState }): ReactNode {
   if (actions.length === 0) return null;
   const row = actions.filter((a) => ["instruct", "go_deeper", "pause_branch", "resume_branch", "ignore_branch", "restore_branch"].includes(a.type));
   return (
-    <div className="ng-row ng-row--nowrap" ref={ref} style={{ position: "relative" }}>
+    <div className="ng-row ng-row--tight" ref={ref} style={{ position: "relative" }}>
       {row.map((a) => (
         <Button key={a.type} size="sm" variant="quiet" title={a.consequence} disabled={!a.enabled}
           sent={isSent(a.type)} sentLabel={SENT_LABEL[a.type]} onClick={() => run(a.type)}>

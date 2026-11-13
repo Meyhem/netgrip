@@ -278,6 +278,8 @@ function BoardComposer({ s, node, command, focusToken, onSeq }: {
         target={{ id: target.id, display_id: target.display_id, label: isRoot ? "the whole investigation" : target.question }}
         reach={reach} hasChildren={hasChildren} locked={locked} focusToken={focusToken}
         buttonLabel="Send instruction"
+        // One pink control per view: an excluded node's Restore branch takes it.
+        buttonVariant={node.inclusion === "Included" ? "steer" : "default"}
         sent={command.isSent(key)} sentLabel="Sending…" draftKey={s.investigation.id}
         onSend={(text) => command.send("add_instruction", { key, nodeId: target.id, payload: { text } })} />
     </>

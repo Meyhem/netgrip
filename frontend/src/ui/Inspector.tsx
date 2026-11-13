@@ -151,8 +151,8 @@ export function Inspector({ investigationId, s, events, nodeId, live: streamLive
             <span className="ng-mono ng-faint">{node.display_id} · depth {node.depth}</span>
             <Pill spec={active && !running ? { ...NODE_PILL[node.status], tone: NODE_PILL.Paused.tone } : NODE_PILL[node.status]} still={!live} />
             {node.inclusion !== "Included" && <StatusPill kind="inclusion" state={node.inclusion} />}
-            {nodeActions != null && <span className="ng-right">{nodeActions}</span>}
           </div>
+          {nodeActions}
           <h2 className="ng-heading">{node.question}</h2>
           {node.justification && <p className="ng-small ng-muted"><span className="ng-label">Why </span>{node.justification}</p>}
           {notice}
