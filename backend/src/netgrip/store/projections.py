@@ -211,9 +211,23 @@ async def _node_approved(tx: Tx, event: Event) -> None:
 
 @projector("node.inclusion_changed")
 async def _inclusion_changed(tx: Tx, event: Event) -> None:
+    # Who excluded it and when; a restore (Included) clears both.
+    d = event.data
+    included = d["inclusion"] == "Included"
     await tx.executemany(
-        "UPDATE nodes SET inclusion = ?, updated_at = ? WHERE id = ?",
-        [(event.data["inclusion"], event.at, nid) for nid in event.data["node_ids"]],
+        "UPDATE nodes SET inclusion = ?, excluded_by = ?, excluded_at = ?,"
+        " excluded_instruction_id = ?, updated_at = ? WHERE id = ?",
+        [
+            (
+                d["inclusion"],
+                None if included else d["by"],
+                None if included else event.at,
+                None if included else d.get("instruction_id"),
+                event.at,
+                nid,
+            )
+            for nid in d["node_ids"]
+        ],
     )
 
 
@@ -376,6 +390,7 @@ async def _node_status(tx: Tx, event: Event, status: str, activity: str | None) 
 async def _node_started(tx: Tx, event: Event) -> None:
     await tx.execute(
         "UPDATE nodes SET status = 'Running', activity = NULL, verdict = NULL, brief = ?,"
+        " finished_seq = NULL, finished_at = NULL, failure_reason = NULL,"
         " updated_at = ? WHERE id = ?",
         [_j(event.data["brief"]), event.at, event.node_id],
     )
@@ -402,10 +417,12 @@ async def _node_waiting(tx: Tx, event: Event) -> None:
 async def _node_completed(tx: Tx, event: Event) -> None:
     await tx.execute(
         "UPDATE nodes SET status = 'Completed', activity = NULL, verdict = ?, off_topic = ?,"
-        " updated_at = ? WHERE id = ?",
+        " finished_seq = ?, finished_at = ?, failure_reason = NULL, updated_at = ? WHERE id = ?",
         [
             _j(event.data["verdict"]),
             int(event.data.get("off_topic", False)),
+            event.seq,
+            event.at,
             event.at,
             event.node_id,
         ],  # fmt: skip
@@ -415,7 +432,11 @@ async def _node_completed(tx: Tx, event: Event) -> None:
 @projector("node.failed")
 async def _node_failed(tx: Tx, event: Event) -> None:
     await _node_status(tx, event, "Failed", None)
-    await tx.execute("UPDATE nodes SET failure_handled = 0 WHERE id = ?", [event.node_id])
+    await tx.execute(
+        "UPDATE nodes SET failure_handled = 0, finished_seq = ?, finished_at = ?,"
+        " failure_reason = ? WHERE id = ?",
+        [event.seq, event.at, event.data["reason"], event.node_id],
+    )
 
 
 @projector("node.left_failed")
@@ -426,6 +447,11 @@ async def _node_left_failed(tx: Tx, event: Event) -> None:
 @projector("node.reset")
 async def _node_reset(tx: Tx, event: Event) -> None:
     await _node_status(tx, event, "Pending", None)
+    await tx.execute(
+        "UPDATE nodes SET finished_seq = NULL, finished_at = NULL, failure_reason = NULL"
+        " WHERE id = ?",
+        [event.node_id],
+    )
     # An auto retry carries its hint; a recovery or outage keeps it (same attempt); a user rerun
     # clears it.
     if event.data["reason"] not in ("recovery", "outage"):

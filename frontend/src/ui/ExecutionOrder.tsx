@@ -65,10 +65,15 @@ function verdictOf(node: GraphNode): { text: string | null; confidence: string |
 function whyText(row: NotRunningRow, s: Snapshot, inclusion: Map<string, DurableEvent>, rejected: Map<string, DurableEvent>): string {
   const display = (id: string | null | undefined) => (id ? s.nodes.find((n) => n.id === id)?.display_id ?? null : null);
   if (row.why === "Ignored" || row.why === "Superseded") {
+    // The node row carries who excluded it; the event covers snapshots from before that.
     const ev = inclusion.get(row.node.id);
-    if (!ev || ev.data.inclusion !== row.why) return row.why;
-    if (ev.data.by === "user") return `${row.why} by you · ${timeOfDay(ev.at)}`;
-    const instruction = s.instructions.find((i) => i.id === ev.data.instruction_id);
+    const fromEvent = ev && ev.data.inclusion === row.why ? ev : null;
+    const by = row.node.excluded_by ?? (fromEvent?.data.by as string | undefined);
+    const at = row.node.excluded_at ?? fromEvent?.at;
+    const instructionId = row.node.excluded_instruction_id ?? (fromEvent?.data.instruction_id as string | null | undefined);
+    if (!by) return row.why;
+    if (by === "user") return at ? `${row.why} by you · ${timeOfDay(at)}` : `${row.why} by you`;
+    const instruction = s.instructions.find((i) => i.id === instructionId);
     if (instruction) {
       const on = display(instruction.node_id);
       return on ? `${row.why} by your instruction on ${on}` : `${row.why} by your instruction`;
@@ -76,7 +81,7 @@ function whyText(row: NotRunningRow, s: Snapshot, inclusion: Map<string, Durable
     return `${row.why} by a re-plan`;
   }
   if (row.why === "Rejected") {
-    const reason = rejected.get(row.node.id)?.data.reason;
+    const reason = row.node.rejection_reason ?? rejected.get(row.node.id)?.data.reason;
     return typeof reason === "string" && reason ? `Rejected: ${reason}` : "Rejected";
   }
   return "Paused";
@@ -87,7 +92,7 @@ function whyText(row: NotRunningRow, s: Snapshot, inclusion: Map<string, Durable
 export function ExecutionOrder({ s, events, selectedId, onSelect, live = true }: ExecutionOrderProps) {
   const paused = s.investigation.state === "Paused";
   const derived = useMemo(() => sections(s, events), [s, events]);
-  const now = useMemo(() => (paused ? [] : derived.now), [paused, derived]);
+  const now = derived.now;
   const clockNow = useNow(now.length > 0);
 
   const rows = useMemo(() => {
@@ -115,7 +120,8 @@ export function ExecutionOrder({ s, events, selectedId, onSelect, live = true }:
     });
 
     const nextRows: Row[] = derived.next.map(({ node, position, waitText }) => {
-      const glyph = node.status === "Proposed" ? "◌" : node.status === "Waiting on children" ? "◔" : "○";
+      // A node still Running while the investigation is paused shows the Paused glyph.
+      const glyph = node.status === "Proposed" ? "◌" : node.status === "Waiting on children" ? "◔" : node.status === "Running" ? "‖" : "○";
       const by = node.status === "Proposed" ? display(node.proposed_by) : null;
       const words = [by && `proposed by ${by}`, waitText].filter(Boolean).join(" · ");
       return { id: node.id, section: "next", n: String(position), q: title(node), side: "", meta: words ? `${glyph} ${words}` : glyph };
@@ -126,7 +132,7 @@ export function ExecutionOrder({ s, events, selectedId, onSelect, live = true }:
       const cross = node.status === "Failed" || refutedPremise;
       let meta: string;
       if (node.status === "Failed") {
-        const reason = failed.get(node.id)?.data.reason;
+        const reason = node.failure_reason ?? failed.get(node.id)?.data.reason;
         meta = typeof reason === "string" && reason ? reason : "Failed";
       } else {
         const lead = refutedPremise ? "Premise refuted" : text;

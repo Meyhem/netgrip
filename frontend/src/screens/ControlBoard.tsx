@@ -52,7 +52,7 @@ export function ControlBoard({ id }: { id: string }) {
   return (
     <BoardLayout
       header={<BoardHeader s={snapshot} status={status} runControls={null /* Phase 6: RunControls */} />}
-      executionOrder={<ExecutionOrder s={snapshot} events={events} selectedId={selectedId} onSelect={select} live={status !== "reconnecting"} />}
+      executionOrder={<ExecutionOrder s={snapshot} events={events} selectedId={selectedId} onSelect={select} live={status === "open"} />}
       graph={
         <>
           <div className="ng-toolbar"><span className="ng-label">Graph</span></div>

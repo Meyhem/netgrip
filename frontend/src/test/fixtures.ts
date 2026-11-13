@@ -61,6 +61,8 @@ export function graphNode(over: Partial<GraphNode> & { id: string }): GraphNode 
     justification: null, out_of_scope: null, done_when: null, depth: 0,
     status: "Proposed", inclusion: "Included", budget: null, activity: null, verdict: null, brief: null,
     spent_usd: 0, instruction_count: 0, plan_version_added: 1, proposed_by: "planner", depends_on: [],
+    finished_seq: null, finished_at: null, failure_reason: null, rejection_reason: null,
+    excluded_by: null, excluded_at: null, excluded_instruction_id: null,
     ...over,
   };
 }

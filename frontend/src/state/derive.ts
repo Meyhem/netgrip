@@ -48,7 +48,10 @@ export function refutedPremises(s: Snapshot): Premise[] {
   return s.premises.filter((p) => p.outcome === "refuted");
 }
 
-/** The ExecutionOrder sections. `events` (oldest first: the store's accumulated durable events)
+/** The ExecutionOrder sections. While the investigation is Paused nothing is in Now: nodes
+ * still marked Running (stopped mid-work by the pause) head Next with "paused". Done is newest
+ * first by the node's `finished_seq`, else by its finishing event among `events` (oldest first:
+ * the store's accumulated durable events)
  * order Done newest first; a finished node with no finishing event among them sorts after the
  * known ones, newest created first. */
 export function sections(s: Snapshot, events: DurableEvent[]): Sections {
@@ -59,7 +62,9 @@ export function sections(s: Snapshot, events: DurableEvent[]): Sections {
     if (n.parent_id !== null && n.inclusion === "Included") kids.set(n.parent_id, [...(kids.get(n.parent_id) ?? []), n]);
   }
 
+  const paused = s.investigation.state === "Paused";
   const now: NowRow[] = [];
+  const held: GraphNode[] = [];
   const doneNodes: GraphNode[] = [];
   const notRunning: NotRunningRow[] = [];
   const waiting: GraphNode[] = [];
@@ -67,8 +72,10 @@ export function sections(s: Snapshot, events: DurableEvent[]): Sections {
     if (n.inclusion !== "Included") notRunning.push({ node: n, why: n.inclusion });
     else if (n.status === "Rejected") notRunning.push({ node: n, why: "Rejected" });
     else if (n.status === "Paused" || (n.status === "Pending" && reasons[n.id] === "paused")) notRunning.push({ node: n, why: "Paused" });
-    else if (n.status === "Running") now.push({ node: n });
-    else if (n.status === "Completed" || n.status === "Failed") doneNodes.push(n);
+    else if (n.status === "Running") {
+      if (paused) held.push(n);
+      else now.push({ node: n });
+    } else if (n.status === "Completed" || n.status === "Failed") doneNodes.push(n);
     else waiting.push(n); // Pending, Proposed, Waiting on children
   }
 
@@ -86,8 +93,12 @@ export function sections(s: Snapshot, events: DurableEvent[]): Sections {
   const coordinators = rest
     .filter((n) => n.status === "Waiting on children" || kids.has(n.id))
     .sort((a, b) => b.depth - a.depth || index.get(a.id)! - index.get(b.id)!);
-  const next: NextRow[] = [...scheduled, ...toStart, ...coordinators].map((n, i) => {
-    const reason = reasons[n.id] ?? null;
+  // Running nodes held by the investigation's pause come first: they continue on Resume.
+  const queued: { n: GraphNode; reason: string | null }[] = [
+    ...held.map((n) => ({ n, reason: "paused" })),
+    ...[...scheduled, ...toStart, ...coordinators].map((n) => ({ n, reason: reasons[n.id] ?? null })),
+  ];
+  const next: NextRow[] = queued.map(({ n, reason }, i) => {
     let waitText = reason ? waitReasonText(reason, nodes) : "";
     if (!reason && !inOrder.has(n.id)) {
       const open = (kids.get(n.id) ?? []).filter((k) => !FINISHED.has(k.status));
@@ -96,10 +107,13 @@ export function sections(s: Snapshot, events: DurableEvent[]): Sections {
     return { node: n, position: i + 1, reason, waitText };
   });
 
-  // Done: newest first by the last finishing event.
+  // Done: newest first by the node's finish, projected on its row; events cover older snapshots.
   const finished = new Map<string, { seq: number; at: string }>();
   for (const ev of events) {
     if ((ev.type === "node.completed" || ev.type === "node.failed") && ev.node_id) finished.set(ev.node_id, { seq: ev.seq, at: ev.at });
+  }
+  for (const n of doneNodes) {
+    if (n.finished_seq != null && n.finished_at != null) finished.set(n.id, { seq: n.finished_seq, at: n.finished_at });
   }
   const refutedNodes = new Set(refutedPremises(s).map((p) => p.node_id).filter(Boolean));
   const done: DoneRow[] = doneNodes

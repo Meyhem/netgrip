@@ -133,6 +133,14 @@ def node_json(n: Row, depends_on: list[str]) -> dict[str, Any]:
         "plan_version_added": n["plan_version_added"],
         "proposed_by": n["proposed_by"],
         "depends_on": depends_on,
+        # How it finished and who excluded it, so the board needs no events for them.
+        "finished_seq": n["finished_seq"],
+        "finished_at": n["finished_at"],
+        "failure_reason": n["failure_reason"],
+        "rejection_reason": n["rejection_reason"],
+        "excluded_by": n["excluded_by"],
+        "excluded_at": n["excluded_at"],
+        "excluded_instruction_id": n["excluded_instruction_id"],
     }
 
 

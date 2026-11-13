@@ -119,6 +119,13 @@ const cases: Record<string, Case> = {
       plan_version_added: s.plan_version + 1,
       proposed_by: d.proposed_by ?? null,
       depends_on: [...((d.depends_on as string[] | undefined) ?? [])].sort(),
+      finished_seq: null,
+      finished_at: null,
+      failure_reason: null,
+      rejection_reason: null,
+      excluded_by: null,
+      excluded_at: null,
+      excluded_instruction_id: null,
     };
     return { ...s, nodes: [...s.nodes, node] };
   },
@@ -126,8 +133,17 @@ const cases: Record<string, Case> = {
   "node.approved": (s, ev, d) =>
     mapNodes(s, [ev.node_id as string], (n) => ({ ...n, status: "Pending", budget: d.budget as NodeBudget })),
 
-  "node.inclusion_changed": (s, _ev, d) =>
-    mapNodes(s, d.node_ids as string[], (n) => ({ ...n, inclusion: d.inclusion })),
+  // Who excluded it and when; a restore (Included) clears both.
+  "node.inclusion_changed": (s, ev, d) => {
+    const included = d.inclusion === "Included";
+    return mapNodes(s, d.node_ids as string[], (n) => ({
+      ...n,
+      inclusion: d.inclusion,
+      excluded_by: included ? null : d.by,
+      excluded_at: included ? null : ev.at,
+      excluded_instruction_id: included ? null : d.instruction_id ?? null,
+    }));
+  },
 
   "instruction.queued": (s, ev, d) => ({
     ...s,
@@ -173,7 +189,10 @@ const cases: Record<string, Case> = {
   }),
 
   "node.started": (s, ev, d) =>
-    onNode(s, ev, (n) => ({ ...n, status: "Running", activity: null, verdict: null, brief: d.brief ?? null })),
+    onNode(s, ev, (n) => ({
+      ...n, status: "Running", activity: null, verdict: null, brief: d.brief ?? null,
+      finished_seq: null, finished_at: null, failure_reason: null,
+    })),
 
   // The status is left alone (an aggregating coordinator stays Waiting on children), except
   // that a node reset by an outage and continued shows Running again.
@@ -181,10 +200,17 @@ const cases: Record<string, Case> = {
     onNode(s, ev, (n) => ({ ...n, activity: d.activity, status: n.status === "Pending" ? "Running" : n.status })),
 
   "node.waiting_on_children": (s, ev) => status(s, ev, "Waiting on children", "Waiting on children"),
-  "node.completed": (s, ev, d) => onNode(s, ev, (n) => ({ ...n, status: "Completed", activity: null, verdict: d.verdict })),
-  "node.failed": (s, ev) => status(s, ev, "Failed", null),
-  "node.reset": (s, ev) => status(s, ev, "Pending", null),
-  "node.rejected": (s, ev) => onNode(s, ev, (n) => ({ ...n, status: "Rejected" })),
+  "node.completed": (s, ev, d) => onNode(s, ev, (n) => ({
+    ...n, status: "Completed", activity: null, verdict: d.verdict,
+    finished_seq: ev.seq, finished_at: ev.at, failure_reason: null,
+  })),
+  "node.failed": (s, ev, d) => onNode(status(s, ev, "Failed", null), ev, (n) => ({
+    ...n, finished_seq: ev.seq, finished_at: ev.at, failure_reason: d.reason ?? null,
+  })),
+  "node.reset": (s, ev) => onNode(status(s, ev, "Pending", null), ev, (n) => ({
+    ...n, finished_seq: null, finished_at: null, failure_reason: null,
+  })),
+  "node.rejected": (s, ev, d) => onNode(s, ev, (n) => ({ ...n, status: "Rejected", rejection_reason: d.reason ?? null })),
 
   "schedule.updated": (s, _ev, d) => ({
     ...s, schedule: { order: d.order as string[], reasons: d.reasons as Record<string, string>, slots: d.slots as number },

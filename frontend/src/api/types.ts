@@ -83,6 +83,17 @@ export interface GraphNode {
   plan_version_added: number | null;
   proposed_by: string | null;
   depends_on: string[];
+  /** Seq and time of the node's last `node.completed`/`node.failed`; cleared when it runs again. */
+  finished_seq: number | null;
+  finished_at: string | null;
+  /** From `node.failed`, while Failed. */
+  failure_reason: string | null;
+  /** From `node.rejected`. */
+  rejection_reason: string | null;
+  /** From the `node.inclusion_changed` that excluded it; cleared on restore. */
+  excluded_by: "user" | "replan" | null;
+  excluded_at: string | null;
+  excluded_instruction_id: string | null;
 }
 
 /** kept / superseded / proposed node ids of one plan version or applied instruction. */

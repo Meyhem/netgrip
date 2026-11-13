@@ -146,3 +146,80 @@ async def test_rebuild_reproduces_graph(db):
     await rebuild(db)
     assert await dump() == before
     assert await snap_api(db) == snap
+
+
+async def test_node_rows_carry_finish_and_exclusion_beyond_recent_events(db):
+    await seed(db)
+    verdict = {"verdict": {"text": "No.", "confidence": "high"}, "open_questions": []}
+    await append_and_project(
+        db, INV,
+        [ev("node.approved", {"budget": {"a": 1}}, node_id="n-1"),
+         ev("node.approved", {"budget": {"a": 1}}, node_id="n-2"),
+         ev("node.started", {"attempt": 1, "brief": {}}, node_id="n-1", actor="node"),
+         ev("node.completed", verdict, node_id="n-1", actor="node"),
+         ev("node.started", {"attempt": 1, "brief": {}}, node_id="n-2", actor="node"),
+         ev("node.failed", {"reason": "Every page timed out."}, node_id="n-2", actor="node"),
+         ev("instruction.queued", {"instruction_id": "i1", "text": "go", "waiting_for": None},
+            actor="user"),
+         ev("node.inclusion_changed", {"node_ids": ["n-2"], "inclusion": "Superseded",
+                                       "by": "replan", "instruction_id": "i1"})],
+    )  # fmt: skip
+    finishing = {e["seq"] for e in (await snap_api(db))["recent_events"]
+                 if e["type"] in ("node.completed", "node.failed")}  # fmt: skip
+    # Push the finishing events out of the snapshot's newest 200.
+    await append_and_project(
+        db, INV, [ev("limit.changed", {"spending_limit_usd": 5 + i}) for i in range(201)]
+    )
+    s = await snap_api(db)
+    assert not finishing & {e["seq"] for e in s["recent_events"]}
+    by = {n["display_id"]: n for n in s["nodes"]}
+    d1, d2 = by["D1"], by["D2"]
+    assert d1["finished_seq"] == min(finishing) and d1["finished_at"] is not None
+    assert d1["failure_reason"] is None
+    assert (d2["finished_seq"], d2["failure_reason"]) == (max(finishing), "Every page timed out.")
+    assert (d2["excluded_by"], d2["excluded_instruction_id"]) == ("replan", "i1")
+    assert d2["excluded_at"] is not None
+    assert by["R"]["excluded_by"] is None and by["R"]["finished_seq"] is None
+
+    # A re-run clears the finish; a restore clears the exclusion.
+    await append_and_project(
+        db, INV,
+        [ev("node.reset", {"reason": "rerun"}, node_id="n-2"),
+         ev("node.inclusion_changed", {"node_ids": ["n-2"], "inclusion": "Included",
+                                       "by": "user", "instruction_id": None}, actor="user")],
+    )  # fmt: skip
+    d2 = {n["display_id"]: n for n in (await snap_api(db))["nodes"]}["D2"]
+    assert (d2["finished_seq"], d2["failure_reason"], d2["excluded_by"]) == (None, None, None)
+
+    before = await snap_api(db)
+    await rebuild(db)
+    assert await snap_api(db) == before
+
+
+async def test_migration_0009_fills_existing_rows_from_the_log(db):
+    from netgrip.store.db import MIGRATIONS_DIR
+
+    await seed(db)
+    await append_and_project(
+        db, INV,
+        [ev("node.approved", {"budget": {"a": 1}}, node_id="n-1"),
+         ev("node.started", {"attempt": 1, "brief": {}}, node_id="n-1", actor="node"),
+         ev("node.failed", {"reason": "timeout"}, node_id="n-1", actor="node"),
+         ev("node.inclusion_changed", {"node_ids": ["n-2"], "inclusion": "Ignored", "by": "user",
+                                       "instruction_id": None}, actor="user")],
+    )  # fmt: skip
+    cols = ("finished_seq, finished_at, failure_reason, excluded_by, excluded_at,"
+            " excluded_instruction_id")  # fmt: skip
+    projected = [tuple(r) for r in await db.read(f"SELECT id, {cols} FROM nodes ORDER BY id")]
+    sql = (MIGRATIONS_DIR / "0009_node_outcome.sql").read_text()
+    backfill = sql[sql.index("UPDATE nodes SET finished_seq") :]
+    async with db.tx() as tx:
+        await tx.execute(
+            "UPDATE nodes SET finished_seq = NULL, finished_at = NULL, failure_reason = NULL,"
+            " excluded_by = NULL, excluded_at = NULL, excluded_instruction_id = NULL"
+        )
+        for stmt in [s for s in backfill.split(";") if s.strip()]:
+            await tx.execute(stmt)
+    assert [
+        tuple(r) for r in await db.read(f"SELECT id, {cols} FROM nodes ORDER BY id")
+    ] == projected

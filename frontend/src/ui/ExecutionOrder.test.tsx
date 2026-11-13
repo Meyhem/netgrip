@@ -52,10 +52,45 @@ describe("ExecutionOrder", () => {
   });
 
   it("paused head and empty Now", () => {
-    show(snap([R, kid("A", { status: "Running", activity: "Reading" })], {}, "Paused"));
+    // The pause stopped A mid-work: it is still Running, and heads Next until Resume.
+    const s = snap([R, kid("A", { status: "Running", activity: "Reading" }), kid("B")], { schedule: { order: ["B"], reasons: { B: "slot" }, slots: 6 } }, "Paused");
+    show(s);
     expect(heads()[0]).toBe("NowNothing runs while paused");
-    expect(document.querySelector('.ng-qrow[data-node-id="A"]')).toBeNull();
+    expect(document.querySelectorAll('.ng-qrow[data-section="now"]')).toHaveLength(0);
+    const a = document.querySelector('.ng-qrow[data-node-id="A"]')!;
+    expect(a).toHaveAttribute("data-section", "next");
+    expect(a.querySelector(".ng-qrow__n")).toHaveTextContent("1");
+    expect(a.querySelector(".ng-qrow__meta")).toHaveTextContent("‖ paused");
+    expect(rowIds()).toEqual(["A", "B", "R"]);
     expect(document.querySelector(".ng-pulse")).toBeNull();
+  });
+
+  it("no pulse when not live", () => {
+    show(snap([R, kid("A", { status: "Running", activity: "Reading" })]));
+    expect(document.querySelector('.ng-qrow[data-node-id="A"] .ng-pulse')).not.toBeNull();
+    render(<ExecutionOrder s={snap([R, kid("Z", { status: "Running", activity: "Reading" })])} events={[]} selectedId={null} onSelect={() => {}} live={false} />);
+    expect(document.querySelector('.ng-qrow[data-node-id="Z"] .ng-pulse')).toBeNull();
+  });
+
+  it("finish and exclusion come from the node rows when their events are not in the list", () => {
+    const s = snap([
+      R,
+      kid("A", { status: "Completed", verdict: { text: "Yes", confidence: "low" }, finished_seq: 40, finished_at: "2026-11-13T09:00:00Z" }),
+      kid("F", { status: "Failed", finished_seq: 50, finished_at: "2026-11-13T09:10:00Z", failure_reason: "Every page timed out." }),
+      kid("C", { status: "Completed", verdict: { text: "No", confidence: "high" }, finished_seq: 30, finished_at: "2026-11-13T08:50:00Z" }),
+      kid("I", { status: "Pending", inclusion: "Ignored", excluded_by: "user", excluded_at: "2026-11-13T09:20:00Z" }),
+      kid("S", { status: "Pending", inclusion: "Superseded", excluded_by: "replan", excluded_instruction_id: "i-1" }),
+      kid("X", { status: "Rejected", rejection_reason: "duplicates D1" }),
+    ], { instructions: [{ id: "i-1", node_id: "R", text: "Narrow it", state: "applied", queued_seq: 30, applied_seq: 31, diff: null, undone: false }] });
+    show(s, []);
+    const done = [...document.querySelectorAll('.ng-qrow[data-section="done"]')];
+    expect(done.map((r) => r.getAttribute("data-node-id"))).toEqual(["F", "A", "C"]);
+    expect(done[0].querySelector(".ng-qrow__meta")).toHaveTextContent("Every page timed out.");
+    expect(done[0].querySelector(".ng-qrow__side")!.textContent).toMatch(/^\d\d:\d0$/);
+    const meta = (id: string) => document.querySelector(`.ng-qrow[data-node-id="${id}"] .ng-qrow__meta`)!.textContent;
+    expect(meta("I")).toMatch(/^Ignored by you · \d\d:\d\d$/);
+    expect(meta("S")).toBe("Superseded by your instruction on R");
+    expect(meta("X")).toBe("Rejected: duplicates D1");
   });
 
   it("empty Next copy", () => {

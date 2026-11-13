@@ -88,4 +88,15 @@ describe("ControlBoard", () => {
     expect(document.querySelector(`.ng-qrow[data-node-id="${d1.id}"]`)).toHaveClass("is-selected");
     expect(document.querySelector('[data-slot="inspector"] [data-node-id]')).toHaveAttribute("data-node-id", d1.id);
   });
+
+  it("running glyphs pulse only while the stream is open", async () => {
+    show(`/investigations/${ID}`);
+    await screen.findByRole("heading", { name: mid.investigation.prompt });
+    const running = () => document.querySelector('.ng-qrow[data-section="now"] .ng-qrow__n span')!;
+    expect(running()).not.toHaveClass("ng-pulse"); // loading: not yet connected
+    act(() => FakeEventSource.last.open());
+    expect(running()).toHaveClass("ng-pulse");
+    act(() => FakeEventSource.last.fail());
+    expect(running()).not.toHaveClass("ng-pulse");
+  });
 });
