@@ -35,7 +35,7 @@ describe("Trail", () => {
         step(2, { activity: "Reading", detail: "nasa.gov/vision", summary: "4.1 KB of text", route: "simple", page_version_id: "pv1" }),
       ],
     });
-    render(<Trail detail={d} modelText={null} onOpenPage={() => {}} />);
+    render(<Trail detail={d} modelText={null} onOpenPage={() => {}} live />);
     const [a, b] = stepWells();
     expect(a).toHaveTextContent(`step 1 · ${timeOfDaySeconds(d.trail[0].started_at)} · PLANNING find the caption`);
     expect(a).not.toHaveTextContent("stored page");
@@ -48,7 +48,7 @@ describe("Trail", () => {
       trail: [step(1), step(2, { name: "reason", kind: null, activity: "Reasoning", detail: "3 claims", ended_at: null })],
     });
     const text = '{"action": "conclude", "<b>bold</b>": 1}';
-    const { rerender } = render(<Trail detail={d} modelText={{ node_id: "D2b", step: 2, text, at: "x" }} onOpenPage={() => {}} />);
+    const { rerender } = render(<Trail detail={d} modelText={{ node_id: "D2b", step: 2, text, at: "x" }} onOpenPage={() => {}} live />);
     const [closed, open] = stepWells();
     expect(open).toHaveClass("trail__step--open");
     expect(closed).not.toHaveClass("trail__step--open");
@@ -59,7 +59,7 @@ describe("Trail", () => {
     expect(closed.querySelector(".trail__live")).toBeNull();
 
     // Text for another step (a stale delta, or the next step before the detail refetch) is not shown.
-    rerender(<Trail detail={d} modelText={{ node_id: "D2b", step: 3, text: "next step", at: "x" }} onOpenPage={() => {}} />);
+    rerender(<Trail detail={d} modelText={{ node_id: "D2b", step: 3, text: "next step", at: "x" }} onOpenPage={() => {}} live />);
     expect(document.querySelector(".trail__live")).toBeNull();
     expect(screen.queryByText("Live. This text is not stored.")).toBeNull();
   });
@@ -69,7 +69,7 @@ describe("Trail", () => {
       trail: [step(1, { name: "reason", activity: "Reasoning", detail: "3 claims", summary: "conclude" }), step(2)],
     });
     // The store holds text for step 1, but step 1 is closed: only what was persisted shows.
-    render(<Trail detail={d} modelText={{ node_id: "D2b", step: 1, text: "streamed words", at: "x" }} onOpenPage={() => {}} />);
+    render(<Trail detail={d} modelText={{ node_id: "D2b", step: 1, text: "streamed words", at: "x" }} onOpenPage={() => {}} live />);
     expect(screen.queryByText(/streamed words/)).toBeNull();
     expect(screen.queryByText("Live. This text is not stored.")).toBeNull();
     expect(document.querySelector(".trail__step--open")).toBeNull();
@@ -86,7 +86,7 @@ describe("Trail", () => {
         step(4, { name: "plan", activity: "Retrying", retry: { n: 2, m: 5 }, detail: "model unavailable", route: null }),
       ],
     });
-    render(<Trail detail={d} modelText={null} onOpenPage={() => {}} />);
+    render(<Trail detail={d} modelText={null} onOpenPage={() => {}} live />);
     const [r1, r2, read, outage] = stepWells();
     for (const w of [r1, r2, outage]) {
       expect(w).toHaveClass("trail__step--retry");
@@ -109,7 +109,7 @@ describe("Trail", () => {
         own: ["i1", "i2", "i3"].map((id) => ({ id, node_id: "D2b", text: "x", state: "applied" as const, queued_seq: 1, applied_seq: 2, diff: null, undone: false })),
       },
     });
-    render(<Trail detail={d} modelText={null} onOpenPage={() => {}} />);
+    render(<Trail detail={d} modelText={null} onOpenPage={() => {}} live />);
     const all = wells();
     const rules = all.filter((w) => w.classList.contains("trail__rule"));
     expect(rules).toHaveLength(2);
@@ -120,8 +120,65 @@ describe("Trail", () => {
     expect(rules[1]).toBe(all[all.length - 1]);
   });
 
+  describe("nothing runs: the open step is a plain well", () => {
+    const open = () => nodeDetail(D, { trail: [step(1), step(2, { name: "reason", activity: "Reasoning", detail: "3 claims", ended_at: null })] });
+    const mt = { node_id: "D2b", step: 2, text: "streamed words", at: "x" };
+    const base = emptySnapshot(ID);
+    const R = graphNode({ id: "R", display_id: "R", kind: "Synthesis", status: "Waiting on children" });
+    const snapWith = (node: GraphNode, state: Snapshot["investigation"]["state"]): Snapshot =>
+      ({ ...base, seq: 10, nodes: [R, node], investigation: { ...base.investigation, state } });
+
+    async function showTrail(s: Snapshot, node: GraphNode, live: boolean) {
+      mockApi({ [`GET /api/investigations/${ID}/nodes/D2b`]: { ...open(), node } });
+      render(<Inspector investigationId={ID} s={s} events={[]} nodeId="D2b" live={live} />);
+      fireEvent.click(screen.getByRole("tab", { name: "Trail" }));
+      await screen.findByText(/3 claims/);
+    }
+    const expectNotLive = () => {
+      expect(document.querySelector(".trail__step--open")).toBeNull();
+      expect(document.querySelector(".trail__live")).toBeNull();
+      expect(screen.queryByText("Live. This text is not stored.")).toBeNull();
+    };
+
+    it("paused node with an open step", async () => {
+      const node = { ...D, status: "Paused" as const };
+      await showTrail(snapWith(node, "Running"), node, true);
+      expectNotLive();
+    });
+
+    it("paused investigation", async () => {
+      await showTrail(snapWith(D, "Paused"), D, true);
+      expectNotLive();
+    });
+
+    it("stream not open", async () => {
+      await showTrail(snapWith(D, "Running"), D, false);
+      expectNotLive();
+    });
+
+    it("running node with an open stream is live", async () => {
+      await showTrail(snapWith(D, "Running"), D, true);
+      expect(document.querySelector(".trail__step--open")).not.toBeNull();
+    });
+
+    it("Trail with live false shows no live text even with model text", () => {
+      render(<Trail detail={open()} modelText={mt} onOpenPage={() => {}} live={false} />);
+      expectNotLive();
+      expect(screen.queryByText(/streamed words/)).toBeNull();
+    });
+  });
+
+  it("a Completed node's trail verbs carry no ng-live", () => {
+    const done = nodeDetail({ ...D, status: "Completed" }, {
+      trail: [step(1, { name: "plan", activity: "Planning" }), step(2), step(3, { activity: "Retrying", retry: { n: 2, m: 3 }, route: "browser" })],
+    });
+    render(<Trail detail={done} modelText={null} onOpenPage={() => {}} live={false} finished />);
+    expect(document.querySelectorAll(".trail .ng-live")).toHaveLength(0);
+    expect(stepWells()).toHaveLength(3);
+  });
+
   it("an empty trail says so", () => {
-    render(<Trail detail={nodeDetail(D)} modelText={null} onOpenPage={() => {}} />);
+    render(<Trail detail={nodeDetail(D)} modelText={null} onOpenPage={() => {}} live />);
     expect(screen.getByText("No steps recorded yet.")).toBeInTheDocument();
   });
 });

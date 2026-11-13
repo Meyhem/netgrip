@@ -122,7 +122,9 @@ export function Inspector({ investigationId, s, events, nodeId, live = true, nod
       tab === "overview" ? <Overview {...ctx} />
       : tab === "claims" ? <ClaimsTab key={node.id} {...ctx} />
       : tab === "brief" ? <Brief brief={detail.brief} node={node} />
-      : tab === "trail" ? <Trail detail={detail} modelText={modelText} onOpenPage={(pageVersionId) => setPage({ nodeId: id, pageVersionId })} />
+      : tab === "trail" ? <Trail detail={detail} modelText={modelText}
+          live={live && (node.status === "Running" || node.status === "Waiting on children") && s.investigation.state !== "Paused"}
+          finished={node.status === "Completed" || node.status === "Failed"} onOpenPage={(pageVersionId) => setPage({ nodeId: id, pageVersionId })} />
       : <InstructionsTab {...ctx} />;
   }
 

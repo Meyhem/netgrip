@@ -31,31 +31,36 @@ function ruleText(detail: NodeDetail, s: TrailStep, next: TrailStep | undefined)
 
 /** ScreenNodeDetail, Trail tab: one well per step, oldest first. The open step streams the
  * model's text (never stored, D-11); closed steps show only what was persisted. */
-export function Trail({ detail, modelText, onOpenPage }: {
+export function Trail({ detail, modelText, onOpenPage, live, finished = false }: {
   detail: NodeDetail;
   /** The node's streamed model text from the store, if any. Shown only on the matching open step. */
   modelText: ModelText | null;
   onOpenPage: (pageVersionId: string) => void;
+  /** True only while the node runs (Running or Waiting on children), the investigation is not
+   * paused and the stream is open. Otherwise the open step is a plain well: no live border, no text. */
+  live: boolean;
+  /** The node is Completed or Failed: a finished graph has no `live` in it, so verbs are muted. */
+  finished?: boolean;
 }) {
   const steps = detail.trail;
   if (steps.length === 0) return <p className="ng-small ng-muted">No steps recorded yet.</p>;
   return (
     <div className="ng-col trail">
       {steps.map((s, i) => {
-        const open = s.ended_at === null;
+        const open = live && s.ended_at === null;
         const retry = s.activity === "Retrying";
-        const live = open && modelText && modelText.node_id === detail.node.id && modelText.step === s.step ? modelText.text : null;
+        const text = open && modelText && modelText.node_id === detail.node.id && modelText.step === s.step ? modelText.text : null;
         const route = s.route && Object.hasOwn(FETCH_ROUTE, s.route) ? FETCH_ROUTE[s.route] : undefined;
         const what = [s.detail, route, s.summary].filter(Boolean).join(" · ");
         return [
           <div key={`s${s.step}`} data-step={s.step} className={cx("ng-well", "trail__step", open && "trail__step--open", retry && "trail__step--retry")}>
             <span className="ng-faint">step {s.step} · {timeOfDaySeconds(s.started_at)} · </span>
-            <span className={cx("trail__verb", retry ? "ng-warn" : "ng-live")}>{verb(s).toUpperCase()}</span>
+            <span className={cx("trail__verb", retry ? "ng-warn" : !finished && "ng-live")}>{verb(s).toUpperCase()}</span>
             {what && <> {what}</>}
             {s.page_version_id && <> <button type="button" className="trail__page" onClick={() => onOpenPage(s.page_version_id!)}>stored page</button></>}
-            {live !== null && (
+            {text !== null && (
               <>
-                <div className="ng-faint trail__live" key={`${detail.node.id}:${s.step}`}>{live}<span aria-hidden="true">▍</span></div>
+                <div className="ng-faint trail__live" key={`${detail.node.id}:${s.step}`}>{text}<span aria-hidden="true">▍</span></div>
                 <div className="ng-faint trail__note">{LIVE_NOT_STORED}</div>
               </>
             )}
