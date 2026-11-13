@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { forgetInvestigation } from "../state/investigationStore";
@@ -6,7 +6,9 @@ import { forgetSelection } from "../state/selection";
 import { FakeEventSource } from "../test/eventSource";
 import { mockApi } from "../test/fetch";
 import { runContract } from "../test/contract";
-import { settings } from "../test/fixtures";
+import type { DurableEvent } from "../api/types";
+import { nodeDetail, settings } from "../test/fixtures";
+import { timeOfDaySeconds } from "../lib/format";
 import { InvestigationRoute } from "./InvestigationRoute";
 
 const { events, snapshots } = runContract();
@@ -21,8 +23,8 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-function show(path: string, snapshot = mid) {
-  mockApi({ [`GET /api/investigations/${ID}`]: snapshot, "GET /api/settings": settings() });
+function show(path: string, snapshot = mid, routes: Record<string, unknown> = {}) {
+  mockApi({ [`GET /api/investigations/${ID}`]: snapshot, "GET /api/settings": settings(), ...routes });
   render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
@@ -87,6 +89,31 @@ describe("ControlBoard", () => {
     fireEvent.click(document.querySelector(`.ng-qrow[data-node-id="${d1.id}"]`)!);
     expect(document.querySelector(`.ng-qrow[data-node-id="${d1.id}"]`)).toHaveClass("is-selected");
     expect(document.querySelector('[data-slot="inspector"] [data-node-id]')).toHaveAttribute("data-node-id", d1.id);
+  });
+
+  it("selected node turning Superseded keeps the selection and shows the excluded overview", async () => {
+    const d = mid.nodes.find((n) => n.status === "Running" && n.parent_id !== null)!;
+    show(`/investigations/${ID}`, mid, {
+      [`GET /api/investigations/${ID}/nodes/*`]: (url: string) => {
+        const nid = decodeURIComponent(url.split("/").pop()!);
+        return nodeDetail(mid.nodes.find((n) => n.id === nid)!);
+      },
+    });
+    await screen.findByRole("heading", { name: mid.investigation.prompt });
+    fireEvent.click(document.querySelector(`.ng-qrow[data-node-id="${d.id}"]`)!);
+    const inspector = document.querySelector('[data-slot="inspector"]') as HTMLElement;
+    await within(inspector).findByText("not yet · appears here the moment it exists");
+    const superseded: DurableEvent = {
+      seq: mid.seq + 1, investigation_id: ID, type: "node.inclusion_changed", v: 1, at: "2026-11-13T14:00:02Z",
+      actor: "orchestrator", node_id: null, command_id: null, data: { node_ids: [d.id], inclusion: "Superseded", by: "replan", instruction_id: null },
+    };
+    act(() => FakeEventSource.last.durable(superseded));
+    expect(document.querySelector(`.ng-qrow[data-node-id="${d.id}"]`)).toHaveClass("is-selected");
+    expect(inspector.querySelector("[data-node-id]")).toHaveAttribute("data-node-id", d.id);
+    const overview = inspector.querySelector('[data-tab="overview"]') as HTMLElement;
+    await waitFor(() => expect(overview).toHaveTextContent(`Superseded by a re-plan · ${timeOfDaySeconds("2026-11-13T14:00:02Z")} · #${String(mid.seq + 1).padStart(4, "0")}`));
+    expect(overview.querySelector(".ng-pill")).toHaveTextContent("Superseded by re-plan");
+    expect(overview).toHaveTextContent("kept in storage");
   });
 
   it("running glyphs pulse only while the stream is open", async () => {

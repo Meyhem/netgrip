@@ -1,4 +1,4 @@
-import type { GraphNode, InvestigationRow, Pools, Settings } from "../api/types";
+import type { Claim, ClaimSource, GraphNode, InvestigationRow, NodeDetail, Pools, Settings } from "../api/types";
 
 export const POOLS: Pools = {
   models: { in_use: 5, limit: 8 },
@@ -65,4 +65,24 @@ export function graphNode(over: Partial<GraphNode> & { id: string }): GraphNode 
     excluded_by: null, excluded_at: null, excluded_instruction_id: null,
     ...over,
   };
+}
+
+/** A node detail response for `node`, empty unless given. */
+export function nodeDetail(node: GraphNode, over: Partial<NodeDetail> = {}): NodeDetail {
+  return {
+    node, brief: null, claims: [], trail: [], instructions: { inherited: [], own: [] }, open_questions: [], proposals: [],
+    branch: { spent_usd: node.spent_usd, nodes: 0, nodes_max: 0, depth: node.depth, depth_max: 4, reach: 0 },
+    ...over,
+  };
+}
+
+export function claimSource(over: Partial<ClaimSource> & { id: string }): ClaimSource {
+  return {
+    url: `https://example.org/${over.id}`, title: null, page_version_id: `pv-${over.id}`, credibility: "Reputable",
+    published_at: "2005-05-09", origin_key: `origin-${over.id}`, ...over,
+  };
+}
+
+export function claim(over: Partial<Claim> & { id: string }): Claim {
+  return { node_id: null, text: `Text of ${over.id}`, status: "Unverified", supporting: [], contradicting: [], ...over };
 }

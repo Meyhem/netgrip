@@ -7,6 +7,7 @@ import { BoardGraph } from "../ui/BoardGraph";
 import { BoardHeader } from "../ui/BoardHeader";
 import { EventLog } from "../ui/EventLog";
 import { ExecutionOrder } from "../ui/ExecutionOrder";
+import { Inspector } from "../ui/Inspector";
 import { cx } from "../ui/cx";
 import { Page } from "./InvestigationRoute";
 
@@ -76,7 +77,10 @@ export function ControlBoard({ id }: { id: string }) {
           selectedId={selectedId} onSelect={select} collapsed={logCollapsed} onToggle={() => setLogCollapsed((c) => !c)}
           onReachEnd={loadOlder} older={older} />
       }
-      inspector={<div className="ng-pane__scroll" data-node-id={inspected ?? undefined} />}
+      inspector={
+        <Inspector investigationId={id} s={snapshot} events={events} nodeId={inspected} live={status === "open"}
+          nodeActions={null /* Phase 6: NodeActions */} composer={null /* Phase 6: InstructionComposer */} />
+      }
     />
   );
 }

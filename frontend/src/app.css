@@ -62,3 +62,21 @@ html, body, #root { height: 100%; margin: 0; }
 .board-log .ng-panel__head { min-height: 34px; padding-block: 4px; }
 .board-log .ng-log { height: 166px; overflow: auto; padding: var(--space-1) 0; }
 .board-log .ng-log__row[data-seq], .board-log .ng-log__row--eph { cursor: pointer; }
+
+/* Inspector (ScreenControlBoard region 4, ScreenNodeDetail): header, tabs, scrolling body,
+ * composer pinned to the bottom. */
+.inspector__head { padding: var(--space-3) var(--space-3) var(--space-2); }
+.inspector__head .ng-heading, .inspector__head p { margin: 0; overflow-wrap: anywhere; }
+.inspector__body { padding: var(--space-3); gap: var(--space-3); }
+.inspector__body p { margin: 0; }
+.inspector__composer { padding: var(--space-3); border-top: 1px solid var(--line); }
+.inspector__now-meta { margin-top: var(--space-1); }
+.inspector__claim { padding: var(--space-2) var(--space-3); }
+.inspector__meters { gap: var(--space-4); align-items: flex-start; }
+.inspector__meter--wide { width: 120px; }
+.inspector__meter { width: 100px; }
+.inspector__proposal { gap: 2px; }
+.inspector__filter { cursor: pointer; }
+.inspector__filter:not(.ng-tag--solid) { background: transparent; }
+.claim-card__sources { gap: 2px; }
+.brief__path { gap: 2px; }

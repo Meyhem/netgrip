@@ -195,3 +195,72 @@ export interface Estimate extends Range {
 }
 
 export interface CommandAck { recorded: boolean; duplicate: boolean }
+
+/** A node's verdict (`node.completed.data.verdict`): the agent's text and its confidence. */
+export interface Verdict { text: string; confidence: Confidence }
+
+/** A source for or against a claim. A page that could not be obtained has no page version. */
+export interface ClaimSource {
+  id: string;
+  url: string;
+  title: string | null;
+  page_version_id: string | null;
+  credibility: Credibility;
+  published_at: string | null;
+  origin_key: string;
+}
+
+export interface Claim {
+  id: string;
+  node_id: string | null;
+  text: string;
+  status: ClaimStatus;
+  supporting: ClaimSource[];
+  contradicting: ClaimSource[];
+}
+
+/** The brief as a node received it in its last `node.started` (backend engine/brief.py). */
+export interface NodeBrief {
+  root_goal: string;
+  path: { display_id: string; question: string; justification: string | null }[];
+  task: { question: string; out_of_scope: string | null; done_when: string | null; budget: Partial<NodeBudget>; hint?: string | null };
+  known: {
+    claims: { id: string; text: string; status: ClaimStatus }[];
+    dependency_results: { display_id: string; verdict: Partial<Verdict> | null; failed?: string | null }[];
+    instructions: { text: string; from_display_id: string }[];
+  };
+}
+
+/** One step of a node's trail. `ended_at` is null while the step is open. */
+export interface TrailStep {
+  step: number;
+  name: string;
+  kind: string | null;
+  activity: Activity | null;
+  detail: string | null;
+  summary: string | null;
+  started_at: string;
+  ended_at: string | null;
+  route: string | null;
+  page_version_id: string | null;
+  retry: { n: number; m: number } | null;
+  instruction_applied: string[];
+}
+
+export interface Proposal { node_id: string; display_id: string; question: string; decision: "approved" | "rejected" | "pending"; reason: string | null }
+
+/** The node with its descendants (node detail `branch`). */
+export interface Branch { spent_usd: number; nodes: number; nodes_max: number; depth: number; depth_max: number; reach: number }
+
+/** `GET /api/investigations/{id}/nodes/{node_id}`: everything about one node. */
+export interface NodeDetail {
+  node: GraphNode;
+  /** Null for a node that never started (a coordinator from the plan waits on its children). */
+  brief: NodeBrief | null;
+  claims: Claim[];
+  trail: TrailStep[];
+  instructions: { inherited: (Instruction & { from_display_id: string })[]; own: Instruction[] };
+  open_questions: string[];
+  proposals: Proposal[];
+  branch: Branch;
+}

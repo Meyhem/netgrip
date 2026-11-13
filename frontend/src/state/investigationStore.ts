@@ -221,3 +221,9 @@ export function useInvestigation(id: string): InvestigationState {
   }, [id, store]);
   return useStore(store);
 }
+
+/** Read part of what is kept for `id` without opening a stream (the board's `useInvestigation`
+ * owns the stream). */
+export function useInvestigationSlice<T>(id: string, select: (s: InvestigationState) => T): T {
+  return useStore(storeFor(id), select);
+}
