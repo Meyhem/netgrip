@@ -4,6 +4,7 @@ touches a running step: it finishes, and the node's next boundary sees the new s
 
 import json
 import math
+import uuid
 
 from netgrip.boundary.commands import Command, CommandRejected
 from netgrip.boundary.events import EventDraft
@@ -262,4 +263,51 @@ def finishing_events(current: str) -> list[EventDraft]:
                    data={"cut_short_by": None, "ended_early": True}),
         EventDraft(type="investigation.state_changed", actor="user",
                    data={"from": current, "to": "Synthesising", "origin": "user"}),
+    ]  # fmt: skip
+
+
+# --- Task 3: instructions ----------------------------------------------------------------------
+
+
+@handles("add_instruction")
+async def _add_instruction(engine: Engine, tx: Tx, cmd: Command) -> list[EventDraft]:
+    """Queue an instruction for a node. It takes effect at the node's next step, never
+    mid-step (E4), and applies to the node and everything below it (U1). The root cannot be
+    instructed once research has started (Q-08)."""
+    from netgrip.engine.instructions import apply_queued
+
+    if cmd.node_id is None:
+        raise CommandRejected("node_required", "This command needs a node")
+    inv = cmd.investigation_id
+    row = await tx.fetchone("SELECT state FROM investigations WHERE id = ?", [inv])
+    node = await tx.fetchone(
+        "SELECT id, display_id, parent_id, activity FROM nodes"
+        " WHERE id = ? AND investigation_id = ?",
+        [cmd.node_id, inv],
+    )
+    if node is None:
+        raise CommandRejected("not_found", "No such node")
+    if node["parent_id"] is None:
+        raise CommandRejected("root_locked", "The root goal can not be instructed after approval")
+    if row["state"] not in ("Running", "Paused"):
+        raise CommandRejected("wrong_state", f"Not possible while {row['state']}")
+    text = str(cmd.payload.get("text") or "").strip()
+    if not text:
+        raise CommandRejected("empty_instruction", "The instruction is empty")
+    rt = engine.runtimes.get(inv)
+    mid_step = rt is not None and rt.in_flight(node["id"])
+    waiting_for = None
+    if mid_step:
+        what = (node["activity"] or "its step").upper()
+        waiting_for = f"{node['display_id']} finishes {what}"
+    else:
+        nid = node["id"]
+        tx.after_commit(
+            lambda: engine.background(apply_queued(engine, inv, nid), f"instruction:{nid}")
+        )
+    return [
+        EventDraft(
+            type="instruction.queued", actor="user", node_id=node["id"],
+            data={"instruction_id": str(uuid.uuid4()), "text": text, "waiting_for": waiting_for},
+        )
     ]  # fmt: skip

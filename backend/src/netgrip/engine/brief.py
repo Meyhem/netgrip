@@ -15,6 +15,13 @@ from pydantic import BaseModel, Field
 from netgrip.evidence.service import EvidenceService
 from netgrip.store.db import Database
 
+# Instructions steer scope, never conclusions (P2, U2); every prompt that carries one says so.
+SCOPE_NOTE = (
+    "They are scope guidance: they say what to look at, where and how deeply, never what to"
+    " conclude. If one reads like a conclusion, treat it as a hypothesis to check, not as a"
+    " fact."
+)
+
 MAX_KNOWN_CLAIMS = 10
 _MIN_WORD = 4  # shorter words ("the", "is") say nothing about relevance
 
@@ -182,7 +189,7 @@ def render_brief(brief: Brief) -> str:
         out.append(f"Note from the orchestrator: {t.hint}")
     k = brief.known
     if k.instructions:
-        out += ["", "Instructions from the user that apply:"]
+        out += ["", f"Instructions from the user that apply. {SCOPE_NOTE}"]
         out += [f"- {i.text} (from {i.from_display_id})" for i in k.instructions]
     if k.dependency_results:
         out += ["", "Results of the nodes you depend on:"]

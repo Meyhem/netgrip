@@ -42,8 +42,10 @@ from netgrip.adapters.search import SearchError, SearchRejected, SearchUnavailab
 from netgrip.boundary.events import EventDraft
 from netgrip.engine import orchestrator
 from netgrip.engine.agent import Deps, NodeContext, Signal, node_context, run_node
+from netgrip.engine.brief import build_brief
 from netgrip.engine.budget import SpendingLimitReached
 from netgrip.engine.clock import Clock, SystemClock
+from netgrip.engine.instructions import apply_queued
 from netgrip.engine.orchestrator import OrchestratorContext
 from netgrip.engine.scheduler import (
     GraphNode,
@@ -139,6 +141,9 @@ class InvestigationRuntime:
         self._pause: tuple[str, str | None, str] | None = None
         self._stopping = False
         self._finishing = False  # "Finish now": drain, then synthesise (S8)
+        self._stepping: set[str] = (
+            set()
+        )  # nodes in the middle of run_node (a step may be in flight)
         self._wake = asyncio.Event()
         self._loop: asyncio.Task[None] | None = None
         self._last_schedule: tuple | None = None
@@ -206,6 +211,10 @@ class InvestigationRuntime:
         """Look at the graph again (the user changed something)."""
         self._wake.set()
 
+    def in_flight(self, node_id: str | None) -> bool:
+        """A step of the node may be in flight; its instructions wait for the boundary."""
+        return node_id in self._stepping
+
     def busy(self, node_id: str) -> bool:
         """The node has a step in flight, a kept context or work still owed."""
         return (
@@ -260,6 +269,17 @@ class InvestigationRuntime:
 
         self.owe(await owed_return_work(e.db, self.id))
 
+    async def _apply_waiting_instructions(self) -> None:
+        """Instructions queued while nothing could apply them (a restart, a pause, the
+        spending limit) are applied before the loop starts."""
+        try:
+            await apply_queued(self.engine, self.id)
+        except SpendingLimitReached:
+            self._request_limit_pause()
+        except (ModelError, SearchError) as e:
+            self.request_pause(self._cause(e), str(e), "system")
+            await self._mark_rejected_key(e)
+
     async def _state(self) -> str:
         rows = await self.engine.db.read("SELECT state FROM investigations WHERE id = ?", [self.id])
         return rows[0]["state"] if rows else ""
@@ -291,6 +311,7 @@ class InvestigationRuntime:
         try:
             await self._setup()
             await self._mark_planned_coordinators()
+            await self._apply_waiting_instructions()
             parallel = await self._parallel()
             while True:
                 if self._finishing:
@@ -448,6 +469,10 @@ class InvestigationRuntime:
         """Before every step of node `nid`: the investigation's own signals, then what the
         user did to this node (paused, ignored, or a focus elsewhere)."""
         signal = await self._boundary()
+        if signal == Signal.CONTINUE:
+            # Instructions given to this node take effect now, before its next step (E4).
+            await apply_queued(self.engine, self.id, nid)
+            await self._refresh_brief(nid)
         if signal != Signal.CONTINUE:
             return signal
         graph = await load_graph(self.engine.db, self.id)
@@ -459,6 +484,41 @@ class InvestigationRuntime:
         if focus and nid not in branch_ids(graph, focus):
             return Signal.PAUSE
         return Signal.CONTINUE
+
+    async def _refresh_brief(self, nid: str) -> None:
+        """A node sees the instructions of itself and its ancestors from its next step: the
+        brief is rebuilt when one was applied since it was built."""
+        ctx = self._ctxs.get(nid)
+        if ctx is None:
+            return
+        ids, cur = [], nid
+        while cur:
+            ids.append(cur)
+            rows = await self.engine.db.read("SELECT parent_id FROM nodes WHERE id = ?", [cur])
+            cur = rows[0]["parent_id"] if rows else None
+        marks = ",".join("?" * len(ids))
+        count = (await self.engine.db.read(
+            f"SELECT COUNT(*) AS n FROM instructions WHERE state = 'applied' AND undone = 0"
+            f" AND node_id IN ({marks})", ids))[0]["n"]  # fmt: skip
+        if ctx.state.instructions_seen is None:
+            ctx.state.instructions_seen = count
+        elif count != ctx.state.instructions_seen:
+            ctx.state.instructions_seen = count
+            ctx.brief = await build_brief(self.engine.db, nid, self._deps.evidence)
+
+    async def _apply_after_run(self, nid: str) -> None:
+        """The node's loop returned (it may have completed before another boundary): apply
+        what was queued for it now, so it is never left waiting."""
+        if self._stopping or self._finishing or self._pause is not None:
+            return
+        try:
+            await apply_queued(self.engine, self.id, nid)
+        except SpendingLimitReached:
+            self._request_limit_pause()
+        except (ModelError, SearchError) as e:
+            await self._on_provider_error(nid, e)
+        except Exception:
+            log.exception("applying the instructions of node %s of %s failed", nid, self.id)
 
     async def _returned_at_boundary(self, nid: str) -> None:
         """The node's loop returned before it finished. If the user took it out (ignore,
@@ -492,8 +552,15 @@ class InvestigationRuntime:
         self.request_pause("spending_limit", "The spending limit was reached", "system")
 
     async def _node(self, nid: str) -> None:
-        if nid not in self._owed and not await self._steps(nid):
-            return
+        if nid not in self._owed:
+            self._stepping.add(nid)
+            try:
+                returned = await self._steps(nid)
+            finally:
+                self._stepping.discard(nid)
+            await self._apply_after_run(nid)
+            if not returned:
+                return
         await self._return_work(nid)
 
     async def _steps(self, nid: str) -> bool:

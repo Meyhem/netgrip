@@ -540,9 +540,10 @@ async def _trail_activity(tx: Tx, event: Event) -> None:
         route = ROUTES[retry["n"] - 1]
     await tx.execute(
         "INSERT INTO node_steps(investigation_id, node_id, step, name, activity, detail,"
-        " started_at, route, retry) VALUES (?,?,?,?,?,?,?,?,?)",
+        " started_at, route, retry, instruction_applied) VALUES (?,?,?,?,?,?,?,?,?,?)",
         [event.investigation_id, event.node_id, (last["step"] if last else 0) + 1, d["step"],
-         d["activity"], d.get("detail"), event.at, route, _j(retry)],
+         d["activity"], d.get("detail"), event.at, route, _j(retry),
+         json.dumps([] if last else await _applied_to(tx, event.node_id))],
     )  # fmt: skip
 
 
@@ -555,9 +556,16 @@ async def _trail_step_completed(tx: Tx, event: Event) -> None:
     if last is None or last["ended_at"] is not None:
         step = (last["step"] if last else 0) + 1
         await tx.execute(
-            "INSERT INTO node_steps(investigation_id, node_id, step, name, started_at)"
-            " VALUES (?,?,?,?,?)",
-            [event.investigation_id, event.node_id, step, d["step"], event.at],
+            "INSERT INTO node_steps(investigation_id, node_id, step, name, started_at,"
+            " instruction_applied) VALUES (?,?,?,?,?,?)",
+            [
+                event.investigation_id,
+                event.node_id,
+                step,
+                d["step"],
+                event.at,
+                json.dumps([] if last else await _applied_to(tx, event.node_id)),
+            ],
         )
     else:
         step = last["step"]
@@ -574,21 +582,45 @@ for _type in ("node.started", "node.waiting_on_children", "node.completed", "nod
     projector(_type)(_close_step)
 
 
-@projector("instruction.applied")
-async def _trail_instruction(tx: Tx, event: Event) -> None:
-    """Marks the boundary after the instruction's node's latest step: the step in flight
-    finishes first, so the instruction takes effect after it."""
-    row = await tx.fetchone(
-        "SELECT node_id FROM instructions WHERE id = ?", [event.data["instruction_id"]]
+async def _applied_to(tx: Tx, node_id: str) -> list[str]:
+    rows = await tx.fetchall(
+        "SELECT id FROM instructions WHERE node_id = ? AND state = 'applied' ORDER BY applied_seq",
+        [node_id],
     )
-    last = await _last_step(tx, row["node_id"]) if row and row["node_id"] else None
+    return [r["id"] for r in rows]
+
+
+async def _mark_boundary(tx: Tx, node_id: str, instruction_id: str) -> None:
+    last = await _last_step(tx, node_id)
     if last is None:
+        return  # no step yet: its first step picks the instruction up (`_applied_to`)
+    applied = json.loads(last["instruction_applied"])
+    if instruction_id in applied:
         return
-    applied = [*json.loads(last["instruction_applied"]), event.data["instruction_id"]]
     await tx.execute(
         "UPDATE node_steps SET instruction_applied = ? WHERE node_id = ? AND step = ?",
-        [json.dumps(applied), row["node_id"], last["step"]],
+        [json.dumps([*applied, instruction_id]), node_id, last["step"]],
     )
+
+
+@projector("instruction.applied")
+async def _trail_instruction(tx: Tx, event: Event) -> None:
+    """Marks the boundary after the latest step of the instruction's node and of every node
+    below it that is running: the step in flight finishes first, so the instruction takes
+    effect after it (U1, E4)."""
+    iid = event.data["instruction_id"]
+    row = await tx.fetchone("SELECT node_id FROM instructions WHERE id = ?", [iid])
+    if not row or not row["node_id"]:
+        return
+    await _mark_boundary(tx, row["node_id"], iid)
+    below = await tx.fetchall(
+        "WITH RECURSIVE sub(id) AS (SELECT id FROM nodes WHERE parent_id = ?"
+        " UNION SELECT n.id FROM nodes n JOIN sub ON n.parent_id = sub.id)"
+        " SELECT n.id FROM nodes n JOIN sub ON n.id = sub.id WHERE n.status = 'Running'",
+        [row["node_id"]],
+    )
+    for n in below:
+        await _mark_boundary(tx, n["id"], iid)
 
 
 # --- Phase 6 projectors: steering ------------------------------------------------------------

@@ -85,6 +85,9 @@ class NodeState:
     excluded: set[str] = field(default_factory=set)
     note: str | None = None  # told to the next decision call (after an unusable answer)
     done: bool = False
+    instructions_seen: int | None = (
+        None  # applied instructions in the brief (refreshed at boundaries)
+    )
     steps: int = 0  # steps run so far (a retried outage restarts its backoff after progress)
 
 
