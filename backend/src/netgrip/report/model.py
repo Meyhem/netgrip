@@ -21,6 +21,8 @@ TITLES: dict[str, str] = {
 }
 ORDER: list[str] = list(TITLES)
 CONFIRMED = "Confirmed"
+# The one statement that needs no claim: the report cannot answer the question (S8, E3).
+CANNOT_ANSWER = "The evidence gathered does not answer the question."
 
 
 class Statement(BaseModel):
@@ -114,7 +116,7 @@ def validate_report(
             continue
         for i, st in enumerate(s.statements, start=1):
             where = f"{s.key} statement {i}"
-            if not st.claim_ids:
+            if not st.claim_ids and not (s.key == "answer" and st.text == CANNOT_ANSWER):
                 errors.append(f"{where} cites no claim (R1): {st.text[:60]!r}")
                 continue
             cited: list[Claim] = []
@@ -125,7 +127,6 @@ def validate_report(
                     errors.append(f"{where} cites unknown claim {cid}")
                 else:
                     cited.append(claims[cid])
-            if cited and len(cited) == len(st.claim_ids):
-                if all(c.status != CONFIRMED for c in cited) and not st.hedged:
-                    errors.append(f"{where} rests on claims below Confirmed and is not hedged (R2)")
+            if any(c.status != CONFIRMED for c in cited) and not st.hedged:
+                errors.append(f"{where} rests on a claim below Confirmed and is not hedged (R2)")
     return errors

@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 from netgrip.adapters.schema import fill_nulls, nullable, obj, strict_problems, string_enum
-from netgrip.engine import instructions, orchestrator, planner, steps
+from netgrip.engine import instructions, orchestrator, planner, steps, synthesis
 from netgrip.evidence import service
 
 SRC = Path(__file__).parent.parent / "src" / "netgrip"
@@ -29,6 +29,7 @@ SCHEMAS = {
     "_MATCH_SCHEMA": service._MATCH_SCHEMA,
     "_JUDGE_SCHEMA": service._JUDGE_SCHEMA,
     "CHILDREN_SCHEMA": instructions.CHILDREN_SCHEMA,
+    "_SCHEMA": synthesis._SCHEMA,
 }
 
 

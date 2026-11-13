@@ -551,5 +551,56 @@
         ]
       }
     }
+  ],
+  "synthesis.write": [
+    {
+      "parsed": {
+        "answer": [
+          {
+            "text": "No. The Great Wall cannot be seen with the naked eye from low Earth orbit without aid, so the belief that it can is wrong.",
+            "claim_ids": [
+              "c1"
+            ],
+            "premise": null
+          }
+        ],
+        "wrong": [
+          {
+            "text": "You assumed the Wall is visible to the naked eye from low Earth orbit; astronauts report it is not, and the belief only appeared in print in the 1930s.",
+            "claim_ids": [
+              "c1",
+              "c3"
+            ],
+            "premise": "P1"
+          }
+        ],
+        "findings": [
+          {
+            "text": "The Wall is at most about nine metres wide and the colour of the terrain around it, which is why it is hard to pick out from orbit.",
+            "claim_ids": [
+              "c2"
+            ],
+            "premise": null
+          },
+          {
+            "text": "The Wall was built by several dynasties over about two thousand years.",
+            "claim_ids": [
+              "c4"
+            ],
+            "premise": null
+          }
+        ],
+        "unverified": [
+          {
+            "text": "What Yang Liwei said about seeing the Wall after Shenzhou 5 could not be established.",
+            "claim_ids": [
+              "c1"
+            ],
+            "premise": null
+          }
+        ],
+        "answer_confidence": "medium"
+      }
+    }
   ]
 }

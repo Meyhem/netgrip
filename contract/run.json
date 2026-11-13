@@ -3119,23 +3119,159 @@
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:01:49.000Z",
+      "at": "2026-01-01T00:01:50.000Z",
       "command_id": null,
       "data": {
-        "body": null,
+        "amount_usd": "0.01",
+        "approximate": false,
+        "model": "anthropic/claude-opus-5.5",
+        "tier": "strong",
+        "tokens_in": 100,
+        "tokens_out": 200
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": null,
+      "seq": 162,
+      "type": "spend.recorded",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:50.000Z",
+      "command_id": null,
+      "data": {
+        "body": {
+          "answer_confidence": "medium",
+          "created_at": "2026-01-01T00:01:49.000Z",
+          "id": "00000000-0000-4000-8000-000000000027",
+          "investigation_id": "00000000-0000-4000-8000-000000000000",
+          "limits": {
+            "confirm_threshold": 2,
+            "cut_short_by": null,
+            "effort": "Medium",
+            "ended_early": false,
+            "excluded_branches": [],
+            "excluded_domains": [],
+            "instructions": [],
+            "unobtainable_pages": []
+          },
+          "sections": [
+            {
+              "key": "answer",
+              "statements": [
+                {
+                  "claim_ids": [
+                    "00000000000040008000000000000013"
+                  ],
+                  "hedged": true,
+                  "premise_node_id": null,
+                  "text": "No. The Great Wall cannot be seen with the naked eye from low Earth orbit without aid, so the belief that it can is wrong."
+                }
+              ],
+              "title": "The answer"
+            },
+            {
+              "key": "wrong",
+              "statements": [
+                {
+                  "claim_ids": [
+                    "00000000000040008000000000000013",
+                    "00000000000040008000000000000019"
+                  ],
+                  "hedged": true,
+                  "premise_node_id": "00000000-0000-4000-8000-000000000002",
+                  "text": "You assumed the Wall is visible to the naked eye from low Earth orbit; astronauts report it is not, and the belief only appeared in print in the 1930s."
+                }
+              ],
+              "title": "Where you were wrong"
+            },
+            {
+              "key": "findings",
+              "statements": [
+                {
+                  "claim_ids": [
+                    "00000000000040008000000000000014"
+                  ],
+                  "hedged": true,
+                  "premise_node_id": null,
+                  "text": "The Wall is at most about nine metres wide and the colour of the terrain around it, which is why it is hard to pick out from orbit."
+                },
+                {
+                  "claim_ids": [
+                    "00000000000040008000000000000026"
+                  ],
+                  "hedged": true,
+                  "premise_node_id": null,
+                  "text": "The Wall was built by several dynasties over about two thousand years."
+                }
+              ],
+              "title": "Key findings"
+            },
+            {
+              "key": "unverified",
+              "statements": [
+                {
+                  "claim_ids": [
+                    "00000000000040008000000000000013"
+                  ],
+                  "hedged": true,
+                  "premise_node_id": null,
+                  "text": "What Yang Liwei said about seeing the Wall after Shenzhou 5 could not be established."
+                }
+              ],
+              "title": "What could not be verified"
+            },
+            {
+              "key": "limits",
+              "statements": [
+                {
+                  "claim_ids": [],
+                  "hedged": false,
+                  "premise_node_id": null,
+                  "text": "Effort: Medium. A claim counts as Confirmed with 2 independent sources."
+                }
+              ],
+              "title": "Limits of this investigation"
+            }
+          ],
+          "totals": {
+            "claims": 4,
+            "nodes": 8,
+            "sources": 3,
+            "spent_usd": 0.33
+          }
+        },
         "cut_short_by": null,
         "ended_early": false,
         "report_id": "00000000-0000-4000-8000-000000000027"
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": null,
-      "seq": 162,
+      "seq": 163,
       "type": "report.created",
       "v": 1
     },
     {
       "actor": "orchestrator",
-      "at": "2026-01-01T00:01:49.000Z",
+      "at": "2026-01-01T00:01:50.000Z",
+      "command_id": null,
+      "data": {
+        "off_topic": false,
+        "open_questions": [],
+        "verdict": {
+          "confidence": "medium",
+          "text": "No. The Great Wall cannot be seen with the naked eye from low Earth orbit without aid, so the belief that it can is wrong."
+        }
+      },
+      "investigation_id": "00000000-0000-4000-8000-000000000000",
+      "node_id": "00000000-0000-4000-8000-000000000001",
+      "seq": 164,
+      "type": "node.completed",
+      "v": 1
+    },
+    {
+      "actor": "orchestrator",
+      "at": "2026-01-01T00:01:50.000Z",
       "command_id": null,
       "data": {
         "cause": null,
@@ -3146,7 +3282,7 @@
       },
       "investigation_id": "00000000-0000-4000-8000-000000000000",
       "node_id": null,
-      "seq": 163,
+      "seq": 165,
       "type": "investigation.state_changed",
       "v": 1
     }
@@ -3498,7 +3634,7 @@
         "effort": "Medium",
         "ended_early": false,
         "id": "00000000-0000-4000-8000-000000000000",
-        "last_activity_at": "2026-01-01T00:01:49.000Z",
+        "last_activity_at": "2026-01-01T00:01:50.000Z",
         "nodes_max": 40,
         "nodes_total": 8,
         "pause_cause": null,
@@ -3530,7 +3666,7 @@
         },
         "spend_approximate": false,
         "spending_limit_usd": 5.0,
-        "spent_usd": 0.3200000000000001,
+        "spent_usd": 0.3300000000000001,
         "state": "Completed",
         "summary": "Premise refuted: The Wall is visible to the naked eye from low Earth orbit."
       },
@@ -3550,8 +3686,8 @@
           "excluded_by": null,
           "excluded_instruction_id": null,
           "failure_reason": null,
-          "finished_at": null,
-          "finished_seq": null,
+          "finished_at": "2026-01-01T00:01:50.000Z",
+          "finished_seq": 164,
           "id": "00000000-0000-4000-8000-000000000001",
           "inclusion": "Included",
           "instruction_count": 0,
@@ -3565,8 +3701,11 @@
           "question": "Establish whether, and under what conditions, the Great Wall of China can be seen from space with the naked eye, and why the belief exists.",
           "rejection_reason": null,
           "spent_usd": 0.0,
-          "status": "Pending",
-          "verdict": null
+          "status": "Completed",
+          "verdict": {
+            "confidence": "medium",
+            "text": "No. The Great Wall cannot be seen with the naked eye from low Earth orbit without aid, so the belief that it can is wrong."
+          }
         },
         {
           "activity": null,
@@ -4203,7 +4342,7 @@
         "reasons": {},
         "slots": 1
       },
-      "seq": 163
+      "seq": 165
     }
   ]
 }

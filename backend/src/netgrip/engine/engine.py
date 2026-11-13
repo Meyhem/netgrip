@@ -476,8 +476,24 @@ async def _resume(engine: Engine, tx: Tx, cmd: Command) -> list[EventDraft]:
         raise CommandRejected("wrong_state", "The investigation is already running")
     if current not in ("Paused", "Stopped"):
         raise CommandRejected("wrong_state", "Only a paused or stopped investigation resumes")
+    if current == "Paused" and await _paused_while_synthesising(tx, inv):
+        from netgrip.engine.synthesis import synthesise
+
+        tx.after_commit(lambda: engine.background(synthesise(engine, inv), f"synthesis:{inv}"))
+        return [_state_changed("Paused", "Synthesising")]
     tx.after_commit(lambda: engine.start_runtime(inv) and None)
     return [_state_changed(current, "Running")]
+
+
+async def _paused_while_synthesising(tx: Tx, inv: str) -> bool:
+    """The pause came while the report was being written: resume writes it again."""
+    row = await tx.fetchone(
+        "SELECT json_extract(data, '$.from') AS frm FROM events WHERE investigation_id = ?"
+        " AND type = 'investigation.state_changed' AND json_extract(data, '$.to') = 'Paused'"
+        " ORDER BY seq DESC LIMIT 1",
+        [inv],
+    )
+    return row is not None and row["frm"] == "Synthesising"
 
 
 @handles("stop")

@@ -45,6 +45,17 @@ BASE_SCRIPT = {
     "orchestrator.review": [{"parsed": {"decisions": []}}],
     "orchestrator.next": [{"parsed": {"decision": "conclude"}}],
     "evidence.match": [{"parsed": {"relation": "unrelated", "claim_id": None}}],
+    "synthesis.write": [
+        {
+            "parsed": {
+                "answer": [{"text": "It is hard to see.", "claim_ids": ["c1"], "premise": None}],
+                "wrong": [],
+                "findings": [],
+                "unverified": [],
+                "answer_confidence": "medium",
+            }
+        }
+    ],
 }
 
 
@@ -412,7 +423,7 @@ async def test_dependant_of_a_failed_node_runs_with_the_failure_in_its_brief(db,
     engine = make_engine(db, tmp_path, TrackingClient(script))
     await run_to_end(engine)
     assert await state(db) == "Completed"
-    assert await statuses(db) == {"n-r": "Pending", "n-1": "Failed", "n-2": "Completed"}
+    assert await statuses(db) == {"n-r": "Completed", "n-1": "Failed", "n-2": "Completed"}
     started = [d for _, n, d in await events(db, "node.started") if n == "n-2"]
     deps = started[0]["brief"]["known"]["dependency_results"]
     assert len(deps) == 1 and deps[0]["display_id"] == "D1" and deps[0]["verdict"] is None

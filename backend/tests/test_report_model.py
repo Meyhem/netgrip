@@ -1,7 +1,15 @@
 import pytest
 
 from netgrip.evidence.service import Claim
-from netgrip.report.model import TITLES, Limits, Report, Section, Statement, validate_report
+from netgrip.report.model import (
+    CANNOT_ANSWER,
+    TITLES,
+    Limits,
+    Report,
+    Section,
+    Statement,
+    validate_report,
+)
 
 
 def claim(id, status="Confirmed"):
@@ -85,8 +93,13 @@ def test_below_confirmed_must_be_hedged():
     assert errors(r) == []
 
 
-def test_mixed_confirmed_and_supported_need_no_hedge():
+def test_one_claim_below_confirmed_is_enough_to_need_a_hedge():
     r = make(answer=[Statement(text="A", claim_ids=["c1", "c2"])])
+    assert any("not hedged" in e for e in errors(r))
+
+
+def test_cannot_answer_statement_needs_no_claim():
+    r = make(answer=[Statement(text=CANNOT_ANSWER)])
     assert errors(r) == []
 
 

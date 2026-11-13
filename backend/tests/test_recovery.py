@@ -57,6 +57,17 @@ BASE = {
     "orchestrator.review": [{"parsed": {"decisions": []}}],
     "orchestrator.next": [{"parsed": {"decision": "conclude"}}],
     "evidence.match": [{"parsed": {"relation": "unrelated", "claim_id": None}}],
+    "synthesis.write": [
+        {
+            "parsed": {
+                "answer": [{"text": "It is hard to see.", "claim_ids": ["c1"], "premise": None}],
+                "wrong": [],
+                "findings": [],
+                "unverified": [],
+                "answer_confidence": "medium",
+            }
+        }
+    ],
 }
 
 
