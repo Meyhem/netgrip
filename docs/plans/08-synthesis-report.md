@@ -126,3 +126,8 @@
 - [ ] Anti-goals, by hand in fake mode (domain spec section 9): the report does not repeat the mistaken premise; every statement opens a claim with sources; an ignored branch is disclosed.
 - [ ] Live check (manual, keys needed): one Low-effort investigation from prompt to report; open three citations and follow each to a real source URL that supports the sentence.
 - [ ] Full walk through `design-system/project/screens.md` "Screens and states": each investigation state opens the screen the table names.
+
+## Carried from Phase 4
+
+- The root node is never scheduled or completed by the engine: synthesis must complete it.
+- Claims of off-topic nodes (and of nodes no longer Included) are left out through `synthesis_claims()`: synthesis reads only that.

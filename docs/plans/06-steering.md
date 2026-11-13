@@ -145,3 +145,10 @@ The title starts with "Paused:" and states the cause in plain words. The banner 
 - [ ] Walk the two tables in `design-system/project/steering.md` ("Investigation level", "Node level") by hand in fake mode; each row's "What the user sees" happens, and only after its event.
 - [ ] Design check: board with a queued and an applied instruction beside `InstructionComposer/preview.html` and `Instruction/preview.html`; paused-by-system board beside `SystemPause/preview.html`.
 - [ ] Count pink: on a running board with nothing sent, the composer is the only pink control.
+
+## Carried from Phase 4
+
+- `node.completed` does not reset the relevance-gate marker (`relevance_checked`), so after a rerun the gate is not owed again after a kill: reset it on `node.reset` / `node.started`.
+- The runtime reads `effort.parallel` once per launch: an effort change must make it read it again.
+- A pause while the runtime drains records nothing durable until the drain ends, so a kill in that window resumes as Running: consider a durable "pausing" marker.
+- The model and search limiters are resized only on GET /pools and at start: resize them on the settings PATCH too.

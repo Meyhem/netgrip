@@ -137,3 +137,7 @@
 - [ ] Design check, dark and light: the board mid-run beside `ScreenControlBoard/preview.html` at 1440×970, and each inspector tab beside `ScreenNodeDetail/preview.html` at 1240×980. Pane widths 284 and 364. Pink only on node marks and user log rows; cyan only on running or waiting work.
 - [ ] With the system set to reduce motion, no glyph pulses.
 - [ ] By hand: open the board in two tabs; both show the same state within a second of each event (N-06).
+
+## Carried from Phase 4
+
+- A coordinator that starts in Waiting on children (planned with children) gets no `node.started`, so it has no stored brief and no attempt count until it aggregates; the inspector must show that state (or the backend stores the brief when it marks the node waiting).

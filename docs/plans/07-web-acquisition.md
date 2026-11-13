@@ -115,3 +115,8 @@ Deadlines and limits chosen here (A-09; all in settings under Capacity or as con
 - [ ] **First live run** (manual; needs a model key and a Tavily key in Settings → Keys, both showing "Key set" after their check): start the backend without `NETGRIP_FAKE`, create a Low-effort investigation with a `$1.00` limit, approve the plan, and watch the board. Expected: real queries and URLs in activity lines; claims with sources; at least one retry or unobtainable page handled without a failed node; spend in the header close to the provider's dashboard (R-01); the run ends or pauses at the limit.
 - [ ] During the live run: `kill -9` the backend, start it again. It continues by itself and no stray browser is left from before the kill.
 - [ ] Run three Low-effort investigations at once and watch memory (R-03): open pages never exceed the setting; note the peak in the phase's commit message so A-03 can be revisited.
+
+## Carried from Phase 4
+
+- The page store does not remember an unobtainable URL per investigation (the node context reads past `page.unobtainable` events instead), so concurrent nodes can fetch a dead URL again with the full escalation: remember it in the store.
+- The reconcile lock is held across model calls, so reconciling is serial per investigation, and the match prompt carries every known claim: revisit both with live latency and cost.
