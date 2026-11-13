@@ -1,14 +1,16 @@
 """Investigation queries: list rows, snapshot, events; create and delete."""
 
 import json
-from typing import Annotated, Any
+from typing import Annotated, Any, get_args
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, Field
 
 from netgrip.api.deps import get_db, get_engine
 from netgrip.boundary.commands import CommandAck
+from netgrip.boundary.events import Actor
 from netgrip.engine.engine import Engine
 from netgrip.store import eventlog
 from netgrip.store.db import Database, Row
@@ -32,6 +34,7 @@ PAUSE_REASON = {
     "credit_exhausted": "The model account ran out of credit.",
 }
 TERMINAL_UNAPPROVED = ("Proposed", "Rejected")
+RECENT_EVENTS = 200  # the snapshot's tail of the log, so the event log needs no second request
 
 
 def summarise(state: str, pause_cause: str | None, nodes: list, premises: list) -> dict:
@@ -210,6 +213,11 @@ async def snapshot(id: str, db: Annotated[Database, Depends(get_db)]) -> dict:
         "schedule": await _schedule(db, id),
         "focus_node_id": None,
         "plan_version": version[0]["v"],
+        # Up to the snapshot's own seq: events after it arrive on the stream.
+        "recent_events": [
+            e.model_dump(mode="json")
+            for e in await eventlog.read(db, id, before=r["last_seq"] + 1, limit=RECENT_EVENTS)
+        ],
     }
 
 
@@ -226,12 +234,31 @@ async def _schedule(db: Database, id: str) -> dict:
     return {"order": d["order"], "reasons": d["reasons"], "slots": d["slots"]}
 
 
+def _csv(value: str | None) -> list[str] | None:
+    items = [v.strip() for v in (value or "").split(",") if v.strip()]
+    return items or None
+
+
 @router.get("/{id}/events")
 async def events(
     id: str,
     db: Annotated[Database, Depends(get_db)],
     after: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int | None, Query(ge=1, le=10_000)] = None,
+    before: Annotated[int | None, Query(ge=1)] = None,
+    actor: Annotated[str | None, Query()] = None,
+    node_id: Annotated[str | None, Query()] = None,
+    types: Annotated[str | None, Query()] = None,
 ) -> list[dict]:
+    """`before` pages backwards: the newest `limit` events below it. `actor` and `types` take
+    comma-separated lists."""
+    actors = _csv(actor)
+    if actors and (bad := [a for a in actors if a not in get_args(Actor)]):
+        raise RequestValidationError(
+            [{"type": "enum", "loc": ("query", "actor"), "msg": f"Unknown actor {bad[0]!r}"}]
+        )
     await _row(db, id)
-    return [e.model_dump(mode="json") for e in await eventlog.read(db, id, after, limit)]
+    found = await eventlog.read(
+        db, id, after, limit, before=before, actors=actors, node_id=node_id, types=_csv(types)
+    )
+    return [e.model_dump(mode="json") for e in found]

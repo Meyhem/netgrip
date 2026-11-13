@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 from netgrip.adapters.fetcher import FetchAttempt
 from netgrip.adapters.model import Message, ModelMalformed, ModelRequest
 from netgrip.adapters.schema import nullable, obj, string_enum
+from netgrip.boundary.bus import Ephemeral
 from netgrip.engine import limiter
 from netgrip.engine.agent import NodeContext
 from netgrip.engine.brief import render_brief
@@ -176,6 +177,24 @@ async def _fail(ctx: NodeContext, reason: str) -> Next:
     return None
 
 
+async def _live_text(ctx: NodeContext):
+    """A sink publishing the decision's streamed text as ephemeral `model_text` for the step
+    the activity just opened (its trail step number), or None without a bus."""
+    bus = ctx.deps.bus
+    if bus is None:
+        return None
+    rows = await ctx.deps.db.read(
+        "SELECT COALESCE(MAX(step), 0) AS n FROM node_steps WHERE node_id = ?", [ctx.node.id]
+    )
+    step = rows[0]["n"]
+
+    def on_text(delta: str) -> None:
+        bus.publish(Ephemeral(investigation_id=ctx.investigation.id, node_id=ctx.node.id,
+                              kind="model_text", data={"step": step, "delta": delta}))  # fmt: skip
+
+    return on_text
+
+
 # --- decisions: plan, reason, aggregate ------------------------------------------------------
 
 
@@ -198,9 +217,10 @@ async def _decide(ctx: NodeContext, step: str, extra: str = "") -> Next:
                        messages=messages, tools=None, response_schema=_schema(ctx, allowed),
                        node_ref=ctx.node.id)  # fmt: skip
     tried: str | None = None
+    on_text = await _live_text(ctx)
     for attempt in range(1, ATTEMPTS + 1):
         try:
-            resp = await call_model(ctx.call, req)
+            resp = await call_model(ctx.call, req, on_text)
             answer = resp.parsed if resp.parsed is not None else json.loads(resp.text)
             tried = answer.get("action")
             problem = _problem(ctx, answer)

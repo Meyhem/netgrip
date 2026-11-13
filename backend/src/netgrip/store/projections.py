@@ -6,6 +6,8 @@ from collections.abc import Awaitable, Callable
 from decimal import Decimal
 from typing import Protocol
 
+from netgrip.adapters.fetcher import ROUTES
+from netgrip.boundary.bus import Ephemeral
 from netgrip.boundary.events import Event, EventDraft
 from netgrip.store import eventlog
 from netgrip.store.db import Database, Tx
@@ -26,6 +28,7 @@ STATE_TABLES: list[str] = [
     "claims",
     "claim_sources",
     "contradictions",
+    "node_steps",
 ]
 
 # Column holding the investigation id, for tables where it is not `investigation_id`.
@@ -33,7 +36,7 @@ ID_COLUMNS: dict[str, str] = {"investigations": "id"}
 
 
 class Publisher(Protocol):
-    def publish(self, item: Event) -> None: ...
+    def publish(self, item: Event | Ephemeral) -> None: ...
 
 
 def projector(type: str) -> Callable[[Projector], Projector]:
@@ -469,4 +472,85 @@ async def _limit_changed(tx: Tx, event: Event) -> None:
     await tx.execute(
         "UPDATE investigations SET spending_limit_usd = ? WHERE id = ?",
         [float(event.data["spending_limit_usd"]), event.investigation_id],
+    )
+
+
+# --- Phase 5 projectors: the trail (node_steps) ----------------------------------------------
+
+
+async def _last_step(tx: Tx, node_id: str | None):
+    return await tx.fetchone(
+        "SELECT step, ended_at, instruction_applied FROM node_steps WHERE node_id = ?"
+        " ORDER BY step DESC LIMIT 1",
+        [node_id],
+    )
+
+
+async def _close_step(tx: Tx, event: Event) -> None:
+    await tx.execute(
+        "UPDATE node_steps SET ended_at = ? WHERE node_id = ? AND ended_at IS NULL",
+        [event.at, event.node_id],
+    )
+
+
+@projector("node.activity")
+async def _trail_activity(tx: Tx, event: Event) -> None:
+    """Each activity opens a step; a retry is its own step, on the route it tries."""
+    d = event.data
+    await _close_step(tx, event)
+    last = await _last_step(tx, event.node_id)
+    retry = d.get("retry")
+    route = None
+    if retry and 1 <= retry["n"] <= len(ROUTES):
+        route = ROUTES[retry["n"] - 1]  # the fetcher tries the routes in turn
+    await tx.execute(
+        "INSERT INTO node_steps(investigation_id, node_id, step, name, activity, detail,"
+        " started_at, route, retry) VALUES (?,?,?,?,?,?,?,?,?)",
+        [event.investigation_id, event.node_id, (last["step"] if last else 0) + 1, d["step"],
+         d["activity"], d.get("detail"), event.at, route, _j(retry)],
+    )  # fmt: skip
+
+
+@projector("node.step_completed")
+async def _trail_step_completed(tx: Tx, event: Event) -> None:
+    """Closes the open step with its result; a step that had no activity (propose, conclude)
+    gets a row of its own."""
+    d = event.data
+    last = await _last_step(tx, event.node_id)
+    if last is None or last["ended_at"] is not None:
+        step = (last["step"] if last else 0) + 1
+        await tx.execute(
+            "INSERT INTO node_steps(investigation_id, node_id, step, name, started_at)"
+            " VALUES (?,?,?,?,?)",
+            [event.investigation_id, event.node_id, step, d["step"], event.at],
+        )
+    else:
+        step = last["step"]
+    await tx.execute(
+        "UPDATE node_steps SET kind = ?, summary = ?, ended_at = ?,"
+        " route = COALESCE(?, route), page_version_id = ? WHERE node_id = ? AND step = ?",
+        [d["kind"], d["summary"], event.at, d.get("route"), d.get("page_version_id"),
+         event.node_id, step],
+    )  # fmt: skip
+
+
+for _type in ("node.started", "node.waiting_on_children", "node.completed", "node.failed",
+              "node.reset"):  # fmt: skip
+    projector(_type)(_close_step)
+
+
+@projector("instruction.applied")
+async def _trail_instruction(tx: Tx, event: Event) -> None:
+    """Marks the boundary after the instruction's node's latest step: the step in flight
+    finishes first, so the instruction takes effect after it."""
+    row = await tx.fetchone(
+        "SELECT node_id FROM instructions WHERE id = ?", [event.data["instruction_id"]]
+    )
+    last = await _last_step(tx, row["node_id"]) if row and row["node_id"] else None
+    if last is None:
+        return
+    applied = [*json.loads(last["instruction_applied"]), event.data["instruction_id"]]
+    await tx.execute(
+        "UPDATE node_steps SET instruction_applied = ? WHERE node_id = ? AND step = ?",
+        [json.dumps(applied), row["node_id"], last["step"]],
     )

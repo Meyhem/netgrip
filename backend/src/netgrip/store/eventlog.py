@@ -74,13 +74,41 @@ _SELECT = f"SELECT {_COLUMNS} FROM events WHERE investigation_id = ? AND seq > ?
 
 
 async def read(
-    db: Database, investigation_id: str, after: int = 0, limit: int | None = None
+    db: Database,
+    investigation_id: str,
+    after: int = 0,
+    limit: int | None = None,
+    *,
+    before: int | None = None,
+    actors: list[str] | None = None,
+    node_id: str | None = None,
+    types: list[str] | None = None,
 ) -> list[Event]:
-    sql, params = _SELECT, [investigation_id, after]
+    """Events after `after`, oldest first, at most `limit`. With `before`, the newest `limit`
+    events below it (paging backwards), still oldest first. Filters narrow by actor, node and
+    type."""
+    where = ["investigation_id = ?", "seq > ?"]
+    params: list = [investigation_id, after]
+    if before is not None:
+        where.append("seq < ?")
+        params.append(before)
+    for column, values in (("actor", actors), ("type", types)):
+        if values:
+            where.append(f"{column} IN ({','.join('?' * len(values))})")
+            params += values
+    if node_id is not None:
+        where.append("node_id = ?")
+        params.append(node_id)
+    newest_first = before is not None and limit is not None
+    sql = f"SELECT {_COLUMNS} FROM events WHERE {' AND '.join(where)}"
+    sql += " ORDER BY seq DESC" if newest_first else " ORDER BY seq"
     if limit is not None:
         sql += " LIMIT ?"
         params.append(limit)
-    return [row_to_event(r) for r in await db.read(sql, params)]
+    rows = await db.read(sql, params)
+    if newest_first:
+        rows.reverse()
+    return [row_to_event(r) for r in rows]
 
 
 async def read_in_tx(tx: Tx, investigation_id: str, after: int = 0) -> list[Event]:

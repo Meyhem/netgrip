@@ -92,10 +92,18 @@ async def run_scenario(path: Path) -> dict:
         await submit("approve_plan")
 
         events = [e.model_dump(mode="json") for e in await eventlog.read(db, inv)]
-        return {"events": events, "snapshot": await snapshot(inv, db)}
+        return {"events": events, "snapshot": await contract_snapshot(inv, db)}
     finally:
         await engine.stop()
         await db.close()
+
+
+async def contract_snapshot(inv: str, db) -> dict:
+    """The snapshot as the frontend reducer rebuilds it from events: without `recent_events`,
+    the log's tail, which the event log keeps and the reducer does not (Phase 5)."""
+    snap = await snapshot(inv, db)
+    assert len(snap.pop("recent_events")) == min(200, snap["seq"])
+    return snap
 
 
 def dump(contract: dict) -> str:
@@ -148,7 +156,7 @@ async def run_full(path: Path) -> dict:
     mid: list[dict] = []
 
     async def capture() -> None:  # the run is held inside P1's second read
-        mid.append(await snapshot(INVESTIGATION_ID, engine.db))
+        mid.append(await contract_snapshot(INVESTIGATION_ID, engine.db))
 
     engine = await open_engine(path, fetcher=GatedFetcher(MYTH, capture), parallel=1)
     try:
@@ -163,7 +171,7 @@ async def run_full(path: Path) -> dict:
         await r.approved()
         await r.finished()
         events = [e.model_dump(mode="json") for e in await eventlog.read(engine.db, r.inv)]
-        final = await snapshot(r.inv, engine.db)
+        final = await contract_snapshot(r.inv, engine.db)
         return {"events": events, "snapshots": [*mid, final]}
     finally:
         await engine.stop()

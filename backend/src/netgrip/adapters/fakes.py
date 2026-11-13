@@ -28,6 +28,7 @@ from netgrip.adapters.schema import fill_nulls, strict_problems
 from netgrip.adapters.search import SearchHit, SearchRejected, SearchUnavailable
 
 SCENARIOS = Path(__file__).parent / "fake_scenarios"
+STREAM_CHUNK = 12  # characters per streamed delta
 
 
 class FakeModelClient:
@@ -137,9 +138,13 @@ class FakeModelClient:
         )
 
     async def stream(self, req: ModelRequest) -> AsyncIterator[str | ModelResponse]:
+        """The answer's text in small deltas (spread over `delay_s` again, so live text stays
+        visible in slowed fake runs), then the response."""
         resp = await self.complete(req)
-        if resp.text:
-            yield resp.text
+        chunks = [resp.text[i : i + STREAM_CHUNK] for i in range(0, len(resp.text), STREAM_CHUNK)]
+        for chunk in chunks:
+            yield chunk
+            await asyncio.sleep(self.delay_s / len(chunks))
         yield resp
 
     async def check(self) -> None:

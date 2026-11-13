@@ -18,6 +18,7 @@ from netgrip.store.settings import Effort, ModelPrice
 MILLION = Decimal(1_000_000)
 
 LimitCheck = Callable[[], Awaitable[bool]]
+OnText = Callable[[str], None]
 
 
 class SpendingLimitReached(Exception):  # noqa: N818 - a signal, like CancelledError
@@ -53,8 +54,12 @@ def price_usage(usage: Usage, model: str, prices: list[ModelPrice]) -> tuple[Dec
     return amount, False
 
 
-async def call_model(ctx: CallContext, req: ModelRequest) -> ModelResponse:
+async def call_model(
+    ctx: CallContext, req: ModelRequest, on_text: OnText | None = None
+) -> ModelResponse:
     """Call the model assigned to `req.tier` and record the spend in `ctx.pending_events`.
+    With `on_text`, the answer is streamed and each text delta is passed to it as it arrives
+    (shown live, never stored: D-11).
 
     Before calling, `ctx.limit_reached` (if set) is asked; at the limit nothing is called and
     SpendingLimitReached is raised. Opens no transaction. A call that raises records
@@ -66,12 +71,26 @@ async def call_model(ctx: CallContext, req: ModelRequest) -> ModelResponse:
     req = req.model_copy(update={"model": model, "investigation_id": ctx.investigation_id})
     try:
         async with limiter.model:  # shared by every runtime (D-05)
-            resp = await ctx.client.complete(req)
+            resp = await (
+                ctx.client.complete(req) if on_text is None else _streamed(ctx.client, req, on_text)
+            )
     except ModelMalformed as e:
         if e.usage is not None:
             _record(ctx, req.tier, model, e.usage)
         raise
     _record(ctx, req.tier, model, resp.usage)
+    return resp
+
+
+async def _streamed(client: ModelClient, req: ModelRequest, on_text: OnText) -> ModelResponse:
+    resp: ModelResponse | None = None
+    async for item in client.stream(req):
+        if isinstance(item, str):
+            on_text(item)
+        else:
+            resp = item
+    if resp is None:
+        raise ModelMalformed(f"the stream ended without an answer ({req.purpose})")
     return resp
 
 
