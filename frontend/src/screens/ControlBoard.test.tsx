@@ -232,6 +232,25 @@ describe("ControlBoard event log", () => {
     expect(olderCalls(fn)).toHaveLength(n);
   });
 
+  it("a failed older fetch is not retried until the user scrolls to the end", async () => {
+    const fn = showWithLog({ ...last, recent_events: events.filter((e) => e.seq > 140) },
+      () => new Response(JSON.stringify({ detail: "down" }), { status: 500 }));
+    await screen.findByRole("heading", { name: last.investigation.prompt });
+    const log = document.querySelector('[data-slot="event-log"] .ng-log') as HTMLElement;
+    Object.defineProperty(log, "scrollHeight", { configurable: true, value: 100 });
+    Object.defineProperty(log, "clientHeight", { configurable: true, value: 166 });
+    fireEvent.click(screen.getByRole("button", { name: /^Problems/ }));
+    await waitFor(() => expect(log.closest("[data-older]")).toHaveAttribute("data-older", "error"));
+    await new Promise((r) => setTimeout(r, 30));
+    expect(olderCalls(fn)).toHaveLength(1);
+    // An explicit scroll to the end tries once more.
+    fireEvent.scroll(log);
+    await waitFor(() => expect(olderCalls(fn)).toHaveLength(2));
+    await waitFor(() => expect(log.closest("[data-older]")).toHaveAttribute("data-older", "error"));
+    await new Promise((r) => setTimeout(r, 30));
+    expect(olderCalls(fn)).toHaveLength(2);
+  });
+
   it("L collapses the log to its head row and back", async () => {
     showWithLog({ ...last, recent_events: events.slice(-20) }, () => []);
     await screen.findByRole("heading", { name: last.investigation.prompt });

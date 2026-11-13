@@ -21,7 +21,8 @@ export interface EventLogProps {
   onSelect: (nodeId: string) => void;
   collapsed: boolean;
   onToggle: () => void;
-  /** Called when scrolling reaches the oldest row, while `older` is "more". */
+  /** Called when scrolling reaches the oldest row, while `older` is "more" or "error"; and
+   * after a render whose rows do not fill the log, while it is "more". */
   onReachEnd?: () => void;
   older?: OlderState;
 }
@@ -103,7 +104,8 @@ export function EventLog({
     const el = logRef.current;
     if (!el) return;
     if (el.scrollTop > 0 && follow) setFollow(false);
-    if (older === "more" && onReachEnd && el.scrollHeight > 0 && el.scrollTop + el.clientHeight >= el.scrollHeight - 24) onReachEnd();
+    // An explicit scroll to the end also retries after a failed fetch.
+    if ((older === "more" || older === "error") && onReachEnd && el.scrollHeight > 0 && el.scrollTop + el.clientHeight >= el.scrollHeight - 24) onReachEnd();
   };
 
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
