@@ -80,3 +80,19 @@ html, body, #root { height: 100%; margin: 0; }
 .inspector__filter:not(.ng-tag--solid) { background: transparent; }
 .claim-card__sources { gap: 2px; }
 .brief__path { gap: 2px; }
+
+/* Inspector Trail tab and the stored-page sheet (ScreenNodeDetail) */
+[data-slot="inspector"] { position: relative; }
+.trail { gap: 2px; }
+.trail__step { overflow-wrap: anywhere; }
+.trail__step--open { border-color: var(--live); }
+.trail__rule { border-color: var(--steer); }
+.trail__live { font-style: italic; margin-top: var(--space-1); white-space: pre-wrap; }
+.trail__note { margin-top: var(--space-1); }
+.trail__page { background: none; border: 0; padding: 0; font: inherit; color: var(--ink); text-decoration: underline; cursor: pointer; }
+.page-sheet { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; background: var(--surface); }
+.page-sheet__body { padding: var(--space-3); gap: var(--space-3); }
+.page-sheet__meta { gap: 2px; }
+.page-sheet__meta .ng-heading { margin: 0; overflow-wrap: anywhere; }
+.page-sheet__url { overflow-wrap: anywhere; }
+.page-sheet__text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; color: var(--ink); }

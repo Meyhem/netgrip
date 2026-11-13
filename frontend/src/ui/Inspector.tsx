@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import type { ClaimStatus as Status, DurableEvent, GraphNode, NodeDetail, Snapshot } from "../api/types";
 import { elapsed, money, timeOfDaySeconds } from "../lib/format";
 import { lastByNode } from "../state/derive";
+import { useInvestigationSlice } from "../state/investigationStore";
 import { useNodeDetail } from "../state/useNodeDetail";
 import { ActivityLine } from "./ActivityLine";
 import { Banner } from "./Banner";
@@ -11,7 +12,8 @@ import { ClaimCard, independent } from "./ClaimCard";
 import { cx } from "./cx";
 import { Instruction, seqLabel } from "./Instruction";
 import { Pill, StatusPill } from "./StatusPill";
-import { TrailPlaceholder } from "./TrailPlaceholder";
+import { PageSheet } from "./PageSheet";
+import { Trail } from "./Trail";
 import { asVerdict, Verdict } from "./Verdict";
 import { CLAIM_STATUS, KIND_CODE, NODE_PILL } from "./vocab";
 
@@ -92,6 +94,10 @@ export function Inspector({ investigationId, s, events, nodeId, live = true, nod
   const id = nodeId ?? rootId;
   const { detail, status } = useNodeDetail(investigationId, id);
   const [tab, setTab] = useState<InspectorTab>("overview");
+  // The stored page open in the sheet, for this node only.
+  const [page, setPage] = useState<{ nodeId: string | null; pageVersionId: string } | null>(null);
+  const openPage = page && page.nodeId === id ? page.pageVersionId : null;
+  const modelText = useInvestigationSlice(investigationId, (st) => (id ? st.modelText[id] ?? null : null));
   // The row from the snapshot is current to the last applied event; the detail may lag a fetch.
   const node = s.nodes.find((n) => n.id === id) ?? detail?.node ?? null;
   const displayIds = Object.fromEntries(s.nodes.map((n) => [n.id, n.display_id]));
@@ -116,7 +122,7 @@ export function Inspector({ investigationId, s, events, nodeId, live = true, nod
       tab === "overview" ? <Overview {...ctx} />
       : tab === "claims" ? <ClaimsTab key={node.id} {...ctx} />
       : tab === "brief" ? <Brief brief={detail.brief} node={node} />
-      : tab === "trail" ? <TrailPlaceholder detail={detail} />
+      : tab === "trail" ? <Trail detail={detail} modelText={modelText} onOpenPage={(pageVersionId) => setPage({ nodeId: id, pageVersionId })} />
       : <InstructionsTab {...ctx} />;
   }
 
@@ -146,6 +152,7 @@ export function Inspector({ investigationId, s, events, nodeId, live = true, nod
         {body}
       </div>
       {composer != null && <div className="inspector__composer">{composer}</div>}
+      {openPage && <PageSheet investigationId={investigationId} pageVersionId={openPage} onClose={() => setPage(null)} />}
     </>
   );
 }
