@@ -154,3 +154,10 @@ The title starts with "Paused:" and states the cause in plain words. The banner 
 - The model and search limiters are resized only on GET /pools and at start: resize them on the settings PATCH too.
 - A Rejected dependency leaves its dependant Pending forever (reason `dependency:<id>`) while the run still concludes: treat Rejected like a dependency left Failed (run, with a note in the brief), or show the node as not run.
 - Return work that hits an unexpected error stays owed and the investigation stays Running with no live loop and no visible cause until a resume or restart: record it as a system pause with a cause the board can show.
+
+## Carried from Phase 5
+
+- `useBoardKeys` must replace ControlBoard's ad-hoc `L`/Escape window listener (`ControlBoard.tsx`), so there are not two key handlers. Reconcile what Escape means: the spec says it clears the selection; below 1180px it now closes the inspector sheet.
+- `instruction.applied` on a node with no trail steps yet is silently dropped from the trail (`_trail_instruction` in `store/projections.py`). Instructing a Pending node will hit this: keep the rule for the node's first step.
+- Reveal and pan to a selected node that sits inside a fold or is hidden by Show excluded off.
+- An excluded node still marked Running must not get a live pill (Phase 5 gates the inspector pill and trail verbs on Included + Running/Waiting + investigation not Paused/Stopped): verify it when Ignore can hit a running branch.

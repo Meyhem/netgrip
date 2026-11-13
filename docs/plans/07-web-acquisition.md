@@ -122,3 +122,9 @@ Deadlines and limits chosen here (A-09; all in settings under Capacity or as con
 - The reconcile lock is held across model calls, so reconciling is serial per investigation, and the match prompt carries every known claim: revisit both with live latency and cost.
 - `SearchRejected("request")` still pauses as `search_unavailable`, and each resume reruns the same refused query: treat it as a search with zero results (E5).
 - Response schemas are strict-valid by our own check (`tests/test_schemas.py`), not yet against a live provider: confirm on the first live run.
+
+## Carried from Phase 5
+
+- `ng-src--lost` is dead against the backend: `sources.page_version_id` is NOT NULL and unobtainable pages are never linked to claims, yet the ClaimCard README lists LOST sources. Record unobtainable sources against the claims they were meant to support (a nullable `page_version_id` or a separate link), and test that the ClaimCard shows LOST. Phase 8 should check that the report handles them.
+- Retries stream into the same trail step with no attempt marker, so the live text of a retried decision runs together: add a separator, or reset the text on retry, once real models stream.
+- Re-check the per-delta render cost under real streaming rates (model text is folded in once per animation frame and only the trail's open step and the log's live rows re-render on it).
