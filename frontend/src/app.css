@@ -48,3 +48,12 @@ html, body, #root { height: 100%; margin: 0; }
 .plan-review__dock { padding: var(--space-3); }
 .plan-review__dock:empty { display: none; }
 .plan-review__pane { padding: var(--space-4); }
+
+/* ScreenControlBoard: panes come from ng-board__body (284 / 1fr / 364); meters at the preview's
+   widths; a SystemPause banner adds a row between the header and the panes. */
+.control-board--banner { grid-template-rows: auto auto 1fr; }
+.board-head__title { gap: 2px; min-width: 0; }
+.board-head__spend { width: 130px; }
+.board-head__nodes { width: 100px; }
+.board-head__depth { width: 84px; }
+.board-head__controls { position: relative; }

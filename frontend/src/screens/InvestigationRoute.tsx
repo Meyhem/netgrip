@@ -6,6 +6,7 @@ import { usePoll } from "../lib/usePoll";
 import { Banner } from "../ui/Banner";
 import { StatusPill } from "../ui/StatusPill";
 import { INVESTIGATION_PILL } from "../ui/vocab";
+import { ControlBoard } from "./ControlBoard";
 import { NewInvestigation } from "./NewInvestigation";
 import { PlanReview } from "./PlanReview";
 
@@ -57,5 +58,6 @@ export function InvestigationRoute({ board = false }: { board?: boolean }) {
   const name = board ? "ControlBoard" : screenFor(state);
   if (name === "PlanReview" || (name === "NewInvestigation" && drafting)) return <PlanReview id={id} />;
   if (name === "NewInvestigation") return <NewInvestigation draft={data.investigation} />;
+  if (name === "ControlBoard") return <ControlBoard id={id} />;
   return <NotBuilt state={state} origin={data.investigation.pause_cause} />;
 }

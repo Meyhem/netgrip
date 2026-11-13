@@ -59,7 +59,8 @@ describe("InvestigationRoute", () => {
         <Routes><Route path="/investigations/:id" element={<InvestigationRoute />} /></Routes>
       </MemoryRouter>,
     );
-    expect(await screen.findByRole("status")).toHaveClass("ng-banner");
-    expect(document.querySelector(".ng-pill")).toHaveTextContent("Running");
+    // Running opens the control board.
+    expect(await screen.findByRole("complementary", { name: "Execution order" })).toHaveClass("ng-pane--left");
+    expect(document.querySelector(".ng-board__head .ng-pill")).toHaveTextContent("Running");
   });
 });

@@ -111,6 +111,9 @@ export interface Snapshot {
   schedule: { order: string[]; reasons: Record<string, string>; slots: number };
   focus_node_id: string | null;
   plan_version: number;
+  /** The newest durable events (up to 200, oldest first) up to `seq`. Sent by the snapshot
+   * endpoint only; the reducer leaves it as loaded. */
+  recent_events?: DurableEvent[];
 }
 
 /** Streamed model text and similar: no seq, never stored or replayed (D-11). */

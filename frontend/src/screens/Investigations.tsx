@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { createInvestigation, deleteInvestigation, getJSON } from "../api/client";
 import type { InvestigationRow, InvestigationState, Settings, Storage } from "../api/types";
-import { bytes, money, moneyOf } from "../lib/format";
+import { bytes, clock, money, moneyOf } from "../lib/format";
 import { usePoll } from "../lib/usePoll";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
@@ -60,10 +60,6 @@ function line2(r: InvestigationRow): ReactNode {
   }
 }
 
-const clock = (s: number) => {
-  const t = Math.max(0, Math.floor(s));
-  return `${Math.floor(t / 3600)}:${String(Math.floor((t % 3600) / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
-};
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
 function runTime(r: InvestigationRow): string {

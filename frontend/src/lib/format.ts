@@ -8,6 +8,12 @@ export function duration(seconds: number): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+/** Run time as h:mm:ss: "0:22:10". */
+export function clock(seconds: number): string {
+  const t = Math.max(0, Math.floor(seconds));
+  return `${Math.floor(t / 3600)}:${String(Math.floor((t % 3600) / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+}
+
 const MB = 1024 * 1024;
 export function bytes(n: number): string {
   if (n <= 0) return "0 MB";
