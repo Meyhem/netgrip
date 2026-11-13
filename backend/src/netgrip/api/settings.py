@@ -4,6 +4,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel
 
 from netgrip.adapters.model_openai import check_model_key
+from netgrip.adapters.search import SearchUnavailable
 from netgrip.api.deps import get_db, get_engine
 from netgrip.engine import limiter
 from netgrip.engine.engine import Engine
@@ -67,6 +68,20 @@ async def check_key(engine: Annotated[Engine, Depends(get_engine)]) -> KeyStatus
     status = await check_model_key(engine.model_client)
     await mark_key(engine.db, "model", status.status, status.message)
     return await key_status(engine.db, "model")
+
+
+@router.post("/keys/search/check")
+async def check_search_key(engine: Annotated[Engine, Depends(get_engine)]) -> KeyStatus:
+    """Ask the search provider whether the stored key works, and record the verdict."""
+    status = await key_status(engine.db, "search")
+    if engine.config.fake or not status.set or not hasattr(engine.search, "check"):
+        return status
+    try:
+        accepted, message = await engine.search.check()
+    except SearchUnavailable:
+        return status  # no verdict: the provider could not be reached
+    await mark_key(engine.db, "search", "set" if accepted else "rejected", message)
+    return await key_status(engine.db, "search")
 
 
 class EstimateBody(BaseModel):
