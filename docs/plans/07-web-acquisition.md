@@ -120,3 +120,5 @@ Deadlines and limits chosen here (A-09; all in settings under Capacity or as con
 
 - The page store does not remember an unobtainable URL per investigation (the node context reads past `page.unobtainable` events instead), so concurrent nodes can fetch a dead URL again with the full escalation: remember it in the store.
 - The reconcile lock is held across model calls, so reconciling is serial per investigation, and the match prompt carries every known claim: revisit both with live latency and cost.
+- `SearchRejected("request")` still pauses as `search_unavailable`, and each resume reruns the same refused query: treat it as a search with zero results (E5).
+- Response schemas are strict-valid by our own check (`tests/test_schemas.py`), not yet against a live provider: confirm on the first live run.

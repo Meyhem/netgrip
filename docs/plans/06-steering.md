@@ -152,3 +152,5 @@ The title starts with "Paused:" and states the cause in plain words. The banner 
 - The runtime reads `effort.parallel` once per launch: an effort change must make it read it again.
 - A pause while the runtime drains records nothing durable until the drain ends, so a kill in that window resumes as Running: consider a durable "pausing" marker.
 - The model and search limiters are resized only on GET /pools and at start: resize them on the settings PATCH too.
+- A Rejected dependency leaves its dependant Pending forever (reason `dependency:<id>`) while the run still concludes: treat Rejected like a dependency left Failed (run, with a note in the brief), or show the node as not run.
+- Return work that hits an unexpected error stays owed and the investigation stays Running with no live loop and no visible cause until a resume or restart: record it as a system pause with a cause the board can show.
