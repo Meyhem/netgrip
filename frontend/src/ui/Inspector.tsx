@@ -32,6 +32,15 @@ export interface InspectorProps {
   nodeActions?: ReactNode;
   /** Phase 6: the InstructionComposer, pinned to the bottom. */
   composer?: ReactNode;
+  /** Under the header: the inline re-run question. */
+  notice?: ReactNode;
+  /** The steer button of an excluded node's Overview (Restore branch). */
+  restoreAction?: ReactNode;
+  /** Restore a superseded child from an instruction's diff. */
+  onRestore?: (nodeId: string) => void;
+  restoring?: (nodeId: string) => boolean;
+  /** Show an event in the log (the sequence number of an instruction). */
+  onSeq?: (seq: number) => void;
 }
 
 const NO_CLAIMS = "No claims yet. They appear here as pages are read.";
@@ -86,10 +95,10 @@ function proposedByText(node: GraphNode, s: Snapshot): string | null {
   return `Proposed by ${by === "user" ? "you" : `the ${by}`}`;
 }
 
-interface Ctx { s: Snapshot; events: DurableEvent[]; node: GraphNode; detail: NodeDetail; displayIds: Record<string, string>; live: boolean }
+interface Ctx { restoreAction?: ReactNode; onRestore?: (id: string) => void; restoring?: (id: string) => boolean; onSeq?: (seq: number) => void; s: Snapshot; events: DurableEvent[]; node: GraphNode; detail: NodeDetail; displayIds: Record<string, string>; live: boolean }
 
 /** ScreenNodeDetail / ScreenControlBoard region 4: the selected node, one tab at a time. */
-export function Inspector({ investigationId, s, events, nodeId, live: streamLive = true, nodeActions, composer }: InspectorProps) {
+export function Inspector({ investigationId, s, events, nodeId, live: streamLive = true, nodeActions, composer, notice, restoreAction, onRestore, restoring, onSeq }: InspectorProps) {
   const halted = s.investigation.state === "Paused" || s.investigation.state === "Stopped";
   const rootId = s.nodes.find((n) => n.parent_id === null)?.id ?? null;
   const id = nodeId ?? rootId;
@@ -123,7 +132,7 @@ export function Inspector({ investigationId, s, events, nodeId, live: streamLive
   } else if (!detail) {
     body = <div className="ng-activity"><span className="ng-activity__verb">Loading</span><span className="ng-activity__what">{node.display_id}</span></div>;
   } else {
-    const ctx: Ctx = { s, events, node, detail, displayIds, live };
+    const ctx: Ctx = { s, events, node, detail, displayIds, live, restoreAction, onRestore, restoring, onSeq };
     body =
       tab === "overview" ? <Overview {...ctx} />
       : tab === "claims" ? <ClaimsTab key={node.id} {...ctx} />
@@ -146,6 +155,7 @@ export function Inspector({ investigationId, s, events, nodeId, live: streamLive
           </div>
           <h2 className="ng-heading">{node.question}</h2>
           {node.justification && <p className="ng-small ng-muted"><span className="ng-label">Why </span>{node.justification}</p>}
+          {notice}
         </div>
       )}
       <div className="ng-tabs" role="tablist" aria-label="Node detail">
@@ -306,7 +316,7 @@ function RejectedOverview({ s, node }: Ctx) {
 }
 
 /** Ignored or Superseded: who excluded it and when, and what is kept. */
-function ExcludedOverview({ s, events, node, detail }: Ctx) {
+function ExcludedOverview({ s, events, node, detail, restoreAction }: Ctx) {
   const inclusion = node.inclusion as "Ignored" | "Superseded";
   const ev = lastByNode(events, ["node.inclusion_changed"]).get(node.id);
   const fromEvent = ev && ev.data.inclusion === inclusion ? ev : null;
@@ -333,6 +343,7 @@ function ExcludedOverview({ s, events, node, detail }: Ctx) {
           : `This branch is stopped. Its ${plural(n, "claim")} ${n === 1 ? "is" : "are"} kept out of the report, and the report will list the branch as excluded.`}
       </p>
       <div className="ng-well">{plural(b.nodes + 1, "node")} · {money(b.spent)} spent · {plural(n, "claim")} kept in storage</div>
+      {restoreAction}
     </>
   );
 }
@@ -360,13 +371,18 @@ function ClaimsTab({ detail, displayIds }: Ctx) {
 }
 
 /** Inherited from the root down, then the node's own, oldest first: the order the agent reads them. */
-function InstructionsTab({ node, detail, displayIds }: Ctx) {
+function InstructionsTab({ node, detail, displayIds, s, onRestore, restoring, onSeq }: Ctx) {
+  const questions = Object.fromEntries(s.nodes.map((n) => [n.id, n.question]));
   const { inherited, own } = detail.instructions;
   return (
     <>
       <span className="ng-label">In the order the agent reads them</span>
       {inherited.map((i) => <Instruction key={i.id} instruction={i} nodeDisplayIds={displayIds} variant="inherited" from={i.from_display_id} />)}
-      {own.map((i) => <Instruction key={i.id} instruction={i} nodeDisplayIds={displayIds} variant={i.state === "queued" ? "queued" : "applied"} />)}
+      {own.map((i) => (
+        <Instruction key={i.id} instruction={i} nodeDisplayIds={displayIds} nodeQuestions={questions} onSeq={onSeq}
+          onRestore={onRestore} restoring={restoring} variant={i.state === "queued" ? "queued" : "applied"}
+          waitingFor={i.waiting_for ? `applies when ${i.waiting_for}` : "applies at once"} />
+      ))}
       {own.length === 0 && <span className="ng-small ng-muted">No instruction has been given to {node.display_id} itself.</span>}
     </>
   );

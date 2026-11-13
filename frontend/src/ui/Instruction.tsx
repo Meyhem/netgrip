@@ -13,7 +13,7 @@ const VARIANT_CLASS: Record<InstructionVariant, string | null> = {
 };
 
 /** A sent instruction, verbatim, with its `ng-diff` once applied. */
-export function Instruction({ instruction, nodeDisplayIds, nodeQuestions = {}, variant, versionLabel, from, waitingFor }: {
+export function Instruction({ instruction, nodeDisplayIds, nodeQuestions = {}, variant, versionLabel, from, waitingFor, onRestore, restoring, onSeq }: {
   instruction: InstructionData;
   nodeDisplayIds: Record<string, string>;
   /** Questions for superseded and proposed nodes, shown after their ids. */
@@ -25,17 +25,24 @@ export function Instruction({ instruction, nodeDisplayIds, nodeQuestions = {}, v
   from?: string;
   /** Queued: what it is waiting for. */
   waitingFor?: string;
+  /** A Restore button on each superseded child of the diff. */
+  onRestore?: (nodeId: string) => void;
+  restoring?: (nodeId: string) => boolean;
+  /** The sequence number links to its row in the event log. */
+  onSeq?: (seq: number) => void;
 }) {
   const i = instruction;
   const name = (id: string) => nodeDisplayIds[id] ?? "?";
   const named = (id: string) => [name(id), nodeQuestions[id]].filter(Boolean).join(" ");
-  const sent = `You · ${seqLabel(i.queued_seq)}`;
+  const seqText = (seq: number) =>
+    onSeq ? <button type="button" className="ng-btn ng-btn--sm ng-btn--quiet" aria-label={`Show ${seqLabel(seq)} in the log`} onClick={() => onSeq(seq)}>{seqLabel(seq)}</button> : seqLabel(seq);
+  const sent = <>You · {seqText(i.queued_seq)}</>;
   const status =
     variant === "queued"
       ? `queued · ${waitingFor ?? "applies when the re-plan is drawn"}`
       : i.state === "undone"
         ? "undone"
-        : [versionLabel, i.applied_seq != null ? `applied ${seqLabel(i.applied_seq)}` : null].filter(Boolean).join(" · ");
+        : <>{[versionLabel, i.applied_seq != null ? "applied" : null].filter(Boolean).join(" · ")}{i.applied_seq != null && <> {seqText(i.applied_seq)}</>}</>;
   const d = variant === "queued" ? null : i.diff;
   const hasDiff = d && (d.kept.length || d.superseded.length || d.proposed.length || d.notes.length);
 
@@ -48,7 +55,16 @@ export function Instruction({ instruction, nodeDisplayIds, nodeQuestions = {}, v
       {d && hasDiff ? (
         <div className="ng-diff instr-diff">
           {d.kept.length > 0 && <span className="ng-diff__k">{"= kept".padEnd(14)}{d.kept.map(name).join(", ")}</span>}
-          {d.superseded.map((id) => <span key={`s-${id}`} className="ng-diff__s">{"↺ superseded".padEnd(14)}{named(id)}</span>)}
+          {d.superseded.map((id) => (
+            <span key={`s-${id}`} className="ng-diff__s">
+              {"↺ superseded".padEnd(14)}{named(id)}
+              {onRestore && (
+                <button type="button" className="ng-btn ng-btn--sm ng-btn--quiet" disabled={restoring?.(id)} onClick={() => onRestore(id)}>
+                  {restoring?.(id) ? "Restoring…" : "Restore"}
+                </button>
+              )}
+            </span>
+          ))}
           {d.proposed.map((id) => <span key={`p-${id}`} className="ng-diff__n">{"+ proposed".padEnd(14)}{named(id)}</span>)}
           {d.notes.map((n, k) => <span key={`n-${k}`}>{n}</span>)}
         </div>

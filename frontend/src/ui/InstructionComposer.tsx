@@ -15,8 +15,11 @@ export interface InstructionComposerProps {
   /** Nodes the instruction reaches: the target and all its descendants (U1). */
   reach: number;
   hasChildren: boolean;
-  /** The root after approval: no text, says what to do instead. */
-  locked?: boolean;
+  /** No text: the root after approval, or an investigation that is no longer steerable. A
+   * string replaces the root's explanation. */
+  locked?: boolean | string;
+  /** Changes when `I` was pressed: the field takes focus. */
+  focusToken?: number;
   /** Plan review: every instruction redraws the whole plan. */
   plan?: boolean;
   buttonLabel: string;
@@ -55,7 +58,7 @@ function writeDraft(key: string, text: string) {
 /** Where the user steers with words: head with target and reach, the textarea, and a foot that
  * says when the instruction takes effect. `⌘↵` sends; `Esc` leaves the field and keeps the draft. */
 export function InstructionComposer({
-  target, reach, hasChildren, locked, plan, buttonLabel, buttonVariant = "default",
+  target, reach, hasChildren, locked, focusToken, plan, buttonLabel, buttonVariant = "default",
   onSend, sent, sentLabel, disabled, draftKey,
 }: InstructionComposerProps) {
   const key = storageKey(draftKey, target.id);
@@ -63,6 +66,7 @@ export function InstructionComposer({
   const box = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => setText(readDraft(key)), [key]);
+  useEffect(() => { if (focusToken) box.current?.focus(); }, [focusToken]);
 
   const change = (value: string) => {
     setText(value);
@@ -73,7 +77,7 @@ export function InstructionComposer({
     return (
       <div className="ng-composer is-locked">
         <div className="ng-composer__head">✎︎ Instruct {target.display_id} <span>· {target.label}</span></div>
-        <div className="ng-composer__foot"><span className="ng-grow">{LOCKED}</span></div>
+        <div className="ng-composer__foot"><span className="ng-grow">{typeof locked === "string" ? locked : LOCKED}</span></div>
       </div>
     );
   }

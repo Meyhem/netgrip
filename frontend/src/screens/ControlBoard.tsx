@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { getJSON } from "../api/client";
-import type { InvestigationState, Snapshot } from "../api/types";
+import type { GraphNode, InvestigationState, Snapshot } from "../api/types";
 import { useInvestigation, useLiveModelText } from "../state/investigationStore";
+import { useBoardKeys } from "../lib/keys";
 import { useOlderEvents } from "../state/olderEvents";
 import { useCommand } from "../state/useCommand";
 import { useSelection } from "../state/selection";
@@ -13,6 +14,9 @@ import { Button } from "../ui/Button";
 import { EventLog, type EventLogProps } from "../ui/EventLog";
 import { ExecutionOrder } from "../ui/ExecutionOrder";
 import { Inspector } from "../ui/Inspector";
+import { Instruction } from "../ui/Instruction";
+import { InstructionComposer } from "../ui/InstructionComposer";
+import { descendants, instructTarget, NodeActions, RerunQuestion, useNodeActions } from "../ui/NodeActions";
 import { RunControls } from "../ui/RunControls";
 import { cx } from "../ui/cx";
 import { Page } from "./InvestigationRoute";
@@ -155,24 +159,31 @@ export function ControlBoard({ id }: { id: string }) {
     select(nodeId);
     if (nodeId) setSheetOpen(true);
   }, [select]);
-  // `L` toggles the log; Escape closes the inspector sheet (ScreenControlBoard keyboard).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if ((e.target as HTMLElement | null)?.closest?.("input, textarea, select, [contenteditable]")) return;
-      if (e.key === "Escape") {
-        // A dialog (stored page, delete) takes Escape first.
-        if (document.querySelector('[role="dialog"]')) return;
-        setSheetOpen(false);
-        return;
-      }
-      if (e.key.toLowerCase() !== "l") return;
-      e.preventDefault();
-      setLogCollapsed((c) => !c);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+  const [focusToken, setFocusToken] = useState(0);
+  const inspectedNode = snapshot
+    ? snapshot.nodes.find((n) => n.id === (selectedId ?? snapshot.nodes.find((x) => x.parent_id === null)?.id)) ?? null
+    : null;
+  const actions = useNodeActions(snapshot, inspectedNode, command, () => setFocusToken((t) => t + 1));
+  // The keyboard (ScreenControlBoard): one handler for the whole board. Escape clears the
+  // selection and, below 1180px, closes the inspector sheet.
+  useBoardKeys({
+    instruct: () => actions.runKey("I"),
+    deeper: () => actions.runKey("D"),
+    focus: () => actions.runKey("F"),
+    pause: () => actions.runKey("Space"),
+    ignore: () => actions.runKey("X"),
+    rerun: () => actions.runKey("R"),
+    menu: () => actions.setMenu((o) => !o),
+    log: () => setLogCollapsed((c) => !c),
+    escape: () => { setSheetOpen(false); select(null); },
+  });
+  // An instruction's sequence number shows its row in the log.
+  const showSeq = useCallback((seq: number) => {
+    setLogCollapsed(false);
+    setTimeout(() => document.querySelector(`.ng-log__row[data-seq="${seq}"]`)?.scrollIntoView?.({ block: "center" }), 0);
   }, []);
+  const restore = (nid: string) => void command.send("restore_branch", { key: `restore_branch:${nid}`, nodeId: nid });
+  const restoring = (nid: string) => command.isSent(`restore_branch:${nid}`);
   if (!snapshot) {
     return error ? <Page><Banner tone="warn" title="Netgrip cannot reach its service.">Reload to try again. Nothing is lost.</Banner></Page> : <LoadingBoard />;
   }
@@ -200,7 +211,7 @@ export function ControlBoard({ id }: { id: string }) {
       executionOrder={
         synthesising
           ? <Synthesising claims={synthesisClaims} />
-          : <ExecutionOrder s={snapshot} events={events} selectedId={selectedId} onSelect={pick} live={status === "open"} />
+          : <ExecutionOrder s={snapshot} events={events} selectedId={selectedId} onSelect={pick} live={status === "open"} onRestore={restore} restoring={restoring} />
       }
       graph={<BoardGraph s={snapshot} events={events} selectedId={selectedId} onSelect={pick} live={status === "open"} />}
       eventLog={
@@ -210,8 +221,53 @@ export function ControlBoard({ id }: { id: string }) {
       }
       inspector={
         <Inspector investigationId={id} s={snapshot} events={events} nodeId={inspected} live={status === "open"}
-          nodeActions={null /* Phase 6: NodeActions */} composer={null /* Phase 6: InstructionComposer */} />
+          nodeActions={<NodeActions state={actions} />}
+          notice={inspectedNode ? <RerunQuestion node={inspectedNode} state={actions} /> : null}
+          restoreAction={inspectedNode && inspectedNode.inclusion !== "Included" ? (
+            <Button variant="steer" sent={actions.isSent("restore_branch")} sentLabel="Restoring…" onClick={() => actions.run("restore_branch")}>Restore branch</Button>
+          ) : null}
+          onRestore={restore} restoring={restoring} onSeq={showSeq}
+          composer={inspectedNode ? <BoardComposer s={snapshot} node={inspectedNode} command={command} focusToken={focusToken} onSeq={showSeq} /> : null} />
       }
     />
+  );
+}
+
+/** The composer pinned to the bottom of the inspector, aimed at the selected node (a Rejected
+ * node's parent), with the target's own latest instructions above it. */
+function BoardComposer({ s, node, command, focusToken, onSeq }: {
+  s: Snapshot; node: GraphNode; command: ReturnType<typeof useCommand>; focusToken: number; onSeq: (seq: number) => void;
+}) {
+  const target = instructTarget(s, node);
+  const state = s.investigation.state;
+  const isRoot = target.parent_id === null;
+  const key = `instruct:${target.id}`;
+  const locked =
+    isRoot ? true
+    : state === "Stopped" ? "Resume the investigation to give instructions."
+    : state === "Running" || state === "Paused" ? false
+    : "The research has ended. Instructions no longer apply.";
+  const reach = descendants(s, target.id) + 1;
+  const hasChildren = s.nodes.some((n) => n.parent_id === target.id && n.inclusion === "Included" && n.status !== "Rejected");
+  const names = Object.fromEntries(s.nodes.map((n) => [n.id, n.display_id]));
+  const questions = Object.fromEntries(s.nodes.map((n) => [n.id, n.question]));
+  const own = s.instructions.filter((i) => i.node_id === target.id && i.state !== "undone");
+  const shown = [...own.filter((i) => i.state === "queued"), ...own.filter((i) => i.state === "applied").slice(-1)];
+  return (
+    <>
+      {shown.map((i) => (
+        <Instruction key={i.id} instruction={i} nodeDisplayIds={names} nodeQuestions={questions}
+          variant={i.state === "queued" ? "queued" : "applied"} onSeq={onSeq}
+          waitingFor={i.waiting_for ? `applies when ${i.waiting_for}` : "applies at once"}
+          onRestore={(nid) => void command.send("restore_branch", { key: `restore_branch:${nid}`, nodeId: nid })}
+          restoring={(nid) => command.isSent(`restore_branch:${nid}`)} />
+      ))}
+      <InstructionComposer
+        target={{ id: target.id, display_id: target.display_id, label: isRoot ? "the whole investigation" : target.question }}
+        reach={reach} hasChildren={hasChildren} locked={locked} focusToken={focusToken}
+        buttonLabel="Send instruction"
+        sent={command.isSent(key)} sentLabel="Sending…" draftKey={s.investigation.id}
+        onSend={(text) => command.send("add_instruction", { key, nodeId: target.id, payload: { text } })} />
+    </>
   );
 }

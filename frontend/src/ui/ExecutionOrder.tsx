@@ -13,6 +13,10 @@ export interface ExecutionOrderProps {
   onSelect: (id: string) => void;
   /** False while the stream is disconnected: running glyphs stop pulsing. */
   live?: boolean;
+  /** Not running rows (ignored, superseded) gain a Restore link that sends this. */
+  onRestore?: (nodeId: string) => void;
+  /** True while the restore of that node is in flight (`is-sent`). */
+  restoring?: (nodeId: string) => boolean;
 }
 
 type Section = "now" | "next" | "done" | "not-running";
@@ -78,7 +82,7 @@ function whyText(row: NotRunningRow, s: Snapshot, inclusion: Map<string, Durable
 
 /** ExecutionOrder: the board's left pane. The same nodes as the graph, by time: Now, Next,
  * Done, Not running, always in that order. */
-export function ExecutionOrder({ s, events, selectedId, onSelect, live = true }: ExecutionOrderProps) {
+export function ExecutionOrder({ s, events, selectedId, onSelect, live = true, onRestore, restoring }: ExecutionOrderProps) {
   const paused = s.investigation.state === "Paused";
   // Completed or Stopped: the board is history, nothing is being decided.
   const history = s.investigation.state === "Completed" || s.investigation.state === "Stopped";
@@ -138,11 +142,22 @@ export function ExecutionOrder({ s, events, selectedId, onSelect, live = true }:
 
     const offRows: Row[] = derived.notRunning.map((row) => ({
       id: row.node.id, section: "not-running", q: title(row.node), off: true,
-      n: NOT_RUNNING_GLYPH[row.why], side: "", meta: whyText(row, s, inclusion, rejected),
+      n: NOT_RUNNING_GLYPH[row.why], side: "",
+      meta: (
+        <>
+          {whyText(row, s, inclusion, rejected)}
+          {onRestore && (row.why === "Ignored" || row.why === "Superseded") && (
+            <button type="button" className="ng-btn ng-btn--sm ng-btn--quiet" disabled={restoring?.(row.node.id)}
+              onClick={(e) => { e.stopPropagation(); onRestore(row.node.id); }}>
+              {restoring?.(row.node.id) ? "Restoring…" : "Restore"}
+            </button>
+          )}
+        </>
+      ),
     }));
 
     return { now: nowRows, next: nextRows, done: doneRows, off: offRows };
-  }, [s, events, derived, now, live, clockNow]);
+  }, [s, events, derived, now, live, clockNow, onRestore, restoring]);
 
   const order = useMemo(() => [...rows.now, ...rows.next, ...rows.done, ...rows.off].map((r) => r.id), [rows]);
   const pane = useRef<HTMLDivElement>(null);
