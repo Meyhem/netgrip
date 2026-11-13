@@ -6,7 +6,6 @@ from pydantic import BaseModel
 from netgrip.adapters.model_openai import check_model_key
 from netgrip.adapters.search import SearchUnavailable
 from netgrip.api.deps import get_db, get_engine
-from netgrip.engine import limiter
 from netgrip.engine.engine import Engine
 from netgrip.engine.estimate import Estimate, estimate
 from netgrip.store.db import Database
@@ -39,10 +38,11 @@ async def read(db: Annotated[Database, Depends(get_db)]) -> dict:
 
 @router.patch("")
 async def patch(
-    db: Annotated[Database, Depends(get_db)], partial: Annotated[dict[str, Any], Body()]
+    engine: Annotated[Engine, Depends(get_engine)], partial: Annotated[dict[str, Any], Body()]
 ) -> dict:
+    db = engine.db
     updated = await patch_settings(db, partial)
-    limiter.resize_limiters(updated.capacity)  # the pools follow the new capacity at once
+    engine.apply_settings(updated)  # pools and limiters follow the new settings at once
     return await _response(db, updated)
 
 

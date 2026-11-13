@@ -66,6 +66,7 @@ class Engine:
         fetcher: Fetcher | None = None,
         clock: Clock | None = None,
         pages: PageStore | None = None,
+        web=None,
     ) -> None:
         self.db = db
         self.config = config
@@ -73,6 +74,7 @@ class Engine:
         self.model_client = model_client
         self.search = search
         self.fetcher = fetcher
+        self.web = web  # the real adapters' owner (Phase 7); None with fakes
         self.clock = clock
         # One page store for every runtime: its in-flight fetch sharing (V8) and per-site
         # politeness only work when concurrent investigations go through the same one.
@@ -81,8 +83,16 @@ class Engine:
         self.runtimes: dict[str, InvestigationRuntime] = {}
         self._background: set[asyncio.Task] = set()
 
+    def apply_settings(self, settings) -> None:
+        """Resize the live limiters and pools; no restart needed."""
+        resize_limiters(settings.capacity)
+        if self.web is not None:
+            self.web.apply(settings.capacity, settings.politeness_seconds)
+
     async def start(self) -> None:
-        resize_limiters((await get_settings(self.db)).capacity)
+        if self.web is not None:
+            await self.web.start()
+        self.apply_settings(await get_settings(self.db))
         await recover(self)
 
     def background(self, coro, name: str) -> None:
@@ -103,6 +113,8 @@ class Engine:
         await self.planning.stop()
         for rt in list(self.runtimes.values()):
             await rt.stop(abandon=True)
+        if self.web is not None:
+            await self.web.stop()
 
     @property
     def can_research(self) -> bool:

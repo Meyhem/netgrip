@@ -137,7 +137,13 @@ async def test_system_pools_and_storage(app_client):
     pools = (await app_client.get("/api/system/pools")).json()
     assert pools["models"] == {"in_use": 0, "limit": 8}
     assert pools["search"] == {"in_use": 0, "limit": 4}
-    assert pools["browsers"] == {"in_use": 0, "limit": 6}
+    assert pools["browsers"] == {
+        "in_use": 0,
+        "limit": 6,
+        "open": 0,
+        "restarts_today": 0,
+        "timed_out_today": 0,
+    }
     assert pools["today_usd"] == 0
     await create(app_client)
     storage = (await app_client.get("/api/system/storage")).json()

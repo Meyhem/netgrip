@@ -7,6 +7,7 @@ import { usePoll } from "../lib/usePoll";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { Input, KeyField, NumberField, parseMoney, Seg } from "../ui/Field";
+import { browserHealthText } from "../ui/TopBar";
 import { Page } from "./InvestigationRoute";
 import { parseDomains, PRESET_WORD, TIER_WORD } from "./NewInvestigation";
 
@@ -218,7 +219,7 @@ export function Settings() {
               ["investigations", "Investigations in parallel", undefined, null],
               ["model_calls", "Model calls at once", undefined, pools && `now: ${pools.models.in_use} in use`],
               ["searches", "Searches at once", undefined, pools && `now: ${pools.search.in_use} in use`],
-              ["browser_pages", "Browser pages at once", "Each uses memory. 6 suits a 16 GB machine.", pools && `now: ${pools.browsers.in_use} open`],
+              ["browser_pages", "Browser pages at once", "Each uses memory. 6 suits a 16 GB machine.", pools && `now: ${browserHealthText(pools.browsers)}`],
             ] as const).map(([key, label, hint, now]) => (
               <Row key={key} label={label} hint={hint} saved={saved === `cap-${key}`} error={err(`cap-${key}`)}>
                 <div className="ng-row">

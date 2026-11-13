@@ -19,6 +19,7 @@ describe("TopBar", () => {
     expect(pools).toHaveClass("ng-pools");
     expect(pools.querySelectorAll("span")).toHaveLength(4);
     expect(pools).toHaveTextContent("today $3.12");
+    expect(pools).toHaveAttribute("title", expect.stringContaining("4 open · 2 restarts today · 7 fetches timed out"));
     expect(screen.getByText("grip").closest(".ng-brand")).toHaveTextContent("netgrip");
     expect(screen.getByRole("link", { name: "Investigations" })).toHaveClass("is-on");
   });

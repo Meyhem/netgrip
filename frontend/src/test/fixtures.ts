@@ -3,7 +3,7 @@ import type { Claim, ClaimSource, GraphNode, InvestigationRow, NodeDetail, Pools
 export const POOLS: Pools = {
   models: { in_use: 5, limit: 8 },
   search: { in_use: 1, limit: 4 },
-  browsers: { in_use: 4, limit: 6 },
+  browsers: { in_use: 4, limit: 6, restarts_today: 2, timed_out_today: 7 },
   today_usd: 3.12,
 };
 

@@ -8,7 +8,7 @@ from pydantic import ValidationError
 
 from netgrip.adapters.fakes import FakeFetcher, FakeModelClient, FakeSearch
 from netgrip.adapters.model_openai import OpenAICompatClient
-from netgrip.adapters.search_tavily import TavilySearch
+from netgrip.adapters.web import Web
 from netgrip.api import commands, investigations, nodes, settings, stream, system
 from netgrip.boundary.bus import EventBus
 from netgrip.boundary.commands import CommandRejected
@@ -56,7 +56,8 @@ def create_app(config: Config, frontend_dist: Path | None = None) -> FastAPI:
             async def search_key() -> str | None:
                 return await get_key(db, "search")
 
-            web = {"search": TavilySearch(search_key)}
+            real_web = Web(config.data_dir / "browser", search_key)
+            web = {"search": real_web.search, "fetcher": real_web.fetcher, "web": real_web}
         engine = Engine(db, config, EventBus(), model_client, **web)
         await engine.start()
         app.state.engine = engine

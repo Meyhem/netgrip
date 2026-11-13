@@ -100,12 +100,13 @@ class BrowserPool:
         hardened: bool = False,
         *,
         watchdog_interval_s: float = 2.0,
+        slots: Limiter | None = None,
     ) -> None:
         self.limits = limits
         self.profile_dir = Path(profile_dir) if profile_dir else Path("browser-profiles")
         self.hardened = hardened
         self.watchdog_interval_s = watchdog_interval_s
-        self._slots = Limiter("browser", capacity)
+        self._slots = slots or Limiter("browser", capacity)
         self._pw: Playwright | None = None
         self._current: _Browser | None = None
         self._all: list[_Browser] = []

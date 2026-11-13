@@ -198,7 +198,8 @@ export interface Settings {
 }
 
 export interface Pool { in_use: number; limit: number }
-export interface Pools { models: Pool; search: Pool; browsers: Pool; today_usd: number }
+export interface BrowserPool extends Pool { restarts_today?: number; timed_out_today?: number }
+export interface Pools { models: Pool; search: Pool; browsers: BrowserPool; today_usd: number }
 export interface Storage { total_bytes: number; investigations: number; pages: number; data_dir: string }
 
 export interface Range { low_usd: number; high_usd: number }

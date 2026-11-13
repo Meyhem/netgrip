@@ -9,9 +9,11 @@ import uuid
 from typing import Any
 from urllib.parse import urlparse
 
+from netgrip.adapters.domains import host_excluded
 from netgrip.adapters.fetcher import FetchAttempt
 from netgrip.adapters.model import Message, ModelMalformed, ModelRequest
 from netgrip.adapters.schema import nullable, obj, string_enum
+from netgrip.adapters.search import SearchRejected
 from netgrip.boundary.bus import Ephemeral
 from netgrip.engine import limiter
 from netgrip.engine.agent import NodeContext
@@ -75,9 +77,17 @@ def _can_read(ctx: NodeContext) -> bool:
     return len(ctx.state.attempted) < _sources_budget(ctx)
 
 
+def _excluded_domains(ctx: NodeContext) -> list[str]:
+    return list(ctx.investigation.settings.get("excluded_domains", []))
+
+
 def _next_url(ctx: NodeContext) -> str | None:
     s = ctx.state
-    s.queue = [u for u in s.queue if u not in s.unobtainable and u not in s.attempted]
+    blocked = _excluded_domains(ctx)
+    s.queue = [
+        u for u in s.queue
+        if u not in s.unobtainable and u not in s.attempted and not host_excluded(u, blocked)
+    ]  # fmt: skip
     return s.queue[0] if s.queue else None
 
 
@@ -137,6 +147,8 @@ def _problem(ctx: NodeContext, answer: dict) -> str | None:
             return "There is no result left to read; give a url or choose another action."
         if url in ctx.state.attempted or url in ctx.state.unobtainable:
             return f"{url} was already tried; choose another page or action."
+        if host_excluded(url, _excluded_domains(ctx)):
+            return f"{url} is on a site the user excluded; choose another page or action."
     if action == "split":
         if not answer.get("children"):
             return "A split needs at least one child with a question."
@@ -148,6 +160,11 @@ def _problem(ctx: NodeContext, answer: dict) -> str | None:
 def _progress(ctx: NodeContext) -> str:
     s = ctx.state
     out = [f"Pages tried: {len(s.attempted)} of {_sources_budget(ctx)} allowed."]
+    if ctx.investigation.settings.get("prefer") == "primary":
+        out.append(
+            "The user wants primary sources only: official and original documents, "
+            "not commentary or summaries of them."
+        )
     if s.queries:
         out.append("Searches done: " + "; ".join(s.queries))
     if s.queue:
@@ -305,13 +322,21 @@ async def aggregate(ctx: NodeContext, _: Any) -> Next:
 async def search(ctx: NodeContext, query: str) -> Next:
     await _activity(ctx, "Searching", "search", query)
     st = ctx.investigation.settings
-    async with limiter.search:  # shared by every runtime (D-05)
-        hits = await ctx.deps.search.search(
-            query, max_results=SEARCH_RESULTS,
-            exclude_domains=list(st.get("excluded_domains", [])), prefer=st.get("prefer", "none"),
-        )  # fmt: skip
+    try:
+        async with limiter.search:  # shared by every runtime (D-05)
+            hits = await ctx.deps.search.search(
+                query, max_results=SEARCH_RESULTS,
+                exclude_domains=list(st.get("excluded_domains", [])),
+                prefer=st.get("prefer", "none"),
+            )  # fmt: skip
+    except SearchRejected as e:
+        if e.kind != "request":
+            raise
+        hits = []  # this query was refused, not the key: a search with no results (E5)
     s = ctx.state
     s.queries.append(query)
+    blocked = _excluded_domains(ctx)  # also enforced here: a provider may ignore the filter (W4)
+    hits = [h for h in hits if not host_excluded(h.url, blocked)]
     new = [h.url for h in hits if h.url not in s.seen and h.url not in s.unobtainable]
     s.seen.update(new)
     s.queue.extend(new)
@@ -324,6 +349,9 @@ def _attempt_data(a: FetchAttempt) -> dict:
 
 
 async def read(ctx: NodeContext, url: str) -> Next:
+    if host_excluded(url, _excluded_domains(ctx)):
+        # Skipped before any request, and not recorded as unobtainable (W4).
+        return _after_page(ctx)
     await _activity(ctx, "Reading", "read", url)
     s = ctx.state
     s.attempted.append(url)

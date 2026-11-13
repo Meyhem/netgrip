@@ -104,7 +104,7 @@ describe("Settings", () => {
     api();
     show();
     expect(await screen.findByText("now: 5 in use")).toHaveClass("ng-mono");
-    expect(screen.getByText("now: 4 open")).toBeInTheDocument();
+    expect(screen.getByText("now: 4 open · 2 restarts today · 7 fetches timed out")).toBeInTheDocument();
   });
 
   it("no theme, account or notification section exists", async () => {

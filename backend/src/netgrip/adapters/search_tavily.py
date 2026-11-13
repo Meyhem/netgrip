@@ -3,10 +3,10 @@ is sent only in the Authorization header and never appears in a message or a log
 
 import logging
 from collections.abc import Awaitable, Callable
-from urllib.parse import urlsplit
 
 import httpx
 
+from netgrip.adapters.domains import host_excluded
 from netgrip.adapters.model import redact
 from netgrip.adapters.search import SearchHit, SearchRejected, SearchUnavailable
 
@@ -16,13 +16,6 @@ ENDPOINT = "https://api.tavily.com"
 TIMEOUT_SECONDS = 20.0
 PRIMARY_HINT = " (official or original sources: primary documents, not commentary)"
 _QUOTA_WORDS = ("usage limit", "quota", "credit", "plan limit", "exceeds your plan")
-
-
-def _host_excluded(url: str, domains: list[str]) -> bool:
-    host = (urlsplit(url).hostname or "").lower()
-    return any(
-        host == d or host.endswith("." + d) for d in (x.lower().lstrip(".") for x in domains)
-    )
 
 
 def _detail(resp: httpx.Response) -> str:
@@ -103,4 +96,4 @@ class TavilySearch:
             ]
         except (ValueError, KeyError, TypeError):
             raise SearchUnavailable("Unexpected response from the search provider") from None
-        return [h for h in hits if not _host_excluded(h.url, exclude_domains)][:max_results]
+        return [h for h in hits if not host_excluded(h.url, exclude_domains)][:max_results]

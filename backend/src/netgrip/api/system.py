@@ -22,13 +22,21 @@ def _size(path: Path) -> int:
 
 
 @router.get("/pools")
-async def pools(db: Annotated[Database, Depends(get_db)]) -> dict:
-    cap = (await get_settings(db)).capacity
-    limiter.resize_limiters(cap)  # settings may have changed since the last look
+async def pools(engine: Annotated[Engine, Depends(get_engine)]) -> dict:
+    settings = await get_settings(engine.db)
+    engine.apply_settings(settings)  # settings may have changed since the last look
+    cap = settings.capacity
+    health = engine.web.health() if engine.web is not None else None
     return {
         "models": {"in_use": limiter.model.in_use, "limit": cap.model_calls},
         "search": {"in_use": limiter.search.in_use, "limit": cap.searches},
-        "browsers": {"in_use": 0, "limit": cap.browser_pages},
+        "browsers": {
+            "in_use": health.open_pages if health else 0,
+            "limit": cap.browser_pages,
+            "open": health.browsers if health else 0,
+            "restarts_today": health.restarts_today if health else 0,
+            "timed_out_today": health.fetches_timed_out_today if health else 0,
+        },
         "today_usd": 0,
     }
 
