@@ -16,7 +16,7 @@ export function emptySnapshot(id: string): Snapshot {
       id, prompt: "", state: "Draft", pause_cause: null, pause_detail: null, effort: null,
       nodes_total: 0, nodes_max: 0, running_count: 0, spent_usd: 0, spend_approximate: false,
       spending_limit_usd: 5, disk_bytes: 0, run_seconds: 0, last_activity_at: "", summary: null,
-      settings: {} as InvestigationSettings, root_goal: null,
+      settings: {} as InvestigationSettings, root_goal: null, ended_early: false,
     },
     nodes: [],
     instructions: [],
@@ -27,6 +27,8 @@ export function emptySnapshot(id: string): Snapshot {
     plan_version: 0,
   };
 }
+
+const PAUSABLE: NodeState[] = ["Pending", "Running", "Waiting on children"];
 
 // Event data shapes are checked by the backend (boundary/events.py); read them loosely here.
 type Data = Record<string, any>;
@@ -126,6 +128,7 @@ const cases: Record<string, Case> = {
       excluded_by: null,
       excluded_at: null,
       excluded_instruction_id: null,
+      paused_from: null,
     };
     return { ...s, nodes: [...s.nodes, node] };
   },
@@ -152,6 +155,7 @@ const cases: Record<string, Case> = {
       {
         id: d.instruction_id, node_id: ev.node_id ?? rootId(s), text: d.text, state: "queued",
         queued_seq: ev.seq, applied_seq: null, diff: null, undone: false,
+        waiting_for: d.waiting_for ?? null,
       },
     ],
   }),
@@ -207,8 +211,9 @@ const cases: Record<string, Case> = {
   "node.failed": (s, ev, d) => onNode(status(s, ev, "Failed", null), ev, (n) => ({
     ...n, finished_seq: ev.seq, finished_at: ev.at, failure_reason: d.reason ?? null,
   })),
-  "node.reset": (s, ev) => onNode(status(s, ev, "Pending", null), ev, (n) => ({
+  "node.reset": (s, ev, d) => onNode(status(s, ev, "Pending", null), ev, (n) => ({
     ...n, finished_seq: null, finished_at: null, failure_reason: null,
+    verdict: d.reason === "rerun" ? null : n.verdict,
   })),
   "node.rejected": (s, ev, d) => onNode(s, ev, (n) => ({ ...n, status: "Rejected", rejection_reason: d.reason ?? null })),
 
@@ -220,6 +225,28 @@ const cases: Record<string, Case> = {
     ...s, investigation: { ...s.investigation, spending_limit_usd: Number(d.spending_limit_usd) },
   }),
 
+  // --- Phase 6: steering ---
+
+  // Pending, Running and Waiting nodes become Paused, remembering which; others are left.
+  "node.paused": (s, _ev, d) => mapNodes(s, d.node_ids as string[], (n) =>
+    PAUSABLE.includes(n.status) ? { ...n, paused_from: n.status, status: "Paused" } : n),
+  "node.resumed": (s, _ev, d) => mapNodes(s, d.node_ids as string[], (n) =>
+    n.status === "Paused"
+      ? { ...n, status: n.paused_from === "Waiting on children" ? "Waiting on children" : "Pending", paused_from: null }
+      : n),
+  "focus.changed": (s, _ev, d) => ({ ...s, focus_node_id: d.node_id ?? null }),
+  // New budgets replace the old; the node ceiling rises by the child nodes added.
+  "node.budget_changed": (s, _ev, d) => {
+    const budgets = d.budget as Record<string, NodeBudget>;
+    let added = 0;
+    const next = mapNodes(s, Object.keys(budgets), (n) => {
+      added += Math.max(0, (budgets[n.id].child_nodes ?? 0) - (n.budget?.child_nodes ?? 0));
+      return { ...n, budget: budgets[n.id] };
+    });
+    return { ...next, investigation: { ...next.investigation, nodes_max: next.investigation.nodes_max + added } };
+  },
+  "claim.withdrawn": same,
+
   // Recorded for the log, the node detail and the report; nothing in the snapshot changes.
   "node.step_completed": same,
   "node.off_topic": same,
@@ -230,7 +257,9 @@ const cases: Record<string, Case> = {
   "claim.added": same,
   "claim.updated": same,
   "claim.contradiction_recorded": same,
-  "investigation.concluding": same,
+  "investigation.concluding": (s, _ev, d) => ({
+    ...s, investigation: { ...s.investigation, ended_early: Boolean(d.ended_early) },
+  }),
   "system.recovered": same,
   "report.created": same,
 };

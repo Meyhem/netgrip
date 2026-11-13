@@ -88,6 +88,16 @@ def _nid(node: NodeRef) -> str:
 # --- Shared reads ----------------------------------------------------------------------------
 
 
+async def _effort(ctx: OrchestratorContext, settings: dict) -> Effort:
+    """The effort limits; the node ceiling includes the child nodes a "go deeper" added."""
+    effort = Effort.model_validate(settings["effort_budget"])
+    row = await ctx.db.read(
+        "SELECT nodes_extra FROM investigations WHERE id = ?", [ctx.investigation_id]
+    )
+    extra = row[0]["nodes_extra"] if row else 0
+    return effort.model_copy(update={"max_nodes": effort.max_nodes + extra})
+
+
 async def _settings(ctx: OrchestratorContext) -> dict:
     row = (
         await ctx.db.read(
@@ -212,9 +222,12 @@ def _code_rules(nodes: list[dict], ids: list[str], effort: Effort) -> dict[str, 
     for nid in ids:
         n = by_id[nid]
         parent = by_id.get(n["parent_id"])
-        allowed = json.loads(parent["budget"] or "{}").get("child_nodes", 0) if parent else 0
+        pbudget = json.loads(parent["budget"] or "{}") if parent else {}
+        allowed = pbudget.get("child_nodes", 0)
         used = per_parent.get(n["parent_id"], 0)
-        ok = n["depth"] <= effort.max_depth and used < allowed and total < effort.max_nodes
+        # "Go deeper" lets a branch go `depth_extra` levels past the investigation's limit.
+        depth_ok = n["depth"] <= effort.max_depth + pbudget.get("depth_extra", 0)
+        ok = depth_ok and used < allowed and total < effort.max_nodes
         fits[nid] = ok
         if ok:
             per_parent[n["parent_id"]] = used + 1
@@ -228,7 +241,7 @@ async def review_proposals(ctx: OrchestratorContext, proposals: list[NodeRef]) -
     (`orchestrator.review`) that may reject for weak justification or duplication. Rejected
     nodes stay in the graph as Rejected (G5)."""
     settings = await _settings(ctx)
-    effort = Effort.model_validate(settings["effort_budget"])
+    effort = await _effort(ctx, settings)
     nodes = await _nodes(ctx)
     by_id = {n["id"]: n for n in nodes}
     ids = [i for i in map(_nid, proposals) if by_id[i]["status"] == "Proposed"]
@@ -443,7 +456,7 @@ async def decide_next(ctx: OrchestratorContext) -> Literal["continue", "conclude
     no model call (O3). Otherwise one Strong call (`orchestrator.next`) that may ask for
     verification nodes (V1...) on Contested or key claims; they run on the Verifier tier."""
     settings = await _settings(ctx)
-    effort = Effort.model_validate(settings["effort_budget"])
+    effort = await _effort(ctx, settings)
     nodes = await _nodes(ctx)
     counted = [n for n in nodes if n["depth"] >= 1 and n["status"] not in TERMINAL_UNAPPROVED]
     refused = any(n["rejection_reason"] == BUDGET for n in nodes)

@@ -286,7 +286,7 @@ async def test_budget_exhausted_concludes_and_marks_cut_short(db):
     assert await decide_next(ctx) == "conclude"
     assert ctx.model.calls == []  # no model call once the budget is gone
     [(_, data)] = await events(db, "investigation.concluding")
-    assert data == {"cut_short_by": "budget"}
+    assert data == {"cut_short_by": "budget", "ended_early": False}
     inv = (await db.read("SELECT cut_short_by FROM investigations WHERE id = ?", [INV]))[0]
     assert inv["cut_short_by"] == "budget"
 
@@ -309,7 +309,7 @@ async def test_decide_next_conclude_not_cut_short(db):
     ctx = octx(db, {"orchestrator.next": [{"parsed": {"decision": "conclude", "verify": []}}]})
     assert await decide_next(ctx) == "conclude"
     [(_, data)] = await events(db, "investigation.concluding")
-    assert data == {"cut_short_by": None}
+    assert data == {"cut_short_by": None, "ended_early": False}
 
 
 async def test_malformed_review_entries_fall_back_to_approval(db):

@@ -492,3 +492,6 @@ async def _raise_limit(engine: Engine, tx: Tx, cmd: Command) -> list[EventDraft]
     if await _state_of(tx, inv) in ("Draft", "Completed"):
         raise CommandRejected("wrong_state", "The limit can not be changed now")
     return [EventDraft(type="limit.changed", actor="user", data={"spending_limit_usd": value})]
+
+
+from netgrip.engine import steering  # noqa: E402,F401  (registers the steering handlers)

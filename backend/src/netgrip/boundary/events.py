@@ -311,7 +311,7 @@ class NodeFailed(_Data):
 
 
 class NodeReset(_Data):
-    reason: Literal["recovery", "rerun", "auto_retry", "outage"]
+    reason: Literal["recovery", "rerun", "auto_retry", "outage", "ignored", "focus"]
     hint: str | None = None  # auto_retry: the different approach, told in the brief (D-19)
 
 
@@ -351,6 +351,7 @@ class InvestigationConcluding(_Data):
     """The orchestrator decided to conclude; synthesis follows (O3)."""
 
     cut_short_by: Literal["budget"] | None = None
+    ended_early: bool = False  # "Finish now": the user ended the research (S8)
 
 
 class AttemptRecord(_Data):
@@ -399,6 +400,36 @@ class ReportCreated(_Data):
     cut_short_by: str | None = None
 
 
+# --- Phase 6: steering -----------------------------------------------------------------------
+
+
+class NodeIds(_Data):
+    """`node.paused` and `node.resumed`: the branch the user paused or resumed."""
+
+    node_ids: list[str]
+
+
+class NodeBudgetChanged(_Data):
+    """New budgets, by node id (a branch was sent deeper). Replaces the node's budget."""
+
+    budget: dict[str, dict[str, Any]]
+    cause: Literal["go_deeper"]
+
+
+class FocusChanged(_Data):
+    node_id: str | None = None
+
+
+class ClaimWithdrawn(_Data):
+    claim_ids: list[str]
+    cause: Literal["rerun"]
+
+
+register_event("node.paused", 1, NodeIds)
+register_event("node.resumed", 1, NodeIds)
+register_event("node.budget_changed", 1, NodeBudgetChanged)
+register_event("focus.changed", 1, FocusChanged)
+register_event("claim.withdrawn", 1, ClaimWithdrawn)
 register_event("schedule.updated", 1, ScheduleUpdated)
 register_event("limit.changed", 1, LimitChanged)
 register_event("report.created", 1, ReportCreated)

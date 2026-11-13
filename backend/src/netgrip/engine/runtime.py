@@ -45,7 +45,15 @@ from netgrip.engine.agent import Deps, NodeContext, Signal, node_context, run_no
 from netgrip.engine.budget import SpendingLimitReached
 from netgrip.engine.clock import Clock, SystemClock
 from netgrip.engine.orchestrator import OrchestratorContext
-from netgrip.engine.scheduler import GraphNode, Schedule, load_graph, schedule
+from netgrip.engine.scheduler import (
+    GraphNode,
+    Schedule,
+    branch_ids,
+    eligible,
+    excluded,
+    load_graph,
+    schedule,
+)
 from netgrip.engine.synthesis import synthesise
 from netgrip.evidence.service import EvidenceService
 from netgrip.store.projections import append_and_project, append_and_project_in_tx
@@ -108,6 +116,15 @@ async def retry_unavailable[T](
                 raise
 
 
+def _held_by_user(graph: list[GraphNode], focus: str | None) -> bool:
+    """Work is left that only the user's next move releases: a branch they paused, or nodes
+    outside the one they run alone. The research is not finished, so it does not conclude."""
+    by_id = {n.id: n for n in graph}
+    if any(n.paused and not excluded(n, by_id) for n in graph if n.parent_id is not None):
+        return True
+    return bool(focus) and bool(eligible(graph)) and not eligible(graph, focus)
+
+
 def _rejected_request(exc: Exception) -> bool:
     return isinstance(exc, ModelRejected) and exc.kind == "request"
 
@@ -121,6 +138,7 @@ class InvestigationRuntime:
         self._suspended: list[str] = []  # returned at a boundary; continue these first
         self._pause: tuple[str, str | None, str] | None = None
         self._stopping = False
+        self._finishing = False  # "Finish now": drain, then synthesise (S8)
         self._wake = asyncio.Event()
         self._loop: asyncio.Task[None] | None = None
         self._last_schedule: tuple | None = None
@@ -147,6 +165,7 @@ class InvestigationRuntime:
         self._suspended += [n for n in self._deferred if n not in self._suspended]
         self._deferred.clear()
         self._stopping = False
+        self._finishing = False
         self._pause = None
         self._halt.clear()
         if self.active:  # still draining a pause or stop: keep this loop going
@@ -176,6 +195,23 @@ class InvestigationRuntime:
         self._stopping = True
         self._halt.set()
         self._wake.set()
+
+    def request_finish(self) -> None:
+        """Like a pause, then the investigation finishes into a report instead (S8)."""
+        self._finishing = True
+        self._halt.set()
+        self._wake.set()
+
+    def wake(self) -> None:
+        """Look at the graph again (the user changed something)."""
+        self._wake.set()
+
+    def busy(self, node_id: str) -> bool:
+        """The node has a step in flight, a kept context or work still owed."""
+        return (
+            node_id in self._tasks or node_id in self._suspended
+            or node_id in self._owed or node_id in self._deferred
+        )  # fmt: skip
 
     @property
     def pausing(self) -> bool:
@@ -257,7 +293,11 @@ class InvestigationRuntime:
             await self._mark_planned_coordinators()
             parallel = await self._parallel()
             while True:
-                if self._stopping or self._pause is not None:
+                if self._finishing:
+                    if not self._tasks:
+                        await self._finish_now()
+                        return
+                elif self._stopping or self._pause is not None:
                     if not self._tasks:
                         if not self._stopping:
                             await self._enter_paused(self._pause)
@@ -276,7 +316,8 @@ class InvestigationRuntime:
                         while free > 0 and self._suspended:
                             self._start_node(self._suspended.pop(0))
                             free -= 1
-                        sched = schedule(await self._graph(), max(free, 0))
+                        graph, focus = await self._graph(), await self._focus()
+                        sched = schedule(graph, max(free, 0), focus)
                         await self._emit_schedule(sched)
                         for nid in sched.order[: max(free, 0)]:
                             self._start_node(nid)
@@ -285,7 +326,9 @@ class InvestigationRuntime:
                             log.error("runtime of %s: return work of %s owed; resume retries",
                                       self.id, self._deferred)  # fmt: skip
                             return
-                        if not self._tasks:
+                        if not self._tasks and _held_by_user(graph, focus):
+                            pass  # idle: the user paused a branch or runs only another one
+                        elif not self._tasks:
                             try:
                                 decision = await self._retrying(
                                     lambda: orchestrator.decide_next(self._octx)
@@ -314,6 +357,27 @@ class InvestigationRuntime:
             # Not a provider problem: log it; the investigation stays Running and `resume`
             # restarts this runtime (the resume handler accepts Running with no live loop).
             log.exception("runtime of %s failed", self.id)
+
+    async def _finish_now(self) -> None:
+        """Nothing is in flight any more: record the early end and write the report."""
+        from netgrip.engine.steering import finishing_events
+
+        async with self.engine.db.tx() as tx:
+            state = await self._state_in(tx)
+            if state not in ("Running", "Paused", "Stopped"):
+                return
+            await append_and_project_in_tx(tx, self.id, finishing_events(state), self.engine.bus)
+        await synthesise(self.engine, self.id)
+
+    async def _state_in(self, tx) -> str:
+        row = await tx.fetchone("SELECT state FROM investigations WHERE id = ?", [self.id])
+        return row["state"] if row else ""
+
+    async def _focus(self) -> str | None:
+        rows = await self.engine.db.read(
+            "SELECT focus_node_id FROM investigations WHERE id = ?", [self.id]
+        )
+        return rows[0]["focus_node_id"] if rows else None
 
     async def _graph(self) -> list[GraphNode]:
         busy = set(self._tasks) | set(self._suspended) | set(self._deferred)
@@ -374,11 +438,49 @@ class InvestigationRuntime:
         self._tasks[nid] = asyncio.create_task(self._node(nid), name=f"node:{nid}")
 
     async def _boundary(self) -> Signal:
-        if self._stopping:
+        if self._stopping or self._finishing:
             return Signal.CANCEL
         if self._pause is not None:
             return Signal.PAUSE
         return Signal.CONTINUE
+
+    async def _node_boundary(self, nid: str) -> Signal:
+        """Before every step of node `nid`: the investigation's own signals, then what the
+        user did to this node (paused, ignored, or a focus elsewhere)."""
+        signal = await self._boundary()
+        if signal != Signal.CONTINUE:
+            return signal
+        graph = await load_graph(self.engine.db, self.id)
+        by_id = {n.id: n for n in graph}
+        node = by_id.get(nid)
+        if node is None or node.paused or excluded(node, by_id):
+            return Signal.PAUSE
+        focus = await self._focus()
+        if focus and nid not in branch_ids(graph, focus):
+            return Signal.PAUSE
+        return Signal.CONTINUE
+
+    async def _returned_at_boundary(self, nid: str) -> None:
+        """The node's loop returned before it finished. If the user took it out (ignore,
+        focus elsewhere) it goes back to Pending and the scheduler decides about it; a branch
+        pause leaves it Paused. Otherwise (pause, stop, limit) it is continued on resume."""
+        graph = await load_graph(self.engine.db, self.id)
+        by_id = {n.id: n for n in graph}
+        node = by_id.get(nid)
+        if node is None or node.status == "Paused":
+            return
+        focus = await self._focus()
+        reason = (
+            "ignored" if excluded(node, by_id)
+            else "focus" if focus and nid not in branch_ids(graph, focus) else None
+        )  # fmt: skip
+        if reason is None:
+            self._suspended.append(nid)
+            return
+        if node.status == "Running":
+            await append_and_project(self.engine.db, self.id, [EventDraft(
+                type="node.reset", actor="system", node_id=nid, data={"reason": reason},
+            )], self.engine.bus)  # fmt: skip
 
     async def _limit_reached(self) -> bool:
         rows = await self.engine.db.read(
@@ -400,7 +502,9 @@ class InvestigationRuntime:
         ctx = self._ctxs.get(nid)
         try:
             if ctx is None:
-                ctx = self._ctxs[nid] = await node_context(self._deps, self.id, nid, self._boundary)
+                ctx = self._ctxs[nid] = await node_context(
+                    self._deps, self.id, nid, lambda: self._node_boundary(nid)
+                )
             c = ctx
 
             async def on_retry(n: int, m: int, exc: Exception) -> None:
@@ -436,7 +540,7 @@ class InvestigationRuntime:
             self._owed.add(nid)  # the retry decision is return work, with its error handling
             return True
         if not ctx.state.done and ctx.node.status not in ("Completed", "Failed", "Rejected"):
-            self._suspended.append(nid)  # returned at a boundary: continue it on resume
+            await self._returned_at_boundary(nid)  # continued later, from its kept context
             return False
         self._ctxs.pop(nid, None)
         self._owed.add(nid)

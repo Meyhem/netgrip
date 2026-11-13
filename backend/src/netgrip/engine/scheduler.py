@@ -47,17 +47,47 @@ def _blocking_dependency(n: GraphNode, by_id: dict[str, GraphNode]) -> str | Non
     return next((d for d in n.depends_on if d in by_id and not _settled(by_id[d])), None)
 
 
-def eligible(graph: list[GraphNode]) -> list[str]:
+def branch_ids(graph: list[GraphNode], node_id: str) -> list[str]:
+    """`node_id` and every node below it (any inclusion), in creation order."""
+    kids: dict[str, list[str]] = {}
+    for n in graph:
+        if n.parent_id is not None:
+            kids.setdefault(n.parent_id, []).append(n.id)
+    out, todo = [], [node_id]
+    while todo:
+        cur = todo.pop()
+        out.append(cur)
+        todo.extend(kids.get(cur, []))
+    order = {n.id: i for i, n in enumerate(graph)}
+    return sorted(out, key=lambda i: order.get(i, 0))
+
+
+def excluded(n: GraphNode, by_id: dict[str, GraphNode]) -> bool:
+    """Not Included itself, or below a node that is not (a step in flight may still have
+    proposed a child under a branch that was ignored meanwhile)."""
+    seen = set()
+    while n is not None and n.id not in seen:
+        if n.inclusion != "Included":
+            return True
+        seen.add(n.id)
+        n = by_id.get(n.parent_id) if n.parent_id else None
+    return False
+
+
+def eligible(graph: list[GraphNode], focus: str | None = None) -> list[str]:
     """Pending, Included, not paused, every dependency Completed or left Failed (G2); or a
     coordinator Waiting on children whose included children have all finished, to aggregate
-    (G3).
+    (G3). With `focus`, only that node's branch (S5).
     The root is not scheduled: synthesis answers it. Premise checks first, then by depth,
     then by creation."""
     by_id = {n.id: n for n in graph}
     kids = _children(graph)
+    inside = set(branch_ids(graph, focus)) if focus else None
     out = []
     for n in graph:
-        if n.parent_id is None or n.inclusion != "Included" or n.paused:
+        if n.parent_id is None or n.paused or excluded(n, by_id):
+            continue
+        if inside is not None and n.id not in inside:
             continue
         if n.status == "Pending" and _blocking_dependency(n, by_id) is None:
             out.append(n)
@@ -69,19 +99,28 @@ def eligible(graph: list[GraphNode]) -> list[str]:
     return [n.id for n in out]
 
 
-def schedule(graph: list[GraphNode], slots: int) -> Schedule:
+def schedule(graph: list[GraphNode], slots: int, focus: str | None = None) -> Schedule:
     """`order` is every eligible node; those past `slots` wait for a `slot`. Others wait on a
-    `dependency:<id>`, the `orchestrator` (proposed, not yet gated) or are `paused`."""
-    order = eligible(graph)
+    `dependency:<id>`, the `orchestrator` (proposed, not yet gated), `focus:<id>` (the user
+    runs only another branch) or are `paused`."""
+    order = eligible(graph, focus)
     by_id = {n.id: n for n in graph}
+    inside = set(branch_ids(graph, focus)) if focus else None
     reasons = {nid: "slot" for nid in order[max(slots, 0) :]}
+    outside = eligible(graph) if focus else []
     for n in graph:
-        if n.parent_id is None or n.inclusion != "Included" or n.id in order:
+        if n.parent_id is None or excluded(n, by_id) or n.id in order:
             continue
         if n.status == "Proposed":
             reasons[n.id] = "orchestrator"
-        elif n.status == "Pending" and n.paused:
+        elif n.paused:
             reasons[n.id] = "paused"
+        elif (
+            inside is not None
+            and n.id not in inside
+            and (n.id in outside or n.status in ("Pending", "Waiting on children"))
+        ):
+            reasons[n.id] = f"focus:{focus}"
         elif n.status == "Pending" and (dep := _blocking_dependency(n, by_id)):
             reasons[n.id] = f"dependency:{dep}"
     return Schedule(order=order, reasons=reasons, slots=slots)

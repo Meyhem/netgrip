@@ -101,7 +101,8 @@ class EvidenceService:
         }
 
     async def _claims(self, investigation_id: str, include_merged: bool = False) -> list[Claim]:
-        sql = "SELECT * FROM claims WHERE investigation_id = ?"
+        """Withdrawn claims (a re-run replaced them) are never returned."""
+        sql = "SELECT * FROM claims WHERE investigation_id = ? AND withdrawn = 0"
         if not include_merged:
             sql += " AND merged_into IS NULL"
         rows = await self.db.read(sql + " ORDER BY seq", [investigation_id])
@@ -125,8 +126,17 @@ class EvidenceService:
         return list(claims.values())
 
     async def known_claims(self, investigation_id: str, question: str) -> list[Claim]:
-        """The investigation's claims, the ones sharing most words with `question` first."""
-        claims = await self._claims(investigation_id)
+        """The investigation's claims, the ones sharing most words with `question` first.
+        Claims of a node that is not Included (ignored, superseded) are left out; they stay
+        stored and return when the branch is restored."""
+        out = {
+            r["id"]
+            for r in await self.db.read(
+                "SELECT id FROM nodes WHERE investigation_id = ? AND inclusion != 'Included'",
+                [investigation_id],
+            )
+        }
+        claims = [c for c in await self._claims(investigation_id) if c.node_id not in out]
         words = _tokens(question)
         return sorted(claims, key=lambda c: -len(words & _tokens(c.text)))
 

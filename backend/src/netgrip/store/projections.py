@@ -242,10 +242,10 @@ async def _instruction_queued(tx: Tx, event: Event) -> None:
         )
         node_id = root["id"] if root else None
     await tx.execute(
-        "INSERT INTO instructions(id, investigation_id, node_id, text, state, queued_seq)"
-        " VALUES (?, ?, ?, ?, 'queued', ?)",
+        "INSERT INTO instructions(id, investigation_id, node_id, text, state, queued_seq,"
+        " waiting_for) VALUES (?, ?, ?, ?, 'queued', ?, ?)",
         [event.data["instruction_id"], event.investigation_id, node_id, event.data["text"],
-         event.seq],
+         event.seq, event.data.get("waiting_for")],
     )  # fmt: skip
 
 
@@ -391,7 +391,7 @@ async def _node_started(tx: Tx, event: Event) -> None:
     await tx.execute(
         "UPDATE nodes SET status = 'Running', activity = NULL, verdict = NULL, brief = ?,"
         " finished_seq = NULL, finished_at = NULL, failure_reason = NULL,"
-        " updated_at = ? WHERE id = ?",
+        " off_topic = 0, relevance_checked = 0, updated_at = ? WHERE id = ?",
         [_j(event.data["brief"]), event.at, event.node_id],
     )
 
@@ -452,9 +452,11 @@ async def _node_reset(tx: Tx, event: Event) -> None:
         " WHERE id = ?",
         [event.node_id],
     )
-    # An auto retry carries its hint; a recovery or outage keeps it (same attempt); a user rerun
-    # clears it.
-    if event.data["reason"] not in ("recovery", "outage"):
+    if event.data["reason"] == "rerun":
+        await tx.execute("UPDATE nodes SET verdict = NULL WHERE id = ?", [event.node_id])
+    # An auto retry carries its hint; a recovery, outage or steering stop keeps it (same
+    # attempt); a user rerun clears it.
+    if event.data["reason"] not in ("recovery", "outage", "ignored", "focus"):
         await tx.execute(
             "UPDATE nodes SET retry_hint = ? WHERE id = ?", [event.data.get("hint"), event.node_id]
         )
@@ -488,8 +490,12 @@ async def _node_relevance_checked(tx: Tx, event: Event) -> None:
 @projector("investigation.concluding")
 async def _concluding(tx: Tx, event: Event) -> None:
     await tx.execute(
-        "UPDATE investigations SET cut_short_by = ? WHERE id = ?",
-        [event.data.get("cut_short_by"), event.investigation_id],
+        "UPDATE investigations SET cut_short_by = ?, ended_early = ? WHERE id = ?",
+        [
+            event.data.get("cut_short_by"),
+            int(event.data.get("ended_early", False)),
+            event.investigation_id,
+        ],
     )
 
 
@@ -582,4 +588,69 @@ async def _trail_instruction(tx: Tx, event: Event) -> None:
     await tx.execute(
         "UPDATE node_steps SET instruction_applied = ? WHERE node_id = ? AND step = ?",
         [json.dumps(applied), row["node_id"], last["step"]],
+    )
+
+
+# --- Phase 6 projectors: steering ------------------------------------------------------------
+
+PAUSABLE = ("Pending", "Running", "Waiting on children")
+
+
+@projector("node.paused")
+async def _node_paused(tx: Tx, event: Event) -> None:
+    """Pending, Running and Waiting nodes become Paused (remembering which); others are left."""
+    for nid in event.data["node_ids"]:
+        await tx.execute(
+            "UPDATE nodes SET paused_from = status, status = 'Paused', updated_at = ?"
+            f" WHERE id = ? AND status IN ({','.join('?' * len(PAUSABLE))})",
+            [event.at, nid, *PAUSABLE],
+        )
+
+
+@projector("node.resumed")
+async def _node_resumed(tx: Tx, event: Event) -> None:
+    """Back to Waiting on children if that is what was interrupted, else to Pending (a node
+    that was running continues from its kept context)."""
+    for nid in event.data["node_ids"]:
+        await tx.execute(
+            "UPDATE nodes SET status = CASE WHEN paused_from = 'Waiting on children'"
+            " THEN 'Waiting on children' ELSE 'Pending' END, paused_from = NULL, updated_at = ?"
+            " WHERE id = ? AND status = 'Paused'",
+            [event.at, nid],
+        )
+
+
+@projector("focus.changed")
+async def _focus_changed(tx: Tx, event: Event) -> None:
+    await tx.execute(
+        "UPDATE investigations SET focus_node_id = ? WHERE id = ?",
+        [event.data.get("node_id"), event.investigation_id],
+    )
+
+
+@projector("node.budget_changed")
+async def _node_budget_changed(tx: Tx, event: Event) -> None:
+    """New budgets replace the old; the investigation's node ceiling rises by the added child
+    nodes."""
+    added = 0
+    for nid, budget in event.data["budget"].items():
+        row = await tx.fetchone("SELECT budget FROM nodes WHERE id = ?", [nid])
+        if row is None:
+            continue
+        old = json.loads(row["budget"] or "{}")
+        added += max(0, int(budget.get("child_nodes", 0)) - int(old.get("child_nodes", 0)))
+        await tx.execute(
+            "UPDATE nodes SET budget = ?, updated_at = ? WHERE id = ?",
+            [_j(budget), event.at, nid],
+        )
+    await tx.execute(
+        "UPDATE investigations SET nodes_extra = nodes_extra + ? WHERE id = ?",
+        [added, event.investigation_id],
+    )
+
+
+@projector("claim.withdrawn")
+async def _claim_withdrawn(tx: Tx, event: Event) -> None:
+    await tx.executemany(
+        "UPDATE claims SET withdrawn = 1 WHERE id = ?", [(c,) for c in event.data["claim_ids"]]
     )

@@ -74,7 +74,7 @@ def list_row(r: Row, nodes: list, premises: list) -> dict[str, Any]:
         "pause_detail": r["pause_detail"],
         "effort": settings.get("effort"),
         "nodes_total": 0,
-        "nodes_max": settings.get("effort_budget", {}).get("max_nodes", 0),
+        "nodes_max": settings.get("effort_budget", {}).get("max_nodes", 0) + r["nodes_extra"],
         "running_count": 0,
         "spent_usd": r["spent_usd"],
         "spend_approximate": bool(r["spend_approximate"]),
@@ -142,6 +142,7 @@ def node_json(n: Row, depends_on: list[str]) -> dict[str, Any]:
         "excluded_by": n["excluded_by"],
         "excluded_at": n["excluded_at"],
         "excluded_instruction_id": n["excluded_instruction_id"],
+        "paused_from": n["paused_from"],
     }
 
 
@@ -152,6 +153,7 @@ def instruction_json(i: Row) -> dict[str, Any]:
         "text": i["text"],
         "state": i["state"],
         "queued_seq": i["queued_seq"],
+        "waiting_for": i["waiting_for"],
         "applied_seq": i["applied_seq"],
         "diff": _load(i["diff"]),
         "undone": bool(i["undone"]),
@@ -195,6 +197,7 @@ async def snapshot(id: str, db: Annotated[Database, Depends(get_db)]) -> dict:
     investigation = list_row(r, node_rows, premise_rows) | {
         "settings": json.loads(r["settings"]),
         "root_goal": r["root_goal"],
+        "ended_early": bool(r["ended_early"]),
     }
     deps: dict[str, list[str]] = {}
     for d in await db.read(
@@ -220,7 +223,7 @@ async def snapshot(id: str, db: Annotated[Database, Depends(get_db)]) -> dict:
         ],
         "plan_failed": r["plan_failed_reason"],
         "schedule": await _schedule(db, id),
-        "focus_node_id": None,
+        "focus_node_id": r["focus_node_id"],
         "plan_version": version[0]["v"],
         # The claims the report is written from ("Writing the report from N claims"). Like
         # `recent_events`, sent by this endpoint only: the reducer leaves it as loaded.

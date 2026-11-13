@@ -30,7 +30,8 @@ async def synthesise(engine: "Engine", investigation_id: str) -> None:
             )
     async with engine.db.tx() as tx:
         row = await tx.fetchone(
-            "SELECT state, cut_short_by FROM investigations WHERE id = ?", [investigation_id]
+            "SELECT state, cut_short_by, ended_early FROM investigations WHERE id = ?",
+            [investigation_id],
         )
         if row["state"] != "Synthesising":
             return
@@ -39,7 +40,7 @@ async def synthesise(engine: "Engine", investigation_id: str) -> None:
             actor="orchestrator",
             data={
                 "report_id": str(uuid.uuid4()),
-                "ended_early": False,  # only "finish now" ends early (Phase 6)
+                "ended_early": bool(row["ended_early"]),  # only "finish now" ends early
                 "cut_short_by": row["cut_short_by"],
             },
         )

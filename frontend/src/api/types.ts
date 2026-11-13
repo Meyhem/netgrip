@@ -58,7 +58,13 @@ export interface InvestigationRow {
   summary: string | null;
 }
 
-export interface NodeBudget { child_nodes: number; sources: number }
+export interface NodeBudget {
+  child_nodes: number;
+  sources: number;
+  /** Levels past the investigation's depth limit that "Go deeper" allowed. */
+  depth_extra?: number;
+  tier?: string;
+}
 
 /** One node of the investigation graph, as in the snapshot's `nodes`. */
 export interface GraphNode {
@@ -94,6 +100,8 @@ export interface GraphNode {
   excluded_by: "user" | "replan" | null;
   excluded_at: string | null;
   excluded_instruction_id: string | null;
+  /** The status a branch pause interrupted; set while Paused. */
+  paused_from?: NodeState | null;
 }
 
 /** kept / superseded / proposed node ids of one plan version or applied instruction. */
@@ -108,13 +116,15 @@ export interface Instruction {
   applied_seq: number | null;
   diff: PlanDiff | null;
   undone: boolean;
+  /** What a queued instruction waits for ("D2b finishes READING"), or null. */
+  waiting_for?: string | null;
 }
 
 export interface Premise { id: string; text: string; node_id: string | null; outcome: string | null }
 
 export interface Snapshot {
   seq: number;
-  investigation: InvestigationRow & { settings: InvestigationSettings; root_goal: string | null };
+  investigation: InvestigationRow & { settings: InvestigationSettings; root_goal: string | null; ended_early?: boolean };
   nodes: GraphNode[];
   instructions: Instruction[];
   premises: Premise[];
