@@ -8,7 +8,7 @@ import httpx
 
 from netgrip.adapters.extractor import extract
 from netgrip.adapters.fetch_limits import DEFAULT_LIMITS, USER_AGENT, FetchLimits
-from netgrip.adapters.fetcher import FetchAttempt, PageContent
+from netgrip.adapters.fetcher import FetchAttempt, PageContent, Route
 from netgrip.adapters.url_guard import acheck_url
 
 MAX_REDIRECTS = 5
@@ -38,21 +38,19 @@ def looks_like_challenge(raw: bytes) -> bool:
     return any(m in low for m in CHALLENGE_MARKERS)
 
 
-def make_page(raw: bytes, url: str, content_type: str, limits: FetchLimits) -> Result:
+def make_page(
+    raw: bytes, url: str, content_type: str, limits: FetchLimits, route: Route = "simple"
+) -> Result:
     """Shared by the simple and the browser route: the extracted page, or why it is unusable."""
     if looks_like_challenge(raw):
-        return FetchAttempt("simple", "blocked", "a challenge page"), None
+        return FetchAttempt(route, "blocked", "a challenge page"), None
     if "html" in content_type:
         ex = extract(raw, url)
         if len(ex.text) < limits.min_text_chars:
-            return FetchAttempt(
-                "simple", "error", "the page needs JavaScript to show its text"
-            ), None
-        return FetchAttempt("simple", "ok"), PageContent(
-            url, raw, ex.text, ex.title, ex.published_at
-        )
+            return FetchAttempt(route, "error", "the page needs JavaScript to show its text"), None
+        return FetchAttempt(route, "ok"), PageContent(url, raw, ex.text, ex.title, ex.published_at)
     text = raw.decode("utf-8", errors="replace").strip()
-    return FetchAttempt("simple", "ok"), PageContent(url, raw, text, None, None)
+    return FetchAttempt(route, "ok"), PageContent(url, raw, text, None, None)
 
 
 async def fetch_simple(
