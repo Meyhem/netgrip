@@ -14,6 +14,8 @@ class FetchAttempt:
     route: Route
     outcome: Outcome
     error: str | None = None
+    # Another route would not help (a refused URL, a binary file, a page that is gone).
+    final: bool = False
 
 
 @dataclass(frozen=True)
