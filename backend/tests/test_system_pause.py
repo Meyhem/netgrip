@@ -293,3 +293,24 @@ async def test_pause_cuts_backoff_wait_short(db, tmp_path):
     row = await pause_row(db)
     assert row["state"] == "Paused" and row["pause_cause"] == "user"
     assert engine.clock.sleeps == [1]
+
+
+async def test_recovered_outage_does_not_use_up_decisions(db, tmp_path):
+    # Five unavailable answers, then the model is back: the node may still search (its
+    # decision budget is sources + 3 = 5 usable decisions, none of them used yet).
+    await seed(db, [("n-1", proposed("D1"))])
+    decisions = [*[UNAVAILABLE] * 5, decide("search", query="wall"), conclude()]
+    engine = make_engine(db, tmp_path, TrackingClient(BASE_SCRIPT | {"node.decide": decisions}))
+    await run_to_end(engine)
+    assert await state(db) == "Completed"
+    assert engine.search.calls == ["wall"]
+    routes = [d["route"] for _, n, d in await events(db, "node.step_completed")
+              if n == "n-1" and d["kind"] == "decision"]  # fmt: skip
+    assert routes == ["search", "conclude"]
+
+
+async def test_spending_limit_stop_does_not_count_a_decision(db, tmp_path):
+    # The cap stops the second decision before its call: only the first one is counted.
+    engine, _ = await _capped(db, tmp_path)
+    ctx = engine.runtimes[INV]._ctxs["n-1"]
+    assert ctx.state.decisions == 1

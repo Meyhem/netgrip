@@ -198,7 +198,6 @@ async def _decide(ctx: NodeContext, step: str, extra: str = "") -> Next:
     allowed = _allowed(ctx, aggregate)
     if not allowed:
         return await _fail(ctx, "No action is left to the node.")
-    s.decisions += 1
     prompt = f"{render_brief(ctx.brief)}\n\n{_progress(ctx)}"
     if extra:
         prompt += f"\n\n{extra}"
@@ -262,6 +261,9 @@ async def _route(ctx: NodeContext, step: str, answer: dict) -> Next:
     else:
         nxt, summary = ("conclude", answer), "conclude"
     await ctx.commit([_done(ctx, step, "decision", summary, action)])
+    # Counted only once a usable answer is committed: a call lost to an outage or the
+    # spending limit runs the step again and must not use up the node's decisions.
+    ctx.state.decisions += 1
     return nxt
 
 
