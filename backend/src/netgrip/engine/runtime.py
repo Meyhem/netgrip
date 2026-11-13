@@ -312,8 +312,9 @@ class InvestigationRuntime:
             await self._setup()
             await self._mark_planned_coordinators()
             await self._apply_waiting_instructions()
-            parallel = await self._parallel()
             while True:
+                # Read each time round: an effort change (or a changed setting) applies at once.
+                parallel = await self._parallel()
                 if self._finishing:
                     if not self._tasks:
                         await self._finish_now()

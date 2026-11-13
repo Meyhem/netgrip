@@ -537,7 +537,7 @@
       "parsed": {
         "children": [
           {
-            "ref": "D2a",
+            "ref": "D1a",
             "kind": "Deep-dive",
             "question": "Which astronauts have said whether they saw the Wall from low Earth orbit, and with what aid?",
             "justification": "First-hand accounts from orbit are the direct test of the claim.",
@@ -546,7 +546,7 @@
             "depends_on_refs": []
           },
           {
-            "ref": "D2n",
+            "ref": "D1n",
             "kind": "Deep-dive",
             "question": "What do official space agency statements say about the Wall?",
             "justification": "You asked to concentrate on one kind of source.",

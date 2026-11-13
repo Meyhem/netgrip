@@ -38,9 +38,10 @@ def _children(graph: list[GraphNode]) -> dict[str, list[GraphNode]]:
 
 
 def _settled(n: GraphNode) -> bool:
-    """A dependency no longer holds its dependants back: Completed, or Failed and left Failed
-    (no retry coming). The dependant's brief then names it as failed, with its reason."""
-    return n.status == "Completed" or (n.status == "Failed" and n.failure_handled)
+    """A dependency no longer holds its dependants back: Completed, Rejected (it will never
+    run), or Failed and left Failed (no retry coming). The dependant's brief then names it as
+    failed, with its reason."""
+    return n.status in ("Completed", "Rejected") or (n.status == "Failed" and n.failure_handled)
 
 
 def _blocking_dependency(n: GraphNode, by_id: dict[str, GraphNode]) -> str | None:

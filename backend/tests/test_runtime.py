@@ -458,3 +458,10 @@ async def test_return_work_bug_stays_owed_and_runs_on_resume(db, tmp_path, monke
     assert calls == ["n-1", "n-1"]
     assert [n for _, n, _ in await events(db, "node.relevance_checked")] == ["n-1"]
     assert await state(db) == "Completed"
+
+
+def test_rejected_dependency_does_not_hold_its_dependant_back():
+    root = gn("r", "Pending", "Synthesising", 0, 0, None)
+    graph = [root, gn("a", "Rejected", seq=1), gn("b", seq=2, deps=["a"])]
+    assert eligible(graph) == ["b"]
+    assert schedule(graph, 2).reasons == {}

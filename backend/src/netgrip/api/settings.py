@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from netgrip.adapters.model_openai import check_model_key
 from netgrip.api.deps import get_db, get_engine
+from netgrip.engine import limiter
 from netgrip.engine.engine import Engine
 from netgrip.engine.estimate import Estimate, estimate
 from netgrip.store.db import Database
@@ -39,7 +40,9 @@ async def read(db: Annotated[Database, Depends(get_db)]) -> dict:
 async def patch(
     db: Annotated[Database, Depends(get_db)], partial: Annotated[dict[str, Any], Body()]
 ) -> dict:
-    return await _response(db, await patch_settings(db, partial))
+    updated = await patch_settings(db, partial)
+    limiter.resize_limiters(updated.capacity)  # the pools follow the new capacity at once
+    return await _response(db, updated)
 
 
 class KeyBody(BaseModel):

@@ -117,9 +117,10 @@ async def build_brief(db: Database, node_id: str, evidence: EvidenceService | No
     # Verdicts of the declared dependencies that completed, and the reasons of those left
     # Failed. Only these; never siblings.
     deps = await db.read(
-        "SELECT n.id, n.display_id, n.status, n.verdict FROM node_deps d"
+        "SELECT n.id, n.display_id, n.status, n.verdict, n.rejection_reason FROM node_deps d"
         " JOIN nodes n ON n.id = d.depends_on_id WHERE d.node_id = ? AND n.inclusion = 'Included'"
-        " AND (n.status = 'Completed' OR (n.status = 'Failed' AND n.failure_handled = 1))"
+        " AND (n.status IN ('Completed', 'Rejected')"
+        "      OR (n.status = 'Failed' AND n.failure_handled = 1))"
         " ORDER BY n.seq",
         [node_id],
     )
@@ -128,6 +129,12 @@ async def build_brief(db: Database, node_id: str, evidence: EvidenceService | No
         if d["status"] == "Completed":
             results.append(
                 DependencyResult(display_id=d["display_id"], verdict=_load(d["verdict"]))
+            )
+            continue
+        if d["status"] == "Rejected":
+            reason = d["rejection_reason"] or "unknown"
+            results.append(
+                DependencyResult(display_id=d["display_id"], failed=f"rejected: {reason}")
             )
             continue
         failed = await db.read(

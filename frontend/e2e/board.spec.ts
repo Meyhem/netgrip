@@ -219,9 +219,10 @@ test("narrow widths: the inspector is a sheet below 1180px; the left pane is a t
   await expect(inspector(page).locator("[data-node-id]")).toHaveAttribute("data-node-id", nodeId);
   expect(await inspector(page).evaluate((e) => getComputedStyle(e).position)).toBe("absolute");
   expect(await overlaps(inspector(page), canvas)).toBe(true);
+  // Escape clears the selection (ScreenControlBoard keyboard) and so closes the sheet.
   await page.keyboard.press("Escape");
   await expect(inspector(page)).toBeHidden();
-  await expect(page.locator(`.ng-qrow[data-node-id="${nodeId}"]`)).toHaveClass(/is-selected/);
+  await expect(page.locator(`.ng-qrow[data-node-id="${nodeId}"]`)).not.toHaveClass(/is-selected/);
 
   // 850: the left pane is a tab beside Graph and Log; the inspector is still a sheet.
   await page.setViewportSize({ width: 850, height: 800 });
