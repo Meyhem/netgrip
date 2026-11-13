@@ -60,17 +60,32 @@ class Database:
 
     @asynccontextmanager
     async def tx(self) -> AsyncIterator[Tx]:
+        """BEGIN, COMMIT and ROLLBACK always run to the end, even when the task is cancelled
+        meanwhile: a cancel arriving mid-statement must not leave the shared writer inside an
+        open transaction (every later BEGIN would fail). The cancellation is re-raised once the
+        connection is clean again; the writer lock is released on every path."""
         async with self._lock:
-            await self._writer.execute("BEGIN IMMEDIATE")
+            if self._writer.in_transaction:  # never expected: clean up, do not wedge
+                log.warning("writer connection was left in a transaction; rolling back")
+                await _settle(self._writer.execute("ROLLBACK"))
+            cancelled = await _settle(self._writer.execute("BEGIN IMMEDIATE"))
+            if cancelled:
+                await self._rollback()
+                raise asyncio.CancelledError
             tx = Tx(self._writer)
             try:
                 yield tx
             except BaseException:
-                await self._writer.execute("ROLLBACK")
+                await self._rollback()
                 raise
-            await self._writer.execute("COMMIT")
+            try:
+                cancelled = await _settle(self._writer.execute("COMMIT"))
+            except BaseException:
+                await self._rollback()
+                raise
             # Still under the writer lock, so callbacks of successive transactions run in
-            # commit order (the bus relies on this to publish events in seq order).
+            # commit order (the bus relies on this to publish events in seq order). A cancel
+            # that came during COMMIT still runs them: the transaction did commit.
             for fn in tx._after_commit:
                 try:
                     result = fn()
@@ -78,6 +93,13 @@ class Database:
                         await result
                 except Exception:
                     log.exception("after-commit callback failed")
+            if cancelled:
+                raise asyncio.CancelledError
+
+    async def _rollback(self) -> None:
+        if self._writer.in_transaction:
+            if await _settle(self._writer.execute("ROLLBACK")):
+                raise asyncio.CancelledError
 
     async def read(self, sql: str, params: Iterable[Any] = ()) -> list[Row]:
         cur = await self._reader.execute(sql, tuple(params))
@@ -89,6 +111,25 @@ class Database:
     async def close(self) -> None:
         await self._reader.close()
         await self._writer.close()
+
+
+async def _settle(aw: Awaitable[Any]) -> bool:
+    """Await `aw` to its end whatever cancellations arrive meanwhile. Returns True when the
+    caller was cancelled (it must re-raise CancelledError once the connection is clean).
+    Errors of `aw` itself propagate."""
+    task = asyncio.ensure_future(aw)
+    cancelled = False
+    while True:
+        try:
+            await asyncio.shield(task)
+            return cancelled
+        except asyncio.CancelledError:
+            if task.done() and not task.cancelled():
+                task.result()  # raises its own error, if any
+                return True
+            if task.cancelled():
+                raise
+            cancelled = True
 
 
 async def _connect(path: Path) -> aiosqlite.Connection:

@@ -374,3 +374,22 @@ async def test_quick_resume_while_draining_keeps_running(db, tmp_path, first):
     assert await state(db) == "Completed"
     st = await statuses(db)
     assert st["n-1"] == st["n-2"] == "Completed"
+
+
+async def test_delete_of_running_investigation_while_a_node_awaits_begin(db, tmp_path):
+    from test_db import GatedBegin
+
+    await seed(db, [("n-1", proposed("D1"))])
+    engine = make_engine(db, tmp_path, TrackingClient(BASE_SCRIPT))
+    gate = GatedBegin(db)
+    engine.start_runtime(INV)
+    await asyncio.wait_for(gate.entered.wait(), 2)  # a runtime write is inside BEGIN
+    delete = asyncio.create_task(engine.delete_investigation(INV))
+    for _ in range(5):
+        await asyncio.sleep(0)
+    gate.release.set()
+    await asyncio.wait_for(delete, 2)
+    assert await db.read("SELECT 1 FROM investigations WHERE id = ?", [INV]) == []
+    assert await db.read("SELECT 1 FROM events WHERE investigation_id = ?", [INV]) == []
+    async with db.tx() as tx:  # the writer is still usable
+        await tx.execute("SELECT 1")
