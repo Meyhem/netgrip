@@ -126,3 +126,20 @@ html, body, #root { height: 100%; margin: 0; }
   .control-board--tab-log .board-log { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
   .control-board--tab-log .board-log .ng-log { flex: 1 1 0; height: auto; min-height: 0; }
 }
+
+/* ScreenReport: 220 / 1fr / 380 (README regions 2 to 4). Closed, the evidence pane gives its
+   column back and the 680px report centres. */
+.report-body { display: grid; grid-template-columns: 220px 1fr 380px; min-height: 0; }
+.report-body--closed { grid-template-columns: 220px 1fr; }
+.report-body--closed .ng-report { margin-inline: auto; }
+.report__main { padding: var(--space-6) var(--space-7); min-width: 0; }
+.report-nav { padding: var(--space-5) var(--space-4); gap: var(--space-2); }
+.report-nav__first { font-weight: 600; }
+.report-nav__totals { margin-top: var(--space-2); }
+.report-evidence__body { padding: var(--space-3); gap: var(--space-3); }
+.report-path__row { white-space: normal; }
+@media (max-width: 1180px) {
+  .report-body, .report-body--closed { grid-template-columns: 1fr; }
+  .report-nav { display: none; }
+  .report__main { padding: var(--space-5) var(--space-4); }
+}

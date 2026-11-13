@@ -688,6 +688,7 @@
           "totals": {
             "claims": 0,
             "nodes": 6,
+            "run_seconds": 11,
             "sources": 0,
             "spent_usd": 0.01
           }

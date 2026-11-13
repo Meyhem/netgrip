@@ -39,7 +39,8 @@ async def cited_claims(db: Database, id: str, report: Report) -> dict[str, dict[
         for s in await db.read("SELECT * FROM sources WHERE investigation_id = ?", [id])
     }
     out: dict[str, dict[str, Any]] = {}
-    for r in await db.read("SELECT * FROM claims WHERE investigation_id = ? ORDER BY seq", [id]):
+    rows = await db.read("SELECT * FROM claims WHERE investigation_id = ? ORDER BY seq", [id])
+    for n, r in enumerate(rows, start=1):
         if r["id"] not in wanted:
             continue
         path, node = [], nodes.get(r["node_id"])
@@ -48,7 +49,8 @@ async def cited_claims(db: Database, id: str, report: Report) -> dict[str, dict[
                             "question": node["question"]})  # fmt: skip
             node = nodes.get(node["parent_id"])
         out[r["id"]] = {
-            "id": r["id"], "node_id": r["node_id"], "text": r["text"], "status": r["status"],
+            "id": r["id"], "label": f"C-{n:03d}", "node_id": r["node_id"], "text": r["text"],
+            "status": r["status"],
             "supporting": [], "contradicting": [],
             "node_display_id": path[-1]["display_id"] if path else None, "path": path,
         }  # fmt: skip
@@ -64,12 +66,25 @@ async def cited_claims(db: Database, id: str, report: Report) -> dict[str, dict[
     return out
 
 
+async def premises(db: Database, id: str) -> list[dict[str, Any]]:
+    """The premises with their premise-check node, so a statement can name P1 and quote it."""
+    rows = await db.read(
+        "SELECT p.text, p.outcome, p.node_id, n.display_id FROM premises p"
+        " LEFT JOIN nodes n ON n.id = p.node_id WHERE p.investigation_id = ? ORDER BY p.seq",
+        [id],
+    )
+    return [dict(r) for r in rows]
+
+
 @router.get("/{id}/report", response_model=None)
 async def report(id: str, db: Annotated[Database, Depends(get_db)]) -> Response | dict:
     stored, _ = await load_report(db, id)
     if stored is None:
         return JSONResponse(NO_REPORT, status_code=404)
-    return stored.model_dump(mode="json") | {"claims": await cited_claims(db, id, stored)}
+    return stored.model_dump(mode="json") | {
+        "claims": await cited_claims(db, id, stored),
+        "premises": await premises(db, id),
+    }
 
 
 @router.get("/{id}/report.md", response_model=None)

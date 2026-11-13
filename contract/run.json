@@ -3237,6 +3237,7 @@
           "totals": {
             "claims": 4,
             "nodes": 8,
+            "run_seconds": 104,
             "sources": 3,
             "spent_usd": 0.33
           }

@@ -9,6 +9,7 @@ import { INVESTIGATION_PILL } from "../ui/vocab";
 import { ControlBoard } from "./ControlBoard";
 import { NewInvestigation } from "./NewInvestigation";
 import { PlanReview } from "./PlanReview";
+import { Report } from "./Report";
 
 export type ScreenName = "NewInvestigation" | "PlanReview" | "ControlBoard" | "Report";
 
@@ -17,6 +18,7 @@ export function screenFor(state: InvestigationState): ScreenName {
   switch (state) {
     case "Draft": return "NewInvestigation";
     case "Planning": return "PlanReview";
+    case "Synthesising":
     case "Completed": return "Report";
     default: return "ControlBoard";
   }
@@ -60,5 +62,5 @@ export function InvestigationRoute({ board = false }: { board?: boolean }) {
   if (name === "NewInvestigation") return <NewInvestigation draft={data.investigation} />;
   // Keyed by id: view state (selection sheet, tabs, graph view, log paging) starts fresh per investigation.
   if (name === "ControlBoard") return <ControlBoard key={id} id={id} />;
-  return <NotBuilt state={state} origin={data.investigation.pause_cause} />;
+  return <Report key={id} id={id} />;
 }

@@ -11,6 +11,7 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import TYPE_CHECKING, Literal
 
 from netgrip.adapters.model import (
@@ -343,6 +344,19 @@ def _changed(frm: str, to: str, **extra: object) -> EventDraft:
     )
 
 
+async def _run_seconds(db: Database, inv: str, until: str) -> int:
+    """Seconds from the plan's approval (the first move to Running) to `until`."""
+    rows = await db.read(
+        "SELECT at FROM events WHERE investigation_id = ? AND type = 'investigation.state_changed'"
+        " AND json_extract(data, '$.to') = 'Running' ORDER BY seq LIMIT 1",
+        [inv],
+    )
+    if not rows:
+        return 0
+    start = datetime.fromisoformat(rows[0]["at"])
+    return max(0, int((datetime.fromisoformat(until) - start).total_seconds()))
+
+
 async def _limit_reached(engine: "Engine", inv: str) -> bool:
     rows = await engine.db.read(
         "SELECT spent_usd, spending_limit_usd FROM investigations WHERE id = ?", [inv]
@@ -388,7 +402,7 @@ async def _synthesise(engine: "Engine", inv: str) -> Report | None:
     )
     cited_sources = {s for c in ev.claims for s in (*c.supporting, *c.contradicting)}
     totals = Totals(claims=len(ev.claims), sources=len(cited_sources), nodes=nodes[0]["n"],
-                    spent_usd=0.0)  # fmt: skip
+                    run_seconds=await _run_seconds(db, inv, created_at))  # fmt: skip
 
     try:
         report = await _write(ctx, inv_row["root_goal"] or inv_row["prompt"], ev, limits, inv,

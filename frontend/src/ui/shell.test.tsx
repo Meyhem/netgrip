@@ -32,7 +32,7 @@ describe("InvestigationRoute", () => {
     ["Running", "ControlBoard"],
     ["Paused", "ControlBoard"],
     ["Stopped", "ControlBoard"],
-    ["Synthesising", "ControlBoard"],
+    ["Synthesising", "Report"],
     ["Completed", "Report"],
   ])("%s → %s", (state, name) => {
     expect(screenFor(state)).toBe(name);

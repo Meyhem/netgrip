@@ -334,7 +334,7 @@ describe("ControlBoard states", () => {
   it("Synthesising: the left pane reads \"Writing the report from N claims\"", async () => {
     const last = snapshots[snapshots.length - 1];
     const synth = { ...last, investigation: { ...last.investigation, state: "Synthesising" as const }, synthesis_claims: 61 };
-    show(`/investigations/${ID}`, synth);
+    show(`/investigations/${ID}/board`, synth);
     await screen.findByRole("heading", { name: last.investigation.prompt });
     const left = document.querySelector('[data-slot="execution-order"]') as HTMLElement;
     await waitFor(() => expect(left).toHaveTextContent("Writing the report from 61 claims"));

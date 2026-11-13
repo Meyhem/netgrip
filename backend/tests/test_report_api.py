@@ -56,6 +56,13 @@ async def test_report_endpoint_includes_cited_claims_with_paths(app_client):
     assert claim["supporting"][0]["url"].startswith("https://")
     assert [p["display_id"] for p in claim["path"]][0] == "R"
     assert claim["node_display_id"] == claim["path"][-1]["display_id"]
+    assert re.fullmatch(r"C-\d{3}", claim["label"])
+    [p1] = [p for p in body["premises"] if p["display_id"] == "P1"]
+    assert (
+        p1["outcome"] == "refuted"
+        and p1["node_id"] == body["sections"][1]["statements"][0]["premise_node_id"]
+    )
+    assert body["totals"]["run_seconds"] >= 0
     row = (await app_client.get("/api/investigations")).json()[0]
     assert row["summary"].endswith("medium confidence")
 

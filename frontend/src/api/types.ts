@@ -278,3 +278,48 @@ export interface NodeDetail {
   proposals: Proposal[];
   branch: Branch;
 }
+
+// --- The report (Phase 8): backend report/model.py and api/report.py ---------------------
+
+export type ReportSectionKey = "answer" | "wrong" | "findings" | "unverified" | "limits";
+
+export interface ReportStatement {
+  text: string;
+  claim_ids: string[];
+  hedged: boolean;
+  /** In "wrong": the premise-check node that refuted the assumption (P1). */
+  premise_node_id: string | null;
+}
+
+export interface ReportSection { key: ReportSectionKey; title: string; statements: ReportStatement[] }
+
+export interface ReportLimits {
+  effort: string;
+  confirm_threshold: number;
+  ended_early: boolean;
+  cut_short_by: "budget" | "spending_limit" | "finish_now" | null;
+  unobtainable_pages: string[];
+  excluded_branches: { display_id: string; question: string; by: string }[];
+  instructions: { text: string; node_display_id: string | null; seq: number }[];
+  excluded_domains: string[];
+}
+
+/** A claim the report cites: the ClaimCard's claim, with its short label and where it came from. */
+export interface ReportClaim extends Claim {
+  /** "C-031": what the citation chips show. `id` is the stored claim id. */
+  label: string;
+  node_display_id: string | null;
+  path: { id: string; display_id: string; question: string }[];
+}
+
+export interface Report {
+  id: string;
+  investigation_id: string;
+  created_at: string;
+  answer_confidence: Confidence;
+  sections: ReportSection[];
+  limits: ReportLimits;
+  totals: { claims: number; sources: number; nodes: number; spent_usd: number; run_seconds: number };
+  claims: Record<string, ReportClaim>;
+  premises: { text: string; outcome: "confirmed" | "refuted" | "unverifiable" | null; node_id: string | null; display_id: string | null }[];
+}

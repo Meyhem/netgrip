@@ -66,6 +66,7 @@ class Totals(BaseModel):
     sources: int = 0
     nodes: int = 0
     spent_usd: float = 0.0
+    run_seconds: int = 0  # from the plan's approval to the report
 
 
 class Report(BaseModel):
