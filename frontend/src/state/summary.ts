@@ -14,7 +14,7 @@ export const PAUSE_REASON: Record<PauseCause, string> = {
 
 /** running_count: nodes Running while the investigation is Running. nodes_total: nodes below
  * the root that were approved. summary: Running, the first running node's activity
- * ("D1 Searching"); Paused, the cause; then each refuted premise; joined by " · ". */
+ * ("D1 Searching"); Paused, the cause; then each refuted premise; Completed, the answer's confidence; joined by " · ". */
 export function summarise(
   state: InvestigationState, pauseCause: PauseCause | null, nodes: GraphNode[], premises: Premise[],
 ): { running_count: number; nodes_total: number; summary: string | null } {
@@ -27,6 +27,11 @@ export function summarise(
     parts.push((pauseCause && PAUSE_REASON[pauseCause]) || "Paused.");
   }
   for (const p of premises) if (p.outcome === "refuted") parts.push(`Premise refuted: ${p.text}`);
+  if (state === "Completed") {
+    // Synthesis completes the root with the answer's confidence.
+    const verdict = nodes.find((n) => n.depth === 0)?.verdict as { confidence: string } | null | undefined;
+    if (verdict) parts.push(`${verdict.confidence} confidence`);
+  }
   return {
     running_count: running.length,
     nodes_total: nodes.filter((n) => n.depth >= 1 && n.status !== "Proposed" && n.status !== "Rejected").length,

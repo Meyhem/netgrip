@@ -45,7 +45,8 @@ def summarise(state: str, pause_cause: str | None, nodes: list, premises: list) 
     - running_count: nodes Running, while the investigation is Running.
     - nodes_total: nodes below the root that were approved (what the node limit counts).
     - summary: Running, the first running node's activity ("D1 Searching"); Paused, the
-      cause; then each refuted premise ("Premise refuted: <text>"); joined by " · "."""
+      cause; then each refuted premise ("Premise refuted: <text>"); Completed, the answer's
+      confidence ("high confidence", from the root's verdict); joined by " · "."""
     running = [n for n in nodes if n["status"] == "Running"] if state == "Running" else []
     parts: list[str] = []
     if state == "Running":
@@ -55,6 +56,11 @@ def summarise(state: str, pause_cause: str | None, nodes: list, premises: list) 
     elif state == "Paused":
         parts.append(PAUSE_REASON.get(pause_cause or "", "Paused."))
     parts += [f"Premise refuted: {p['text']}" for p in premises if p["outcome"] == "refuted"]
+    if state == "Completed":  # synthesis completes the root with the answer's confidence
+        root = next((n for n in nodes if n["depth"] == 0 and n["verdict"]), None)
+        verdict = _load(root["verdict"]) if root is not None else None
+        if verdict:
+            parts.append(f"{verdict['confidence']} confidence")
     return {
         "running_count": len(running),
         "nodes_total": sum(
@@ -94,7 +100,7 @@ async def _row_parts(db: Database, ids: list[str]) -> tuple[dict, dict]:
         return nodes, premises
     marks = ",".join("?" * len(ids))
     for n in await db.read(
-        "SELECT investigation_id, display_id, status, activity, depth FROM nodes"
+        "SELECT investigation_id, display_id, status, activity, depth, verdict FROM nodes"
         f" WHERE investigation_id IN ({marks}) ORDER BY seq",
         ids,
     ):

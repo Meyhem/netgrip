@@ -57,7 +57,7 @@ async def test_s1_wrong_premise(tmp_path):
         claims = await db.read("SELECT text FROM claims WHERE node_id = ?", [p1["id"]])
         assert len(claims) == 3
         summary = (await row(db, inv))["summary"]
-        assert summary == f"Premise refuted: {premise['text']}"
+        assert summary == f"Premise refuted: {premise['text']} · medium confidence"
     finally:
         await engine.stop()
         await engine.db.close()

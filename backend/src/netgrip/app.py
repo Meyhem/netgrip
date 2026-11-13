@@ -9,7 +9,7 @@ from pydantic import ValidationError
 from netgrip.adapters.fakes import FakeFetcher, FakeModelClient, FakeSearch
 from netgrip.adapters.model_openai import OpenAICompatClient
 from netgrip.adapters.web import Web
-from netgrip.api import commands, investigations, nodes, settings, stream, system
+from netgrip.api import commands, investigations, nodes, report, settings, stream, system
 from netgrip.boundary.bus import EventBus
 from netgrip.boundary.commands import CommandRejected
 from netgrip.config import Config
@@ -92,7 +92,7 @@ def create_app(config: Config, frontend_dist: Path | None = None) -> FastAPI:
     async def health() -> dict:
         return {"status": "ok"}
 
-    for module in (investigations, nodes, commands, stream, settings, system):
+    for module in (investigations, nodes, report, commands, stream, settings, system):
         app.include_router(module.router)
     app.include_router(settings.estimate_router)
 

@@ -3668,7 +3668,7 @@
         "spending_limit_usd": 5.0,
         "spent_usd": 0.3300000000000001,
         "state": "Completed",
-        "summary": "Premise refuted: The Wall is visible to the naked eye from low Earth orbit."
+        "summary": "Premise refuted: The Wall is visible to the naked eye from low Earth orbit. · medium confidence"
       },
       "nodes": [
         {

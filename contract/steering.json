@@ -797,7 +797,7 @@
       "spending_limit_usd": 5.0,
       "spent_usd": 0.01,
       "state": "Completed",
-      "summary": null
+      "summary": "low confidence"
     },
     "nodes": [
       {
