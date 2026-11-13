@@ -18,6 +18,7 @@ import { Instruction } from "../ui/Instruction";
 import { InstructionComposer } from "../ui/InstructionComposer";
 import { descendants, instructTarget, NodeActions, RerunQuestion, useNodeActions } from "../ui/NodeActions";
 import { RunControls } from "../ui/RunControls";
+import { RecoveryNotice, SystemPause, useRecoveryNotice } from "../ui/SystemPause";
 import { cx } from "../ui/cx";
 import { Page } from "./InvestigationRoute";
 
@@ -160,6 +161,8 @@ export function ControlBoard({ id }: { id: string }) {
     if (nodeId) setSheetOpen(true);
   }, [select]);
   const [focusToken, setFocusToken] = useState(0);
+  const [errorsRequest, setErrorsRequest] = useState<{ filter: "problems"; n: number } | null>(null);
+  const recovery = useRecoveryNotice(id, events);
   const inspectedNode = snapshot
     ? snapshot.nodes.find((n) => n.id === (selectedId ?? snapshot.nodes.find((x) => x.parent_id === null)?.id)) ?? null
     : null;
@@ -191,16 +194,25 @@ export function ControlBoard({ id }: { id: string }) {
   // Nothing selected: the inspector shows the root.
   const inspected = selectedId ?? root?.id ?? null;
   const synthesising = snapshot.investigation.state === "Synthesising";
+  const systemPause = (
+    <SystemPause s={snapshot} command={command} onShowErrors={() => { setLogCollapsed(false); setErrorsRequest((r) => ({ filter: "problems", n: (r?.n ?? 0) + 1 })); }} />
+  );
+  const paused = snapshot.investigation.state === "Paused" && snapshot.investigation.pause_cause !== null && snapshot.investigation.pause_cause !== "user";
+  // One banner at a time: a system pause first, then a refused command, then the recovery notice.
+  const banner = paused ? systemPause
+    : commandError ? <Banner tone="warn" title={commandError.message} />
+    : recovery.notice ? <RecoveryNotice event={recovery.notice} onDismiss={recovery.dismiss} />
+    : undefined;
   return (
     <BoardLayout
       sheetOpen={sheetOpen}
       onCloseSheet={() => setSheetOpen(false)}
       tab={tab}
       onTab={setTab}
-      banner={commandError ? <Banner tone="warn" title={commandError.message} /> : undefined}
+      banner={banner}
       header={
         <BoardHeader s={snapshot} status={status}
-          runControls={<RunControls s={snapshot} command={command} />}
+          runControls={<RunControls s={snapshot} command={command} bannerShown={paused} />}
           focusAction={
             <Button size="sm" sent={command.isSent("run_everything")} sentLabel="Running everything…"
               onClick={() => void command.send("run_everything", { settledBy: (ev) => ev.type === "focus.changed" })}>
@@ -217,7 +229,7 @@ export function ControlBoard({ id }: { id: string }) {
       eventLog={
         <LiveEventLog id={id} events={events} nodes={snapshot.nodes} seq={snapshot.seq} gaps={gaps}
           selectedId={selectedId} onSelect={pick} collapsed={logCollapsed} onToggle={() => setLogCollapsed((c) => !c)}
-          onReachEnd={loadOlder} older={older} />
+          onReachEnd={loadOlder} older={older} filterRequest={errorsRequest} />
       }
       inspector={
         <Inspector investigationId={id} s={snapshot} events={events} nodeId={inspected} live={status === "open"}

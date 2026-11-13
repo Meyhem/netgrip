@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { DurableEvent, GraphNode } from "../api/types";
 import { eventText, type EventText } from "../lib/eventText";
 import { timeOfDaySeconds } from "../lib/format";
@@ -25,6 +25,8 @@ export interface EventLogProps {
    * after a render whose rows do not fill the log, while it is "more". */
   onReachEnd?: () => void;
   older?: OlderState;
+  /** Set the filter from outside ("Show the errors in the log"); a new `n` applies again. */
+  filterRequest?: { filter: "problems"; n: number } | null;
 }
 
 type Filter = "all" | "you" | "orc" | "selected" | "claims" | "problems";
@@ -61,9 +63,10 @@ const LIVE_TAIL = 240;
 
 /** EventLog: the investigation's recorded history, newest first, docked under the graph. */
 export function EventLog({
-  events, nodes, seq, ephemeral, gaps = [], selectedId, onSelect, collapsed, onToggle, onReachEnd, older = "done",
+  events, nodes, seq, ephemeral, gaps = [], selectedId, onSelect, collapsed, onToggle, onReachEnd, older = "done", filterRequest,
 }: EventLogProps) {
   const [filter, setFilter] = useState<Filter>("all");
+  useEffect(() => { if (filterRequest) setFilter(filterRequest.filter); }, [filterRequest]);
   const [follow, setFollow] = useState(true);
   const logRef = useRef<HTMLDivElement>(null);
 
