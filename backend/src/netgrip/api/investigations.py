@@ -36,7 +36,7 @@ TERMINAL_UNAPPROVED = ("Proposed", "Rejected")
 
 def summarise(state: str, pause_cause: str | None, nodes: list, premises: list) -> dict:
     """The derived part of a list row, from the nodes (in seq order) and premises. The
-    frontend's `derive` (frontend/src/state/summary.ts) computes the same from the snapshot.
+    frontend's `summarise` (frontend/src/state/summary.ts) computes the same from the snapshot.
 
     - running_count: nodes Running, while the investigation is Running.
     - nodes_total: nodes below the root that were approved (what the node limit counts).
@@ -83,15 +83,24 @@ def list_row(r: Row, nodes: list, premises: list) -> dict[str, Any]:
 
 
 async def _row_parts(db: Database, ids: list[str]) -> tuple[dict, dict]:
-    """Nodes (seq order) and premises per investigation, for `summarise`."""
+    """Nodes (seq order) and premises of the investigations `ids`, for `summarise`."""
     nodes: dict[str, list] = {i: [] for i in ids}
     premises: dict[str, list] = {i: [] for i in ids}
+    if not ids:
+        return nodes, premises
+    marks = ",".join("?" * len(ids))
     for n in await db.read(
-        "SELECT investigation_id, display_id, status, activity, depth FROM nodes ORDER BY seq"
+        "SELECT investigation_id, display_id, status, activity, depth FROM nodes"
+        f" WHERE investigation_id IN ({marks}) ORDER BY seq",
+        ids,
     ):
-        nodes.setdefault(n["investigation_id"], []).append(n)
-    for p in await db.read("SELECT investigation_id, text, outcome FROM premises ORDER BY seq"):
-        premises.setdefault(p["investigation_id"], []).append(p)
+        nodes[n["investigation_id"]].append(n)
+    for p in await db.read(
+        f"SELECT investigation_id, text, outcome FROM premises WHERE investigation_id IN ({marks})"
+        " ORDER BY seq",
+        ids,
+    ):
+        premises[p["investigation_id"]].append(p)
     return nodes, premises
 
 

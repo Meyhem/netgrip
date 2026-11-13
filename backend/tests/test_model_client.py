@@ -408,3 +408,36 @@ async def test_odd_provider_cost_is_treated_as_no_cost(cost):
     resp = await client.complete(req())
     assert resp.usage.cost_usd is None
     assert (resp.usage.tokens_in, resp.usage.tokens_out) == (10, 5)
+
+
+async def test_fake_delay_holds_each_call(monkeypatch):
+    import asyncio
+
+    slept = []
+
+    async def fake_sleep(s):
+        slept.append(s)
+
+    monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+    fake = FakeModelClient({"plan.initial": [{"text": "ok"}]}, delay_s=0.2)
+    assert (await fake.complete(req())).text == "ok"
+    assert slept == [0.2]
+    assert FakeModelClient({}).delay_s == 0
+
+
+def test_fake_delay_comes_from_the_environment(monkeypatch, tmp_path):
+    from netgrip.config import Config
+
+    monkeypatch.setenv("NETGRIP_DATA_DIR", str(tmp_path))
+    assert Config.from_env().fake_delay_ms == 0
+    monkeypatch.setenv("NETGRIP_FAKE_DELAY_MS", "200")
+    assert Config.from_env().fake_delay_ms == 200
+
+
+async def test_fake_mode_passes_the_delay_to_the_fake_client(tmp_path):
+    from netgrip.app import create_app
+    from netgrip.config import Config
+
+    app = create_app(Config(data_dir=tmp_path / "d", fake=True, fake_delay_ms=150))
+    async with app.router.lifespan_context(app):
+        assert app.state.engine.model_client.delay_s == 0.15

@@ -11,13 +11,15 @@ class Config:
     host: str = "127.0.0.1"
     port: int = 8321
     fake: bool = False
+    fake_delay_ms: int = 0  # fake mode only: each fake model call takes this long
 
     @classmethod
     def from_env(cls) -> "Config":
         data_dir = Path(os.environ.get("NETGRIP_DATA_DIR", "~/netgrip/data")).expanduser()
         port = int(os.environ.get("NETGRIP_PORT", "8321"))
         fake = os.environ.get("NETGRIP_FAKE", "").lower() in {"1", "true", "yes"}
-        return cls(data_dir=data_dir, port=port, fake=fake)
+        delay = int(os.environ.get("NETGRIP_FAKE_DELAY_MS", "0") or 0)
+        return cls(data_dir=data_dir, port=port, fake=fake, fake_delay_ms=delay)
 
     @property
     def is_loopback(self) -> bool:

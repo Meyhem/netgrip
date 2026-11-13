@@ -32,7 +32,10 @@ def create_app(config: Config, frontend_dist: Path | None = None) -> FastAPI:
         web: dict = {}
         if config.fake:
             model_client = FakeModelClient.from_scenario(
-                "great_wall", repeat_last=True, per_investigation=True
+                "great_wall",
+                repeat_last=True,
+                per_investigation=True,
+                delay_s=config.fake_delay_ms / 1000,
             )
             # The scripted web of the scenario; the real adapters arrive in Phase 7.
             web = {

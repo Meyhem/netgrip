@@ -1,5 +1,6 @@
 """A scripted ModelClient for tests and NETGRIP_FAKE=1. Never touches the network."""
 
+import asyncio
 import json
 from collections.abc import AsyncIterator
 from decimal import Decimal
@@ -41,11 +42,16 @@ class FakeModelClient:
     served the whole script from the start, so every fake run in one process is the same."""
 
     def __init__(
-        self, script: dict, repeat_last: bool = False, per_investigation: bool = False
+        self,
+        script: dict,
+        repeat_last: bool = False,
+        per_investigation: bool = False,
+        delay_s: float = 0.0,
     ) -> None:
         self.queues: dict[str, list[dict]] = {k: list(v) for k, v in script.items()}
         self.repeat_last = repeat_last
         self.per_investigation = per_investigation
+        self.delay_s = delay_s  # opt-in latency per call (NETGRIP_FAKE_DELAY_MS), default none
         self.calls: list[ModelRequest] = []
         self._last: dict[str, dict] = {}
         self._script = {k: list(v) for k, v in script.items()}
@@ -53,10 +59,14 @@ class FakeModelClient:
 
     @classmethod
     def from_scenario(
-        cls, name: str, repeat_last: bool = False, per_investigation: bool = False
+        cls,
+        name: str,
+        repeat_last: bool = False,
+        per_investigation: bool = False,
+        delay_s: float = 0.0,
     ) -> "FakeModelClient":
         script = json.loads((SCENARIOS / f"{name}.json").read_text(encoding="utf-8"))
-        return cls(script, repeat_last=repeat_last, per_investigation=per_investigation)
+        return cls(script, repeat_last, per_investigation, delay_s)
 
     def _next(self, req: ModelRequest) -> dict:
         if not self.per_investigation:
@@ -84,6 +94,8 @@ class FakeModelClient:
     async def complete(self, req: ModelRequest) -> ModelResponse:
         self.calls.append(req)
         entry = self._next(req)
+        if self.delay_s:
+            await asyncio.sleep(self.delay_s)
         usage = {"tokens_in": 100, "tokens_out": 200, "cost_usd": "0.01"} | entry.get("usage", {})
         if usage["cost_usd"] is not None:
             usage["cost_usd"] = Decimal(str(usage["cost_usd"]))
@@ -179,8 +191,6 @@ class FakeFetcher:
         return cls(json.loads(path.read_text(encoding="utf-8")))
 
     async def fetch(self, url: str, *, on_attempt: OnAttempt) -> FetchResult:
-        import asyncio
-
         self.calls.append(url)
         if self.delay:
             await asyncio.sleep(self.delay)

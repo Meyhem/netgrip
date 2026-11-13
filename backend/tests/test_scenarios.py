@@ -177,3 +177,25 @@ async def test_deleting_a_running_investigation_stops_its_runtime(tmp_path):
     finally:
         await engine.stop()
         await engine.db.close()
+
+
+async def test_abandoning_a_runtime_awaits_its_cancelled_node_tasks(tmp_path):
+    held = asyncio.Event()
+
+    async def hold() -> None:
+        held.set()
+        await asyncio.Event().wait()  # never returns: only a cancel ends it
+
+    engine = await open_engine(tmp_path, fetcher=GatedFetcher(NASA, hold))
+    try:
+        r = run(engine)
+        await r.approved()
+        await asyncio.wait_for(held.wait(), 10)
+        rt = engine.runtimes[r.inv]
+        tasks = list(rt._tasks.values())
+        assert tasks
+        await rt.stop(abandon=True)
+        assert all(t.done() for t in tasks)
+    finally:
+        await engine.stop()
+        await engine.db.close()

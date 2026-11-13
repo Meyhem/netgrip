@@ -175,10 +175,13 @@ class InvestigationRuntime:
         simply lost and runs again later), then end the loop."""
         self.request_stop()
         if abandon:
-            for t in self._tasks.values():
+            tasks = list(self._tasks.values())
+            for t in tasks:
                 t.cancel()
             if self._loop is not None:
                 self._loop.cancel()
+            # Every cancelled node task has ended before we return: none can commit later.
+            await asyncio.gather(*tasks, return_exceptions=True)
         await self.wait()
 
     async def wait(self) -> None:
