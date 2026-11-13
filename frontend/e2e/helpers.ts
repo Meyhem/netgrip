@@ -54,3 +54,14 @@ export async function startedRun(request: APIRequestContext): Promise<string> {
   await until(async () => (await snapshotOf(request, id)).investigation.state !== "Planning", "the run to start");
   return id;
 }
+
+/** A started run, waited for until its report exists (fake mode, fast server). */
+export async function completedRun(request: APIRequestContext, timeoutMs = 60_000): Promise<string> {
+  const id = await startedRun(request);
+  await until(async () => (await snapshotOf(request, id)).investigation.state === "Completed", "the report", timeoutMs);
+  return id;
+}
+
+export async function storageTotal(request: APIRequestContext): Promise<number> {
+  return ((await (await request.get("/api/system/storage")).json()) as { total_bytes: number }).total_bytes;
+}

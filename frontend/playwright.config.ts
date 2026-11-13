@@ -29,9 +29,9 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   projects: [
-    { name: "app", testIgnore: /(board|steering|outage)\.spec\.ts/, use: { baseURL: `http://127.0.0.1:${port}` } },
+    { name: "app", testIgnore: /(board|steering|report-steer|outage)\.spec\.ts/, use: { baseURL: `http://127.0.0.1:${port}` } },
     { name: "board", testMatch: /board\.spec\.ts/, use: { baseURL: `http://127.0.0.1:${boardPort}` } },
-    { name: "steering", testMatch: /steering\.spec\.ts/, use: { baseURL: `http://127.0.0.1:${steerPort}` } },
+    { name: "steering", testMatch: /(steering|report-steer)\.spec\.ts/, use: { baseURL: `http://127.0.0.1:${steerPort}` } },
     { name: "outage", testMatch: /outage\.spec\.ts/, use: { baseURL: `http://127.0.0.1:${outagePort}` } },
   ],
   webServer: [
