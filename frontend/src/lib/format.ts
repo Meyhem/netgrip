@@ -22,3 +22,15 @@ export function bytes(n: number): string {
   if (mb >= 10) return `${Math.round(mb)} MB`;
   return `${Math.max(0.1, Math.round(mb * 10) / 10)} MB`;
 }
+
+/** Time in a run, short: "2:41", or "1:02:41" past an hour. */
+export function elapsed(seconds: number): string {
+  const t = Math.max(0, Math.floor(seconds));
+  return t >= 3600 ? clock(t) : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
+}
+
+/** Local time of day as "13:58". */
+export function timeOfDay(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { forgetInvestigation } from "../state/investigationStore";
@@ -9,7 +9,7 @@ import { runContract } from "../test/contract";
 import { settings } from "../test/fixtures";
 import { InvestigationRoute } from "./InvestigationRoute";
 
-const { snapshots } = runContract();
+const { events, snapshots } = runContract();
 const mid = snapshots[0];
 const ID = mid.investigation.id;
 
@@ -66,5 +66,26 @@ describe("ControlBoard", () => {
     expect(await screen.findByRole("heading", { name: last.investigation.prompt })).toBeInTheDocument();
     expect(document.querySelector(".ng-board__head .ng-pill")).toHaveTextContent("Completed");
     expect(document.querySelector('[data-slot="execution-order"]')).not.toBeNull();
+  });
+
+  it("a node completing after load sorts first in Done", async () => {
+    show(`/investigations/${ID}`);
+    await screen.findByRole("heading", { name: mid.investigation.prompt });
+    const upTo = events.find((e) => e.type === "node.completed" && e.node_id === mid.nodes[2].id)!.seq;
+    act(() => {
+      for (const e of events.filter((e) => e.seq > mid.seq && e.seq <= upTo)) FakeEventSource.last.durable(e);
+    });
+    const done = [...document.querySelectorAll('.ng-qrow[data-section="done"]')];
+    expect(done[0]).toHaveAttribute("data-node-id", mid.nodes[2].id);
+    expect(done[0].querySelector(".ng-qrow__q")).toHaveTextContent(/^D1 /);
+  });
+
+  it("clicking a queue row selects the node for the inspector", async () => {
+    show(`/investigations/${ID}`);
+    await screen.findByRole("heading", { name: mid.investigation.prompt });
+    const d1 = mid.nodes[2];
+    fireEvent.click(document.querySelector(`.ng-qrow[data-node-id="${d1.id}"]`)!);
+    expect(document.querySelector(`.ng-qrow[data-node-id="${d1.id}"]`)).toHaveClass("is-selected");
+    expect(document.querySelector('[data-slot="inspector"] [data-node-id]')).toHaveAttribute("data-node-id", d1.id);
   });
 });

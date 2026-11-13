@@ -3,6 +3,7 @@ import { useInvestigation } from "../state/investigationStore";
 import { useSelection } from "../state/selection";
 import { Banner } from "../ui/Banner";
 import { BoardHeader } from "../ui/BoardHeader";
+import { ExecutionOrder } from "../ui/ExecutionOrder";
 import { cx } from "../ui/cx";
 import { Page } from "./InvestigationRoute";
 
@@ -40,8 +41,8 @@ export function BoardLayout({ header, banner, executionOrder, graph, eventLog, i
 /** ScreenControlBoard: one investigation, three panes over one store and one selection. Opens
  * from the snapshot and follows the stream (useInvestigation). Read-only in Phase 5. */
 export function ControlBoard({ id }: { id: string }) {
-  const { snapshot, status, error } = useInvestigation(id);
-  const { selectedId } = useSelection(id);
+  const { snapshot, status, error, events } = useInvestigation(id);
+  const { selectedId, select } = useSelection(id);
   if (!snapshot) {
     return error ? <Page><Banner tone="warn" title="Netgrip cannot reach its service.">Reload to try again. Nothing is lost.</Banner></Page> : null;
   }
@@ -51,7 +52,7 @@ export function ControlBoard({ id }: { id: string }) {
   return (
     <BoardLayout
       header={<BoardHeader s={snapshot} status={status} runControls={null /* Phase 6: RunControls */} />}
-      executionOrder={<div className="ng-pane__scroll" />}
+      executionOrder={<ExecutionOrder s={snapshot} events={events} selectedId={selectedId} onSelect={select} live={status !== "reconnecting"} />}
       graph={
         <>
           <div className="ng-toolbar"><span className="ng-label">Graph</span></div>

@@ -12,7 +12,28 @@ export interface InvestigationState {
   status: ConnectionStatus;
   /** The latest ephemeral messages (streamed model text and similar), oldest first. */
   ephemeral: EphemeralEvent[];
+  /** Every durable event seen so far, one per `seq`, oldest first: the snapshot's
+   * `recent_events`, then each streamed event, plus older pages added with `addEvents`. */
+  events: DurableEvent[];
   error: unknown;
+}
+
+/** `a` and `b` as one list sorted by `seq`, one envelope per `seq` (the first one seen). */
+export function mergeEvents(a: DurableEvent[], b: DurableEvent[]): DurableEvent[] {
+  if (b.length === 0) return a;
+  // The common case: streamed events arrive in order after everything known.
+  const last = a.length ? a[a.length - 1].seq : -Infinity;
+  if (b.every((e, i) => e.seq > (i === 0 ? last : b[i - 1].seq))) return [...a, ...b];
+  const bySeq = new Map<number, DurableEvent>();
+  for (const e of [...a, ...b]) if (!bySeq.has(e.seq)) bySeq.set(e.seq, e);
+  return [...bySeq.values()].sort((x, y) => x.seq - y.seq);
+}
+
+/** Add durable events to what is kept for `id` (older pages of the log fetched with `before=`).
+ * De-duplicated by `seq`; the list stays in seq order. */
+export function addEvents(id: string, events: DurableEvent[]): void {
+  const store = storeFor(id);
+  store.setState((s) => ({ events: mergeEvents(s.events, events) }));
 }
 
 /** How many ephemeral messages are kept; they are never stored or replayed (D-11). */
@@ -33,7 +54,7 @@ export function subscribeDurable(id: string, fn: (ev: DurableEvent) => void): ()
 function storeFor(id: string): StoreApi<InvestigationState> {
   let store = stores.get(id);
   if (!store) {
-    store = createStore<InvestigationState>(() => ({ snapshot: null, status: "loading", ephemeral: [], error: null }));
+    store = createStore<InvestigationState>(() => ({ snapshot: null, status: "loading", ephemeral: [], events: [], error: null }));
     stores.set(id, store);
   }
   return store;
@@ -58,10 +79,10 @@ export function useInvestigation(id: string): InvestigationState {
         // A snapshot kept from an earlier mount may be newer; reduce never goes backwards.
         const current = store.getState().snapshot;
         const snapshot = current && current.seq > loaded.seq ? current : loaded;
-        store.setState({ snapshot });
+        store.setState((s) => ({ snapshot, events: mergeEvents(s.events, loaded.recent_events ?? []) }));
         close = openStream(id, snapshot.seq, {
           onDurable: (ev) => {
-            store.setState((s) => (s.snapshot ? { snapshot: reduce(s.snapshot, ev) } : s));
+            store.setState((s) => (s.snapshot ? { snapshot: reduce(s.snapshot, ev), events: mergeEvents(s.events, [ev]) } : s));
             for (const fn of [...(durableListeners.get(id) ?? [])]) fn(ev);
           },
           onEphemeral: (ev) => store.setState((s) => ({ ephemeral: [...s.ephemeral, ev].slice(-EPHEMERAL_KEEP) })),

@@ -48,10 +48,10 @@ export function refutedPremises(s: Snapshot): Premise[] {
   return s.premises.filter((p) => p.outcome === "refuted");
 }
 
-/** The ExecutionOrder sections. `events` (oldest first, default the snapshot's recent events)
+/** The ExecutionOrder sections. `events` (oldest first: the store's accumulated durable events)
  * order Done newest first; a finished node with no finishing event among them sorts after the
  * known ones, newest created first. */
-export function sections(s: Snapshot, events: DurableEvent[] = s.recent_events ?? []): Sections {
+export function sections(s: Snapshot, events: DurableEvent[]): Sections {
   const nodes = s.nodes;
   const reasons = s.schedule.reasons;
   const kids = new Map<string, GraphNode[]>();

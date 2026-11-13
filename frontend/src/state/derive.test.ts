@@ -37,7 +37,7 @@ describe("sections", () => {
       kid("Q", { status: "Pending" }),
       kid("C", { status: "Completed" }),
     ], { schedule: { order: ["Q"], reasons: {}, slots: 4 } });
-    const out = sections(s);
+    const out = sections(s, []);
     expect(ids(out.notRunning)).toEqual(["P", "I", "S", "X"]);
     expect(out.notRunning.map((r) => r.why)).toEqual(["Paused", "Ignored", "Superseded", "Rejected"]);
     expect(ids(out.now)).toEqual(["A"]);
@@ -47,7 +47,7 @@ describe("sections", () => {
 
   it("a pending node whose branch is paused is not running", () => {
     const s = snap([R, kid("Q"), kid("Z")], { schedule: { order: ["Q"], reasons: { Z: "paused" }, slots: 4 } });
-    expect(ids(sections(s).notRunning)).toEqual(["Z"]);
+    expect(ids(sections(s, []).notRunning)).toEqual(["Z"]);
   });
 
   it("next follows schedule.order, not node order", () => {
@@ -63,7 +63,7 @@ describe("sections", () => {
         slots: 2,
       },
     });
-    const next = sections(s).next;
+    const next = sections(s, []).next;
     expect(ids(next)).toEqual(["C", "A", "B", "D", "N", "R"]);
     expect(next.map((r) => r.position)).toEqual([1, 2, 3, 4, 5, 6]);
     expect(next.map((r) => r.waitText)).toEqual([
@@ -74,7 +74,7 @@ describe("sections", () => {
 
   it("drops scheduled ids that have already started", () => {
     const s = snap([R, kid("A", { status: "Running" }), kid("B")], { schedule: { order: ["A", "B"], reasons: {}, slots: 1 } });
-    const out = sections(s);
+    const out = sections(s, []);
     expect(ids(out.next)).toEqual(["B", "R"]);
     expect(ids(out.now)).toEqual(["A"]);
   });
@@ -86,8 +86,8 @@ describe("sections", () => {
     expect(ids(done)).toEqual(["A", "C", "B"]);
     expect(done[0].finishedAt).toBe("2026-11-13T10:00:13Z");
     // Without events: newest created first.
-    expect(ids(sections(s).done)).toEqual(["C", "B", "A"]);
-    expect(sections(s).done[0].finishedAt).toBeNull();
+    expect(ids(sections(s, []).done)).toEqual(["C", "B", "A"]);
+    expect(sections(s, []).done[0].finishedAt).toBeNull();
   });
 
   it("refuted premise in done is flagged", () => {
@@ -102,7 +102,7 @@ describe("sections", () => {
         { id: "pr-2", text: "Visible from the Moon", node_id: "P2", outcome: "confirmed" },
       ],
     });
-    const done = sections(s).done;
+    const done = sections(s, []).done;
     expect(Object.fromEntries(done.map((r) => [r.node.id, r.refutedPremise]))).toEqual({ P1: true, P2: false, D1: false });
     expect(refutedPremises(s).map((p) => p.id)).toEqual(["pr-1"]);
   });
