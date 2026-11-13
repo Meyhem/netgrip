@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useInvestigation } from "../state/investigationStore";
 import { useSelection } from "../state/selection";
 import { Banner } from "../ui/Banner";
+import { BoardGraph } from "../ui/BoardGraph";
 import { BoardHeader } from "../ui/BoardHeader";
 import { ExecutionOrder } from "../ui/ExecutionOrder";
 import { cx } from "../ui/cx";
@@ -53,12 +54,7 @@ export function ControlBoard({ id }: { id: string }) {
     <BoardLayout
       header={<BoardHeader s={snapshot} status={status} runControls={null /* Phase 6: RunControls */} />}
       executionOrder={<ExecutionOrder s={snapshot} events={events} selectedId={selectedId} onSelect={select} live={status === "open"} />}
-      graph={
-        <>
-          <div className="ng-toolbar"><span className="ng-label">Graph</span></div>
-          <div className="ng-canvas" />
-        </>
-      }
+      graph={<BoardGraph s={snapshot} events={events} selectedId={selectedId} onSelect={select} live={status === "open"} />}
       eventLog={null}
       inspector={<div className="ng-pane__scroll" data-node-id={inspected ?? undefined} />}
     />

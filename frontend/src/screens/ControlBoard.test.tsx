@@ -99,4 +99,30 @@ describe("ControlBoard", () => {
     act(() => FakeEventSource.last.fail());
     expect(running()).not.toHaveClass("ng-pulse");
   });
+
+  it("the centre shows the running graph, current to the last applied seq", async () => {
+    show(`/investigations/${ID}`);
+    await screen.findByRole("heading", { name: mid.investigation.prompt });
+    const center = document.querySelector('[data-slot="center"]')!;
+    expect(center.querySelectorAll(".ng-canvas .ng-node")).toHaveLength(mid.nodes.length);
+    const fresh = () => center.querySelector(".ng-toolbar")!.textContent;
+    expect(fresh()).toContain(`current to #${String(mid.seq).padStart(4, "0")}`);
+    const next = events.find((e) => e.seq > mid.seq)!;
+    act(() => FakeEventSource.last.durable(next));
+    expect(fresh()).toContain(`current to #${String(next.seq).padStart(4, "0")}`);
+  });
+
+  it("selecting a queue row selects the same node on the graph; graph pulses stop when not open", async () => {
+    show(`/investigations/${ID}`);
+    await screen.findByRole("heading", { name: mid.investigation.prompt });
+    act(() => FakeEventSource.last.open());
+    const running = mid.nodes.find((n) => n.status === "Running");
+    expect(running).toBeDefined();
+    expect(document.querySelector(`.ng-canvas [data-node="${running!.id}"] .ng-pulse`)).not.toBeNull();
+    const d1 = mid.nodes[2];
+    fireEvent.click(document.querySelector(`.ng-qrow[data-node-id="${d1.id}"]`)!);
+    expect(document.querySelector(`.ng-canvas [data-node="${d1.id}"]`)).toHaveClass("is-selected");
+    act(() => FakeEventSource.last.fail());
+    expect(document.querySelector(".ng-canvas .ng-pulse")).toBeNull();
+  });
 });

@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { GraphNode as Node, NodeState } from "../api/types";
+import { ActivityLine } from "./ActivityLine";
 import { cx } from "./cx";
 import { KIND_CODE } from "./vocab";
 
@@ -45,9 +46,19 @@ export interface GraphNodeProps {
   fold?: string | null;
   onFold?: (id: string) => void;
   style?: CSSProperties;
+  /** Board mode: false stops the running glyph's pulse (investigation Paused, stream not open). */
+  live?: boolean;
+  /** Board mode: the detail of the node's latest activity event. While Running, line 3 is then
+   * the ActivityLine. */
+  activity?: ActivityDetail | null;
 }
 
-export function GraphNode({ node, selected, onSelect, mode, sub, mark, removed, fold, onFold, style }: GraphNodeProps) {
+export interface ActivityDetail {
+  detail: string;
+  retry?: { n: number; m: number } | null;
+}
+
+export function GraphNode({ node, selected, onSelect, mode, sub, mark, removed, fold, onFold, style, live = true, activity }: GraphNodeProps) {
   const excluded = removed || node.inclusion !== "Included";
   const planned = mode === "plan" && node.status === "Proposed";
   const [glyph, word] = removed
@@ -59,9 +70,12 @@ export function GraphNode({ node, selected, onSelect, mode, sub, mark, removed, 
         : planned
           ? ["◌", "Planned"]
           : STATUS_WORD[node.status];
-  const pulses = !excluded && mode === "board" && node.status === "Running";
+  const pulses = live && !excluded && mode === "board" && node.status === "Running";
   const markText = mark !== undefined ? mark : node.instruction_count > 0 ? `✎︎ ${node.instruction_count}` : null;
   const line3 = sub !== undefined ? sub : nodeSub(node);
+  const activityLine = mode === "board" && !excluded && node.status === "Running" && node.activity && activity
+    ? <ActivityLine activity={node.activity} detail={activity.detail} retry={activity.retry ?? null} />
+    : null;
 
   return (
     <div
@@ -89,7 +103,7 @@ export function GraphNode({ node, selected, onSelect, mode, sub, mark, removed, 
         </span>
       </div>
       <div className="ng-node__q">{node.question}</div>
-      {line3 && <div className="ng-node__sub">{line3}</div>}
+      {activityLine ? <div className="ng-node__sub">{activityLine}</div> : line3 && <div className="ng-node__sub">{line3}</div>}
       {fold && <span className="ng-node__fold">{fold}</span>}
     </div>
   );
@@ -99,8 +113,12 @@ export function GraphNode({ node, selected, onSelect, mode, sub, mark, removed, 
 export function nodeSub(node: Node): string | null {
   if (node.status === "Running" && node.activity) return node.activity;
   if (node.status === "Completed") {
-    const v = node.verdict as { summary?: unknown } | null;
-    if (v && typeof v === "object" && typeof v.summary === "string") return v.summary;
+    // The verdict summary: its text and confidence ("Not visible · high").
+    const v = node.verdict as { text?: unknown; summary?: unknown; confidence?: unknown } | null;
+    if (!v || typeof v !== "object") return null;
+    const text = typeof v.text === "string" ? v.text : typeof v.summary === "string" ? v.summary : null;
+    const parts = [text, typeof v.confidence === "string" ? v.confidence : null].filter(Boolean);
+    return parts.length ? parts.join(" · ") : null;
   }
   return null;
 }

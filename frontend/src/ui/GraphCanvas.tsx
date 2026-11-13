@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import {
+  useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState,
+  type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode,
+} from "react";
 import type { GraphNode as Node } from "../api/types";
-import { edgePath, layoutGraph, NODE_H, NODE_H_SHORT, type LayoutEdge } from "../lib/layout";
+import { edgePath, layoutGraph, NODE_H, NODE_H_SHORT, NODE_W, type LayoutEdge } from "../lib/layout";
 import { Button } from "./Button";
 import { cx } from "./cx";
-import { GraphNode, nodeSub, type GraphMode } from "./GraphNode";
+import { GraphNode, nodeSub, type ActivityDetail, type GraphMode } from "./GraphNode";
 
 /** What a screen adds to a node beyond its snapshot data (plan review: "new", "− Removed"). */
 export interface NodeExtra {
@@ -22,11 +25,23 @@ export interface GraphCanvasProps {
   /** Toolbar content after "Fit". */
   toolbarEnd?: ReactNode;
   extras?: Record<string, NodeExtra>;
+  /** Board: false stops every pulse (investigation Paused, stream not open). */
+  live?: boolean;
+  /** Board: the latest activity detail per node id, for the running nodes' ActivityLine. */
+  activities?: Record<string, ActivityDetail>;
+  /** Off hides Ignored and Superseded nodes with their branches. On by default. */
+  showExcluded?: boolean;
+  /** Folds every finished branch below the root (the user can still open one). */
+  collapseCompleted?: boolean;
+  /** A node to keep in view: the canvas pans to it whenever it changes (Follow active). */
+  follow?: string | null;
 }
 
 interface View { x: number; y: number; k: number }
 
 const NO_EXTRAS: Record<string, NodeExtra> = {};
+const NO_ACTIVITIES: Record<string, ActivityDetail> = {};
+const FINISHED = new Set(["Completed", "Failed", "Rejected"]);
 
 const MIN_K = 0.2;
 const MAX_K = 2;
@@ -41,14 +56,63 @@ const DRAG_SLOP = 3;
  * they fill the toolbar and canvas rows of `ng-center`. Drag pans, the wheel zooms, a click
  * selects, a double-click folds a branch.
  */
-export function GraphCanvas({ nodes, selectedId, onSelect, mode, toolbar, toolbarEnd, extras = NO_EXTRAS }: GraphCanvasProps) {
-  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+export function GraphCanvas({
+  nodes: allNodes, selectedId, onSelect, mode, toolbar, toolbarEnd, extras = NO_EXTRAS,
+  live: liveProp = true, activities = NO_ACTIVITIES, showExcluded = true, collapseCompleted = false, follow = null,
+}: GraphCanvasProps) {
+  const board = mode === "board";
+  const [manual, setManual] = useState<Set<string>>(() => new Set());
+  // Finished branches the user opened again while Collapse completed is on.
+  const [opened, setOpened] = useState<Set<string>>(() => new Set());
+  useEffect(() => setOpened(new Set()), [collapseCompleted]);
   const [view, setView] = useState<View>({ x: 0, y: 0, k: 1 });
   const canvasRef = useRef<HTMLDivElement>(null);
   const dragged = useRef(false);
   const arrowId = `graph-arrow${useId().replace(/:/g, "")}`;
 
+  // Show excluded off: Ignored and Superseded nodes leave the canvas with their branches.
+  const nodes = useMemo(() => {
+    if (showExcluded) return allNodes;
+    const all = new Map(allNodes.map((n) => [n.id, n]));
+    const off = (n: Node | undefined): boolean => {
+      for (let cur = n, i = 0; cur && i < all.size; cur = cur.parent_id ? all.get(cur.parent_id) : undefined, i++) {
+        if (cur.inclusion !== "Included") return true;
+      }
+      return false;
+    };
+    return allNodes.filter((n) => !off(n));
+  }, [allNodes, showExcluded]);
+
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
+
+  // Collapse completed: every node below the root whose whole branch is finished and has children.
+  const autoFolded = useMemo(() => {
+    const out = new Set<string>();
+    if (!collapseCompleted) return out;
+    const kids = new Map<string, Node[]>();
+    for (const n of nodes) if (n.parent_id && byId.has(n.parent_id)) kids.set(n.parent_id, [...(kids.get(n.parent_id) ?? []), n]);
+    const memo = new Map<string, boolean>();
+    const finished = (n: Node): boolean => {
+      const hit = memo.get(n.id);
+      if (hit !== undefined) return hit;
+      memo.set(n.id, false);
+      const own = n.inclusion !== "Included" || FINISHED.has(n.status);
+      const all = own && (kids.get(n.id) ?? []).every(finished);
+      memo.set(n.id, all);
+      return all;
+    };
+    for (const n of nodes) {
+      const isRoot = !n.parent_id || !byId.has(n.parent_id);
+      if (!isRoot && kids.has(n.id) && (n.status === "Completed" || n.status === "Failed") && finished(n)) out.add(n.id);
+    }
+    return out;
+  }, [nodes, byId, collapseCompleted]);
+
+  const collapsed = useMemo(() => {
+    const out = new Set([...manual, ...autoFolded]);
+    for (const id of opened) out.delete(id);
+    return out;
+  }, [manual, autoFolded, opened]);
 
   const subs = useMemo(() => {
     const out: Record<string, string | null> = {};
@@ -125,9 +189,58 @@ export function GraphCanvas({ nodes, selectedId, onSelect, mode, toolbar, toolba
   // Fit once, when the graph first has nodes and the canvas has a size. Later redraws keep the
   // user's pan and zoom; "Fit" is always there.
   const fitted = useRef(false);
+  /** The node the view was last centred on, centred again once the first fit has a size. */
+  const target = useRef<string | null>(null);
   const autoFit = useRef(() => {});
   autoFit.current = () => {
-    if (!fitted.current && nodes.length > 0) fitted.current = fit(AUTO_FIT_MIN_K);
+    if (!fitted.current && nodes.length > 0) {
+      fitted.current = fit(AUTO_FIT_MIN_K);
+      if (fitted.current && target.current) centerOn.current(target.current);
+    }
+  };
+
+  /** Pans (keeping the zoom) so the node is in the middle of the canvas. */
+  const centerOn = useRef((_id: string) => {});
+  centerOn.current = (id: string) => {
+    const pos = layout.positions[id];
+    if (!pos) return;
+    target.current = id;
+    const el = canvasRef.current;
+    const cw = el?.clientWidth ?? 0;
+    const ch = el?.clientHeight ?? 0;
+    const h = subs[id] ? NODE_H : NODE_H_SHORT;
+    setView((v) => ({ k: v.k, x: cw / 2 - (pos.x + NODE_W / 2) * v.k, y: ch / 2 - (pos.y + h / 2) * v.k }));
+  };
+
+  // Board: a selection made in another pane (queue, log, inspector) or by the arrow keys pans
+  // to the node. A click on the canvas does not move it.
+  const clickedHere = useRef<string | null>(null);
+  useEffect(() => {
+    const here = clickedHere.current;
+    clickedHere.current = null;
+    if (!board || !selectedId || selectedId === here) return;
+    centerOn.current(selectedId);
+  }, [board, selectedId]);
+
+  useEffect(() => {
+    if (follow) centerOn.current(follow);
+  }, [follow]);
+
+  const selectHere = (id: string) => {
+    clickedHere.current = id;
+    onSelect(id);
+  };
+
+  /** `←` the parent, `→` the first child; with nothing selected, either selects the root. */
+  const onKeyDown = (e: ReactKeyboardEvent) => {
+    if (!board || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
+    e.preventDefault();
+    const cur = selectedId ? byId.get(selectedId) : undefined;
+    let next: string | undefined;
+    if (!cur) next = rootId;
+    else if (e.key === "ArrowLeft") next = cur.parent_id && layout.positions[cur.parent_id] ? cur.parent_id : undefined;
+    else next = nodes.find((n) => n.parent_id === cur.id && layout.positions[n.id])?.id;
+    if (next) onSelect(next);
   };
   useLayoutEffect(() => autoFit.current(), [nodes.length, fit]);
   useEffect(() => {
@@ -176,12 +289,21 @@ export function GraphCanvas({ nodes, selectedId, onSelect, mode, toolbar, toolba
     window.addEventListener("mouseup", up);
   };
 
-  const toggleFold = (id: string) =>
-    setCollapsed((c) => {
+  const toggleFold = (id: string) => {
+    const folded = collapsed.has(id);
+    setManual((c) => {
       const next = new Set(c);
-      if (!next.delete(id)) next.add(id);
+      if (folded) next.delete(id);
+      else next.add(id);
       return next;
     });
+    setOpened((o) => {
+      const next = new Set(o);
+      if (folded) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
 
   return (
     <>
@@ -194,6 +316,9 @@ export function GraphCanvas({ nodes, selectedId, onSelect, mode, toolbar, toolba
         ref={canvasRef}
         className="ng-canvas"
         style={{ cursor: "grab", backgroundPosition: `${view.x}px ${view.y}px` }}
+        tabIndex={board ? 0 : undefined}
+        aria-label={board ? "Graph" : undefined}
+        onKeyDown={board ? onKeyDown : undefined}
         onMouseDown={onMouseDown}
         onClickCapture={(e) => {
           // The click that ends a drag does not select.
@@ -236,8 +361,10 @@ export function GraphCanvas({ nodes, selectedId, onSelect, mode, toolbar, toolba
                 node={n}
                 mode={mode}
                 selected={n.id === selectedId}
-                onSelect={onSelect}
+                onSelect={selectHere}
                 sub={subs[n.id]}
+                live={liveProp}
+                activity={activities[n.id] ?? null}
                 mark={extra.mark}
                 removed={extra.removed}
                 fold={hidden ? `+${hidden}` : parents.has(n.id) ? "−" : null}

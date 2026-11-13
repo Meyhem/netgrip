@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { DurableEvent, GraphNode, Snapshot } from "../api/types";
-import { sections, type NotRunningRow } from "../state/derive";
+import { lastByNode, sections, type NotRunningRow } from "../state/derive";
 import { elapsed, timeOfDay } from "../lib/format";
 import { ActivityLine } from "./ActivityLine";
 import { cx } from "./cx";
@@ -28,17 +28,6 @@ interface Row {
 }
 
 const NOT_RUNNING_GLYPH = { Ignored: "⦸", Superseded: "↺", Rejected: "⊘", Paused: "‖" } as const;
-
-/** The newest event of `type` for each node (`node_id`), or for each id in `data.node_ids`. */
-function lastByNode(events: DurableEvent[], types: string[]): Map<string, DurableEvent> {
-  const out = new Map<string, DurableEvent>();
-  for (const ev of events) {
-    if (!types.includes(ev.type)) continue;
-    const ids = Array.isArray(ev.data.node_ids) ? (ev.data.node_ids as string[]) : ev.node_id ? [ev.node_id] : [];
-    for (const id of ids) out.set(id, ev);
-  }
-  return out;
-}
 
 /** The current time, ticking each second while `active`. */
 function useNow(active: boolean): number {
