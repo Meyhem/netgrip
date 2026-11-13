@@ -9,6 +9,7 @@ from netgrip.adapters.fetch_escalating import EscalatingFetcher
 from netgrip.adapters.fetch_limits import DEFAULT_LIMITS, FetchLimits
 from netgrip.adapters.politeness import Politeness
 from netgrip.adapters.search_tavily import TavilySearch
+from netgrip.adapters.url_guard import acheck_url
 from netgrip.engine.limiter import Limiter
 
 log = logging.getLogger(__name__)
@@ -22,16 +23,22 @@ class Web:
         browser_pages: int = 4,
         politeness_s: float = 2.0,
         limits: FetchLimits = DEFAULT_LIMITS,
+        *,
+        guard=acheck_url,
+        clock=None,
+        search=None,
     ) -> None:
-        self.search = TavilySearch(get_search_key)
-        self.politeness = Politeness(politeness_s)
+        self.search = search or TavilySearch(get_search_key)
+        self.politeness = Politeness(politeness_s, clock)
         slots = Limiter("browser", browser_pages)  # one limit for both pools (R-03)
         self.slots = slots
         self.pool = BrowserPool(browser_pages, limits, profile_dir / "standard", slots=slots)
         self.hardened = BrowserPool(
             browser_pages, limits, profile_dir / "hardened", hardened=True, slots=slots
         )
-        self.fetcher = EscalatingFetcher(self.politeness, self.pool, self.hardened, limits)
+        self.fetcher = EscalatingFetcher(
+            self.politeness, self.pool, self.hardened, limits, clock, guard=guard
+        )
 
     async def start(self) -> None:
         """Remove what a previous run left behind. Browsers start on first use."""
@@ -41,7 +48,8 @@ class Web:
     async def stop(self) -> None:
         await self.pool.stop()
         await self.hardened.stop()
-        await self.search.aclose()
+        if hasattr(self.search, "aclose"):
+            await self.search.aclose()
 
     def apply(self, capacity, politeness_s: float) -> None:
         self.slots.resize(capacity.browser_pages)

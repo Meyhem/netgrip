@@ -17,6 +17,7 @@ from netgrip.adapters.fetcher import (
     Route,
 )
 from netgrip.adapters.politeness import Politeness
+from netgrip.adapters.url_guard import acheck_url
 from netgrip.engine.clock import Clock, SystemClock
 
 RouteFn = Callable[[str], Awaitable[tuple[FetchAttempt, PageContent | None]]]
@@ -32,17 +33,20 @@ class EscalatingFetcher:
         clock: Clock | None = None,
         *,
         routes: dict[Route, RouteFn] | None = None,
+        guard=acheck_url,
     ) -> None:
         self.politeness = politeness
         self.limits = limits
         self.clock = clock or SystemClock()
         self.routes: dict[Route, RouteFn] = {
-            "simple": lambda url: fetch_simple(url, limits),
+            "simple": lambda url: fetch_simple(url, limits, guard=guard),
         }
         if pool is not None:
-            self.routes["browser"] = lambda url: fetch_browser(pool, url, limits)
+            self.routes["browser"] = lambda url: fetch_browser(pool, url, limits, guard=guard)
         if hardened_pool is not None:
-            self.routes["hardened"] = lambda url: fetch_browser(hardened_pool, url, limits)
+            self.routes["hardened"] = lambda url: fetch_browser(
+                hardened_pool, url, limits, guard=guard
+            )
         self.routes.update(routes or {})
 
     async def fetch(self, url: str, *, on_attempt: OnAttempt) -> FetchResult:
