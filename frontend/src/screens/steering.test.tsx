@@ -243,7 +243,7 @@ describe("the composer on the board", () => {
     const row = document.querySelector('.ng-log__row[data-seq="3"]') ?? document.createElement("div");
     const scroll = vi.fn();
     row.scrollIntoView = scroll;
-    fireEvent.click(within(inspector()).getByRole("button", { name: /Show #0003 in the log/ }));
+    fireEvent.click(within(inspector()).getByRole("button", { name: /Show .0003 in the log/ }));
     expect(screen.getByRole("button", { name: "Collapse log" })).toHaveAttribute("aria-expanded", "true");
   });
 });
