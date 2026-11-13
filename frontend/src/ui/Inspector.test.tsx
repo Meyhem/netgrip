@@ -168,6 +168,21 @@ describe("Inspector", () => {
     });
   });
 
+  it("a root's Nodes meter follows nodes added by events, without refetching the detail", async () => {
+    const root = { ...R, budget: { child_nodes: 3, sources: 0 } };
+    const fn = serve({ R: nodeDetail(root, { branch: { spent_usd: 0, nodes: 1, nodes_max: 3, depth: 1, depth_max: 4, reach: 1 } }) });
+    const A = kid("A", { budget: { child_nodes: 2, sources: 4 } });
+    const { rerender } = show(snap([root, A]), null);
+    await screen.findByText("Claims so far");
+    const nodesMeter = () => [...overview().querySelectorAll(".ng-meter")].find((m) => m.querySelector(".ng-label")?.textContent === "Nodes")!;
+    expect(nodesMeter().querySelector(".ng-meter__val")).toHaveTextContent("1 / 5");
+    // A grandchild proposed and approved, another proposed only: the root's own events never change.
+    const later = snap([root, A, kid("A1", { parent_id: "A", depth: 2 }), kid("A2", { parent_id: "A", depth: 2, status: "Proposed" })]);
+    rerender(<Inspector investigationId={ID} s={later} events={[]} nodeId={null} />);
+    expect(nodesMeter().querySelector(".ng-meter__val")).toHaveTextContent("2 / 5");
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
   it("claims empty copy", async () => {
     const D = kid("D1", { status: "Running" });
     serve({ D1: nodeDetail(D) });

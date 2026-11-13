@@ -62,6 +62,20 @@ function branchOf(s: Snapshot, id: string): GraphNode[] {
   return out;
 }
 
+/** The branch's spend and node counts, as the backend's node detail `_branch` defines them, but
+ * from the snapshot so they follow every event (a coordinator has few events of its own):
+ * `nodes` = approved nodes below the node; `nodesMax` = summed `child_nodes` of the branch's
+ * approved nodes. */
+export function branchCounts(s: Snapshot, id: string): { spent: number; nodes: number; nodesMax: number } {
+  const branch = branchOf(s, id);
+  const approved = branch.filter((n) => n.status !== "Proposed" && n.status !== "Rejected");
+  return {
+    spent: branch.reduce((sum, n) => sum + n.spent_usd, 0),
+    nodes: approved.filter((n) => n.id !== id).length,
+    nodesMax: approved.reduce((sum, n) => sum + (n.budget?.child_nodes ?? 0), 0),
+  };
+}
+
 function proposedByText(node: GraphNode, s: Snapshot): string | null {
   const by = node.proposed_by;
   if (!by) return null;
@@ -201,13 +215,12 @@ function NowBlock({ events, node, detail, now }: { events: DurableEvent[]; node:
 
 /** The branch's own Spend, Nodes (when it may have any) and the node's Sources. */
 function BranchMeters({ s, node, detail }: { s: Snapshot; node: GraphNode; detail: NodeDetail }) {
-  const spent = branchOf(s, node.id).reduce((sum, n) => sum + n.spent_usd, 0);
-  const b = detail.branch;
+  const b = branchCounts(s, node.id);
   const read = new Set(detail.trail.map((t) => t.page_version_id).filter(Boolean)).size;
   return (
     <div className="ng-row inspector__meters">
-      <div className="inspector__meter--wide"><BudgetMeter label="Spend" value={spent} max={s.investigation.spending_limit_usd} format="money" approximate={s.investigation.spend_approximate} /></div>
-      {(b.nodes_max > 0 || b.nodes > 0) && <div className="inspector__meter"><BudgetMeter label="Nodes" value={b.nodes} max={b.nodes_max} format="count" /></div>}
+      <div className="inspector__meter--wide"><BudgetMeter label="Spend" value={b.spent} max={s.investigation.spending_limit_usd} format="money" approximate={s.investigation.spend_approximate} /></div>
+      {(b.nodesMax > 0 || b.nodes > 0) && <div className="inspector__meter"><BudgetMeter label="Nodes" value={b.nodes} max={b.nodesMax} format="count" /></div>}
       {node.budget?.sources ? <div className="inspector__meter"><BudgetMeter label="Sources" value={read} max={node.budget.sources} format="count" /></div> : null}
     </div>
   );
@@ -288,7 +301,7 @@ function ExcludedOverview({ s, events, node, detail }: Ctx) {
   }
   const mono = [who, at ? timeOfDaySeconds(at) : null, fromEvent ? seqLabel(fromEvent.seq) : null].filter(Boolean).join(" · ");
   const n = detail.claims.length;
-  const spent = branchOf(s, node.id).reduce((sum, x) => sum + x.spent_usd, 0);
+  const b = branchCounts(s, node.id);
   return (
     <>
       <div className="ng-row"><StatusPill kind="inclusion" state={inclusion} />{mono && <span className="ng-mono ng-faint">{mono}</span>}</div>
@@ -297,7 +310,7 @@ function ExcludedOverview({ s, events, node, detail }: Ctx) {
           ? "This branch is stopped. It found no claims, and the report will list the branch as excluded."
           : `This branch is stopped. Its ${plural(n, "claim")} ${n === 1 ? "is" : "are"} kept out of the report, and the report will list the branch as excluded.`}
       </p>
-      <div className="ng-well">{plural(detail.branch.nodes + 1, "node")} · {money(spent)} spent · {plural(n, "claim")} kept in storage</div>
+      <div className="ng-well">{plural(b.nodes + 1, "node")} · {money(b.spent)} spent · {plural(n, "claim")} kept in storage</div>
     </>
   );
 }
