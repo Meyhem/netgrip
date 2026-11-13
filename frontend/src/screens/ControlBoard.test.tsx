@@ -10,6 +10,7 @@ import type { DurableEvent } from "../api/types";
 import { nodeDetail, settings } from "../test/fixtures";
 import { timeOfDaySeconds } from "../lib/format";
 import { InvestigationRoute } from "./InvestigationRoute";
+import { ControlBoard } from "./ControlBoard";
 
 const { events, snapshots } = runContract();
 const mid = snapshots[0];
@@ -42,7 +43,7 @@ describe("ControlBoard", () => {
     const board = document.querySelector(".ng-board")!;
     expect(board.querySelector(".ng-board__head")).not.toBeNull();
     const body = board.querySelector(".ng-board__body")!;
-    expect([...body.children].map((c) => c.getAttribute("data-slot"))).toEqual(["execution-order", "center", "inspector"]);
+    expect([...body.children].map((c) => c.getAttribute("data-slot")).filter(Boolean)).toEqual(["execution-order", "center", "inspector"]);
     expect(body.querySelector('[data-slot="execution-order"]')).toHaveClass("ng-pane", "ng-pane--left");
     expect(body.querySelector('[data-slot="inspector"]')).toHaveClass("ng-pane", "ng-pane--right");
     const center = body.querySelector('[data-slot="center"]')!;
@@ -308,5 +309,110 @@ describe("ControlBoard event log", () => {
     expect(document.querySelector('[data-slot="event-log"] .ng-log__row--eph')).toHaveTextContent("{\"action\":");
     act(() => { for (const e of events.filter((e) => e.seq > mid.seq && e.seq <= next.seq)) FakeEventSource.last.durable(e); });
     expect(document.querySelector('[data-slot="event-log"] .ng-log__row--eph')).toBeNull();
+  });
+});
+
+describe("ControlBoard states", () => {
+  it("opening: header and empty panes with \"Loading the investigation\", no shimmer", async () => {
+    let release: (v: unknown) => void = () => {};
+    mockApi({ [`GET /api/investigations/${ID}`]: () => new Promise((r) => { release = r; }), "GET /api/settings": settings() });
+    render(<MemoryRouter><ControlBoard id={ID} /></MemoryRouter>);
+    const board = document.querySelector(".ng-board.control-board")!;
+    expect(board).not.toBeNull();
+    const head = board.querySelector(".ng-board__head")!;
+    expect(head.querySelector(".ng-activity")).toHaveTextContent("Loading the investigation");
+    expect(screen.getByRole("link", { name: "Back to investigations" })).toBeInTheDocument();
+    const slots = [...board.querySelectorAll("[data-slot]")].map((e) => e.getAttribute("data-slot"));
+    expect(slots).toEqual(["execution-order", "center", "event-log", "inspector"]);
+    expect(board.querySelector(".ng-node, .ng-qrow, .ng-log__row")).toBeNull();
+    expect(board.querySelector("[class*='shimmer'], [class*='skeleton']")).toBeNull();
+    await act(async () => release(mid));
+    expect(await screen.findByRole("heading", { name: mid.investigation.prompt })).toBeInTheDocument();
+    expect(document.querySelector(".ng-board__head .ng-activity")).toBeNull();
+  });
+
+  it("Synthesising: the left pane reads \"Writing the report from N claims\"", async () => {
+    const last = snapshots[snapshots.length - 1];
+    const synth = { ...last, investigation: { ...last.investigation, state: "Synthesising" as const }, synthesis_claims: 61 };
+    show(`/investigations/${ID}`, synth);
+    await screen.findByRole("heading", { name: last.investigation.prompt });
+    const left = document.querySelector('[data-slot="execution-order"]') as HTMLElement;
+    await waitFor(() => expect(left).toHaveTextContent("Writing the report from 61 claims"));
+    expect(left.querySelector(".ng-qrow")).toBeNull();
+    expect(document.querySelector(".ng-board__head .ng-pill")).toHaveTextContent("Synthesising");
+  });
+
+  it("Synthesising reached on the stream asks for the claim count once", async () => {
+    const fn = mockApi({ [`GET /api/investigations/${ID}`]: mid, "GET /api/settings": settings() });
+    render(<MemoryRouter><ControlBoard id={ID} /></MemoryRouter>);
+    await screen.findByRole("heading", { name: mid.investigation.prompt });
+    const before = fn.mock.calls.length;
+    fn.mockImplementation(async () => new Response(JSON.stringify({ ...mid, synthesis_claims: 12 }), { status: 200 }));
+    const toSynth: DurableEvent = {
+      seq: mid.seq + 1, investigation_id: ID, type: "investigation.state_changed", v: 1, at: "2026-11-13T14:00:02Z",
+      actor: "orchestrator", node_id: null, command_id: null, data: { from: "Running", to: "Synthesising", origin: "orchestrator" },
+    };
+    act(() => FakeEventSource.last.durable(toSynth));
+    const left = document.querySelector('[data-slot="execution-order"]') as HTMLElement;
+    await waitFor(() => expect(left).toHaveTextContent("Writing the report from 12 claims"));
+    expect(fn.mock.calls.length - before).toBe(1);
+  });
+
+  it("a Completed run opens as history: nothing live, nothing pulses", async () => {
+    const last = snapshots[snapshots.length - 1];
+    show(`/investigations/${ID}/board`, last);
+    await screen.findByRole("heading", { name: last.investigation.prompt });
+    act(() => FakeEventSource.last.open());
+    expect(document.querySelectorAll(".ng-canvas .ng-node")).toHaveLength(last.nodes.length);
+    expect(document.querySelector("[class*='live']")).toBeNull();
+    expect(document.querySelector(".ng-pulse")).toBeNull();
+  });
+});
+
+describe("ControlBoard stopped mid-work", () => {
+  it("a Stopped run with nodes still marked Running: nothing in Now, nothing pulses", async () => {
+    const stopped = { ...mid, investigation: { ...mid.investigation, state: "Stopped" as const } };
+    expect(stopped.nodes.some((n) => n.status === "Running")).toBe(true);
+    show(`/investigations/${ID}`, stopped);
+    await screen.findByRole("heading", { name: mid.investigation.prompt });
+    act(() => FakeEventSource.last.open());
+    expect(document.querySelectorAll('.ng-qrow[data-section="now"]')).toHaveLength(0);
+    expect(document.querySelector(".ng-pulse")).toBeNull();
+  });
+});
+
+describe("ControlBoard narrow widths", () => {
+  const board = () => document.querySelector(".control-board")!;
+
+  it("selecting a node opens the inspector sheet; Close and Escape dismiss it; selecting again reopens", async () => {
+    show(`/investigations/${ID}`);
+    await screen.findByRole("heading", { name: mid.investigation.prompt });
+    expect(board()).not.toHaveClass("control-board--sheet-open");
+    const d1 = mid.nodes[2];
+    fireEvent.click(document.querySelector(`.ng-canvas [data-node="${d1.id}"]`)!);
+    expect(board()).toHaveClass("control-board--sheet-open");
+    fireEvent.click(screen.getByRole("button", { name: "Close inspector" }));
+    expect(board()).not.toHaveClass("control-board--sheet-open");
+    // The selection stays; selecting the same node again reopens the sheet.
+    expect(document.querySelector(`.ng-qrow[data-node-id="${d1.id}"]`)).toHaveClass("is-selected");
+    fireEvent.click(document.querySelector(`.ng-qrow[data-node-id="${d1.id}"]`)!);
+    expect(board()).toHaveClass("control-board--sheet-open");
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(board()).not.toHaveClass("control-board--sheet-open");
+  });
+
+  it("the left pane, the graph and the log are tabs; Graph is the default", async () => {
+    show(`/investigations/${ID}`);
+    await screen.findByRole("heading", { name: mid.investigation.prompt });
+    const tabs = within(screen.getByRole("tablist", { name: "Board" })).getAllByRole("tab");
+    expect(tabs.map((t) => t.textContent)).toEqual(["Execution order", "Graph", "Log"]);
+    expect(board()).toHaveClass("control-board--tab-graph");
+    expect(tabs[1]).toHaveAttribute("aria-selected", "true");
+    fireEvent.click(tabs[0]);
+    expect(board()).toHaveClass("control-board--tab-order");
+    expect(tabs[0]).toHaveAttribute("aria-selected", "true");
+    expect(tabs[0]).toHaveClass("ng-tab", "is-on");
+    fireEvent.click(tabs[2]);
+    expect(board()).toHaveClass("control-board--tab-log");
   });
 });

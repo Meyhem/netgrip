@@ -89,7 +89,9 @@ function proposedByText(node: GraphNode, s: Snapshot): string | null {
 interface Ctx { s: Snapshot; events: DurableEvent[]; node: GraphNode; detail: NodeDetail; displayIds: Record<string, string>; live: boolean }
 
 /** ScreenNodeDetail / ScreenControlBoard region 4: the selected node, one tab at a time. */
-export function Inspector({ investigationId, s, events, nodeId, live = true, nodeActions, composer }: InspectorProps) {
+export function Inspector({ investigationId, s, events, nodeId, live: streamLive = true, nodeActions, composer }: InspectorProps) {
+  // Nothing runs while the investigation is Paused or Stopped: no pulse, no live trail.
+  const live = streamLive && s.investigation.state !== "Paused" && s.investigation.state !== "Stopped";
   const rootId = s.nodes.find((n) => n.parent_id === null)?.id ?? null;
   const id = nodeId ?? rootId;
   const { detail, status } = useNodeDetail(investigationId, id);
@@ -123,7 +125,7 @@ export function Inspector({ investigationId, s, events, nodeId, live = true, nod
       : tab === "claims" ? <ClaimsTab key={node.id} {...ctx} />
       : tab === "brief" ? <Brief brief={detail.brief} node={node} />
       : tab === "trail" ? <Trail detail={detail} modelText={modelText}
-          live={live && (node.status === "Running" || node.status === "Waiting on children") && s.investigation.state !== "Paused"}
+          live={live && (node.status === "Running" || node.status === "Waiting on children")}
           finished={node.status === "Completed" || node.status === "Failed"} onOpenPage={(pageVersionId) => setPage({ nodeId: id, pageVersionId })} />
       : <InstructionsTab {...ctx} />;
   }

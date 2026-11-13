@@ -125,6 +125,9 @@ export interface Snapshot {
   /** The newest durable events (up to 200, oldest first) up to `seq`. Sent by the snapshot
    * endpoint only; the reducer leaves it as loaded. */
   recent_events?: DurableEvent[];
+  /** The claims synthesis may use ("Writing the report from N claims"). Snapshot endpoint
+   * only; the reducer leaves it as loaded. */
+  synthesis_claims?: number;
 }
 
 /** Streamed model text and similar: no seq, never stored or replayed (D-11). */

@@ -49,7 +49,8 @@ export function refutedPremises(s: Snapshot): Premise[] {
 }
 
 /** The ExecutionOrder sections. While the investigation is Paused nothing is in Now: nodes
- * still marked Running (stopped mid-work by the pause) head Next with "paused". Done is newest
+ * still marked Running (stopped mid-work by the pause) head Next with "paused"; the same while
+ * Stopped, with "stopped". Done is newest
  * first by the node's `finished_seq`, else by its finishing event among `events` (oldest first:
  * the store's accumulated durable events)
  * order Done newest first; a finished node with no finishing event among them sorts after the
@@ -62,7 +63,9 @@ export function sections(s: Snapshot, events: DurableEvent[]): Sections {
     if (n.parent_id !== null && n.inclusion === "Included") kids.set(n.parent_id, [...(kids.get(n.parent_id) ?? []), n]);
   }
 
-  const paused = s.investigation.state === "Paused";
+  // A Paused or Stopped investigation runs nothing: nodes it halted mid-work keep the status
+  // Running (they continue on Resume) but are not in Now.
+  const halt = s.investigation.state === "Paused" ? "paused" : s.investigation.state === "Stopped" ? "stopped" : null;
   const now: NowRow[] = [];
   const held: GraphNode[] = [];
   const doneNodes: GraphNode[] = [];
@@ -73,7 +76,7 @@ export function sections(s: Snapshot, events: DurableEvent[]): Sections {
     else if (n.status === "Rejected") notRunning.push({ node: n, why: "Rejected" });
     else if (n.status === "Paused" || (n.status === "Pending" && reasons[n.id] === "paused")) notRunning.push({ node: n, why: "Paused" });
     else if (n.status === "Running") {
-      if (paused) held.push(n);
+      if (halt) held.push(n);
       else now.push({ node: n });
     } else if (n.status === "Completed" || n.status === "Failed") doneNodes.push(n);
     else waiting.push(n); // Pending, Proposed, Waiting on children
@@ -95,7 +98,7 @@ export function sections(s: Snapshot, events: DurableEvent[]): Sections {
     .sort((a, b) => b.depth - a.depth || index.get(a.id)! - index.get(b.id)!);
   // Running nodes held by the investigation's pause come first: they continue on Resume.
   const queued: { n: GraphNode; reason: string | null }[] = [
-    ...held.map((n) => ({ n, reason: "paused" })),
+    ...held.map((n) => ({ n, reason: halt })),
     ...[...scheduled, ...toStart, ...coordinators].map((n) => ({ n, reason: reasons[n.id] ?? null })),
   ];
   const next: NextRow[] = queued.map(({ n, reason }, i) => {

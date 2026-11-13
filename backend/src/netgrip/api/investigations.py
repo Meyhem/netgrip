@@ -12,6 +12,7 @@ from netgrip.api.deps import get_db, get_engine
 from netgrip.boundary.commands import CommandAck
 from netgrip.boundary.events import Actor
 from netgrip.engine.engine import Engine
+from netgrip.engine.orchestrator import synthesis_claims
 from netgrip.store import eventlog
 from netgrip.store.db import Database, Row
 
@@ -221,6 +222,9 @@ async def snapshot(id: str, db: Annotated[Database, Depends(get_db)]) -> dict:
         "schedule": await _schedule(db, id),
         "focus_node_id": None,
         "plan_version": version[0]["v"],
+        # The claims the report is written from ("Writing the report from N claims"). Like
+        # `recent_events`, sent by this endpoint only: the reducer leaves it as loaded.
+        "synthesis_claims": len(await synthesis_claims(db, id)),
         # Up to the snapshot's own seq: events after it arrive on the stream.
         "recent_events": [
             e.model_dump(mode="json")

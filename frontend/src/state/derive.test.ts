@@ -81,6 +81,15 @@ describe("sections", () => {
     expect(out.next[0]).toMatchObject({ position: 1, reason: "paused", waitText: "paused" });
   });
 
+  it("while the investigation is Stopped, nothing is in Now: Running nodes head Next with stopped", () => {
+    const base = snap([R, kid("A", { status: "Running" }), kid("B")], { schedule: { order: ["B"], reasons: {}, slots: 4 } });
+    const s = { ...base, investigation: { ...base.investigation, state: "Stopped" as const } };
+    const out = sections(s, []);
+    expect(out.now).toEqual([]);
+    expect(ids(out.next)).toEqual(["A", "B", "R"]);
+    expect(out.next[0]).toMatchObject({ position: 1, reason: "stopped", waitText: "stopped" });
+  });
+
   it("done prefers the finish projected on the node row", () => {
     const s = snap([R, kid("A", { status: "Completed", finished_seq: 9, finished_at: "2026-11-13T09:00:00Z" }), kid("B", { status: "Completed", finished_seq: 5, finished_at: "2026-11-13T08:00:00Z" })]);
     const done = sections(s, []).done;

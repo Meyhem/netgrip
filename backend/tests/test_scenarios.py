@@ -199,3 +199,22 @@ async def test_abandoning_a_runtime_awaits_its_cancelled_node_tasks(tmp_path):
     finally:
         await engine.stop()
         await engine.db.close()
+
+
+async def test_snapshot_counts_the_claims_synthesis_uses(tmp_path):
+    """ScreenControlBoard, Synthesising: "Writing the report from N claims"."""
+    from netgrip.api.investigations import snapshot
+    from netgrip.engine.orchestrator import synthesis_claims
+
+    engine = await open_engine(tmp_path)
+    try:
+        r = run(engine)
+        await r.approved()
+        await r.finished()
+        snap = await snapshot(r.inv, engine.db)
+        n = len(await synthesis_claims(engine.db, r.inv))
+        assert n > 0
+        assert snap["synthesis_claims"] == n
+    finally:
+        await engine.stop()
+        await engine.db.close()

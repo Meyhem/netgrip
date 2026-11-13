@@ -51,7 +51,7 @@ export function BoardGraph({ s, events, selectedId, onSelect, live }: BoardGraph
       selectedId={selectedId}
       onSelect={onSelect}
       mode="board"
-      live={live && s.investigation.state !== "Paused"}
+      live={live && s.investigation.state !== "Paused" && s.investigation.state !== "Stopped"}
       activities={activities}
       showExcluded={view.showExcluded}
       collapseCompleted={view.collapseCompleted}

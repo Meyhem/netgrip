@@ -96,3 +96,33 @@ html, body, #root { height: 100%; margin: 0; }
 .page-sheet__meta .ng-heading { margin: 0; overflow-wrap: anywhere; }
 .page-sheet__url { overflow-wrap: anywhere; }
 .page-sheet__text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; color: var(--ink); }
+
+/* ScreenControlBoard, narrow widths. Wide: no tab bar, no sheet bar. Below 1180px the
+ * inspector is an overlay sheet over the graph, shown while a node is picked
+ * (.control-board--sheet-open). Below 900px the left pane, the graph and the log are tabs. */
+.board-tabs, .board-sheet__bar { display: none; }
+.board-sheet__bar .ng-btn { margin-left: auto; }
+@media (max-width: 1179px) {
+  .control-board .ng-board__body { grid-template-columns: 284px 1fr; position: relative; }
+  .control-board [data-slot="inspector"] {
+    display: none; position: absolute; top: 0; right: 0; bottom: 0; z-index: 20;
+    width: 364px; max-width: 100%; box-shadow: var(--shadow-pop);
+  }
+  .control-board--sheet-open [data-slot="inspector"] { display: flex; }
+  .control-board .board-sheet__bar { display: flex; flex: none; }
+}
+@media (max-width: 899px) {
+  .control-board .ng-board__body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .control-board .board-tabs { display: flex; }
+  .control-board [data-slot="execution-order"], .control-board [data-slot="center"] { grid-row: 2; grid-column: 1; }
+  .control-board--tab-graph [data-slot="execution-order"],
+  .control-board--tab-log [data-slot="execution-order"],
+  .control-board--tab-order [data-slot="center"],
+  .control-board--tab-graph [data-slot="event-log"],
+  .control-board--tab-log [data-slot="center"] > .ng-toolbar,
+  .control-board--tab-log [data-slot="center"] > .ng-canvas { display: none; }
+  .control-board--tab-log [data-slot="center"] { grid-template-rows: 1fr; }
+  .control-board--tab-log [data-slot="event-log"] { border-top: 0; min-height: 0; display: flex; flex-direction: column; }
+  .control-board--tab-log .board-log { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+  .control-board--tab-log .board-log .ng-log { flex: 1 1 0; height: auto; min-height: 0; }
+}

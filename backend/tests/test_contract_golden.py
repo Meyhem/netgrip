@@ -100,9 +100,11 @@ async def run_scenario(path: Path) -> dict:
 
 async def contract_snapshot(inv: str, db) -> dict:
     """The snapshot as the frontend reducer rebuilds it from events: without `recent_events`,
-    the log's tail, which the event log keeps and the reducer does not (Phase 5)."""
+    the log's tail, which the event log keeps and the reducer does not (Phase 5), and without
+    `synthesis_claims`, a count the board reads when synthesis starts."""
     snap = await snapshot(inv, db)
     assert len(snap.pop("recent_events")) == min(200, snap["seq"])
+    snap.pop("synthesis_claims")
     return snap
 
 
