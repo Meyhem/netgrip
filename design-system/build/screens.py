@@ -487,7 +487,7 @@ Defaults for every new investigation and the machine-wide limits, on one scrolli
 | Section | Holds |
 |---|---|
 | Keys | model endpoint and key; search key. Write-only `ng-keyfield` rows with a status pill and the last check |
-| Models | default preset; per-model table with tier, input and output price, and where the price came from |
+| Models | default preset; tier × preset grid of `ng-combo` pickers searching the provider's models; provider routing (OpenRouter only: pick by price, throughput or latency; deny data collection; zero data retention); per-model table with tier, input and output price, and where the price came from; add a model |
 | Effort | the budget behind Low, Medium, High: depth, nodes, sources per node, parallelism, sources needed to confirm |
 | Spending | default spending limit; how long to retry a failing service before pausing |
 | Sources | domains always excluded; page reuse window, including "Always fetch again"; per-site politeness |

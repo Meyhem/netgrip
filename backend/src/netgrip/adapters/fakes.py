@@ -31,6 +31,31 @@ SCENARIOS = Path(__file__).parent / "fake_scenarios"
 STREAM_CHUNK = 12  # characters per streamed delta
 
 
+def _offer(id: str, name: str, p_in: float | None, p_out: float | None, ctx: int) -> dict:
+    return {
+        "id": id,
+        "name": name,
+        "price_in_per_m": p_in,
+        "price_out_per_m": p_out,
+        "context_length": ctx,
+    }
+
+
+FAKE_CATALOGUE = [
+    _offer("anthropic/claude-haiku-5.5", "Anthropic: Claude Haiku 5.5", 1.0, 5.0, 200_000),
+    _offer("anthropic/claude-opus-5.5", "Anthropic: Claude Opus 5.5", 15.0, 75.0, 1_000_000),
+    _offer("anthropic/claude-sonnet-5.5", "Anthropic: Claude Sonnet 5.5", 3.0, 15.0, 1_000_000),
+    _offer("deepseek/deepseek-v4", "DeepSeek: DeepSeek V4", 0.3, 1.2, 128_000),
+    _offer("google/gemini-3-flash", "Google: Gemini 3 Flash", 0.3, 2.5, 1_000_000),
+    _offer("google/gemini-3-pro", "Google: Gemini 3 Pro", 2.0, 12.0, 1_000_000),
+    _offer("meta-llama/llama-4-maverick", "Meta: Llama 4 Maverick", 0.2, 0.6, 1_000_000),
+    _offer("mistralai/mistral-large-3", "Mistral: Mistral Large 3", 2.0, 6.0, 128_000),
+    _offer("openai/gpt-5.2", "OpenAI: GPT-5.2", 1.25, 10.0, 400_000),
+    _offer("openai/gpt-5.2-mini", "OpenAI: GPT-5.2 Mini", 0.25, 2.0, 400_000),
+    _offer("qwen/qwen3-max", "Qwen: Qwen3 Max", 1.2, 6.0, 256_000),
+]
+
+
 class FakeModelClient:
     """`script` maps a purpose, "purpose:node_ref" or "purpose@text" to a queue of entries.
     A request takes the "purpose:node_ref" queue if scripted, else the first "purpose@text"
@@ -151,7 +176,8 @@ class FakeModelClient:
         return None
 
     async def list_models(self) -> list[dict]:
-        return []
+        """A small scripted catalogue, so fake mode shows the model pickers working."""
+        return [dict(m) for m in FAKE_CATALOGUE]
 
 
 class FakeSearch:

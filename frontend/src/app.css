@@ -36,6 +36,8 @@ html, body, #root { height: 100%; margin: 0; }
 .settings-sections .count { width: 64px; }
 .settings-sections .money { width: 120px; }
 .settings-sections .wide-select { width: 200px; }
+.settings-sections .routing-select { width: 300px; }
+.settings-sections .add-model { width: 420px; }
 
 /* InstructionComposer / Instruction */
 .instr-diff { margin-top: var(--space-2); }

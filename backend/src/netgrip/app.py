@@ -51,7 +51,10 @@ def create_app(config: Config, frontend_dist: Path | None = None) -> FastAPI:
             async def model_key() -> str | None:
                 return await get_key(db, "model")
 
-            model_client = OpenAICompatClient(model_endpoint, model_key)
+            async def model_routing():
+                return (await get_settings(db)).model_routing
+
+            model_client = OpenAICompatClient(model_endpoint, model_key, get_routing=model_routing)
 
             async def search_key() -> str | None:
                 return await get_key(db, "search")

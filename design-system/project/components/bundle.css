@@ -60,6 +60,12 @@
 .ng-seg { display: inline-flex; padding: 2px; border: 1px solid var(--line-strong); border-radius: var(--radius-pill); background: var(--sunken); }
 .ng-seg__opt { padding: 3px var(--space-3); border-radius: var(--radius-pill); font: 500 12px/18px var(--font-sans); color: var(--ink-muted); cursor: pointer; border: 0; background: transparent; }
 .ng-seg__opt.is-on { background: var(--ink); color: var(--bg); }
+.ng-combo { position: relative; width: 100%; min-width: 0; }
+.ng-combo__list { position: absolute; z-index: 20; top: calc(100% + var(--space-1)); left: 0; width: max(100%, 380px); max-height: 320px; overflow-y: auto; margin: 0; list-style: none; }
+.ng-combo__list .ng-menu__item b { font: 500 12px/18px var(--font-mono); overflow-wrap: anywhere; }
+.ng-combo__list .ng-menu__item span { font: 400 11px/18px var(--font-mono); color: var(--ink-muted); font-variant-numeric: tabular-nums; text-align: right; }
+.ng-combo__list mark { background: transparent; color: inherit; text-decoration: underline; text-decoration-color: var(--steer); text-decoration-thickness: 2px; text-underline-offset: 2px; }
+.ng-combo__empty { padding: 6px var(--space-2); font-size: 12px; line-height: 16px; color: var(--ink-muted); }
 .ng-toggle { display: inline-flex; align-items: center; gap: var(--space-2); font-size: 13px; cursor: pointer; }
 .ng-toggle__track { width: 30px; height: 16px; border-radius: var(--radius-pill); border: 1px solid var(--line-strong); background: var(--sunken); position: relative; flex: none; }
 .ng-toggle__track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--ink-faint); }

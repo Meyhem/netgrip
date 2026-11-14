@@ -88,7 +88,7 @@ async def test_key_status_never_contains_value(db):
     assert await get_key(db, "search") is None
 
 
-async def test_available_models_in_fake_mode_is_empty_list(tmp_path):
+async def test_available_models_in_fake_mode_is_the_scripted_catalogue(tmp_path):
     import httpx
 
     from netgrip.app import create_app
@@ -101,4 +101,19 @@ async def test_available_models_in_fake_mode_is_empty_list(tmp_path):
         ) as client:
             r = await client.get("/api/settings/models/available")
     assert r.status_code == 200
-    assert r.json() == []
+    ids = [m["id"] for m in r.json()]
+    assert "anthropic/claude-opus-5.5" in ids and ids == sorted(ids)
+
+
+async def test_model_routing_defaults_and_patch(db):
+    s = await get_settings(db)
+    assert s.model_routing.model_dump() == {
+        "sort": "default",
+        "deny_data_collection": False,
+        "zero_retention": False,
+    }
+    s = await patch_settings(db, {"model_routing": {"sort": "price"}})
+    assert s.model_routing.sort == "price"
+    assert s.model_routing.deny_data_collection is False
+    with pytest.raises(ValidationError):
+        await patch_settings(db, {"model_routing": {"sort": "fastest"}})

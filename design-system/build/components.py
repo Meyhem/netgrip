@@ -35,7 +35,7 @@ You provide the label and, optionally, a trailing `ng-kbd` shortcut hint.
 - `disabled` only for actions that cannot apply in the current state, and say why in a tooltip ("Nothing is paused").
 """)
 
-write(R, "Field", 'group="Actions" height=330', """
+write(R, "Field", 'group="Actions" height=600', """
 <div class="ng-col ng-col--loose" style="max-width:640px">
  <div class="ng-field"><label class="ng-field__label" for="f1">Spending limit</label>
   <input id="f1" class="ng-input ng-input--mono" value="$5.00" style="max-width:140px">
@@ -49,11 +49,17 @@ write(R, "Field", 'group="Actions" height=330', """
   <input id="f2" class="ng-input ng-input--mono is-error" value="reddit.com, quora" >
   <span class="ng-field__hint is-error">"quora" is not a domain. Write it as quora.com.</span></div>
  <label class="ng-toggle is-on"><span class="ng-toggle__track"></span>Always fetch pages again for this investigation</label>
+ <div class="ng-field" style="max-width:380px"><label class="ng-field__label" for="f3">Strong model</label>
+  <div class="ng-combo"><input id="f3" class="ng-input ng-input--mono" role="combobox" aria-expanded="true" value="son 5.5">
+   <ul class="ng-menu ng-combo__list" role="listbox">
+    <li class="ng-menu__item is-hover" role="option"><b>anthropic/claude-<mark>son</mark>net-<mark>5.5</mark></b><span>$3 / $15</span><small>Anthropic: Claude Sonnet 5.5 · 1M context</small></li>
+    <li class="ng-menu__item" role="option"><b>openai/gpt-<mark>5.5</mark>-<mark>s</mark>w<mark>on</mark></b><span>no price</span><small>OpenAI: GPT-5.5 Swon · 400k context</small></li>
+   </ul></div></div>
 </div>
 """, """
 # Field
 
-Form controls for the new-investigation form and Settings: `ng-field` wraps a `ng-field__label`, one control and a `ng-field__hint`. Controls: `ng-input` (add `ng-input--mono` for money, domains, model ids), `ng-textarea`, `ng-select`, `ng-seg` (segmented choice), `ng-toggle`, `ng-keyfield` (write-only secret).
+Form controls for the new-investigation form and Settings: `ng-field` wraps a `ng-field__label`, one control and a `ng-field__hint`. Controls: `ng-input` (add `ng-input--mono` for money, domains, model ids), `ng-textarea`, `ng-select`, `ng-seg` (segmented choice), `ng-toggle`, `ng-keyfield` (write-only secret), `ng-combo` (searchable picker).
 
 You provide the label, the value and a hint that states the consequence of the setting.
 
@@ -61,6 +67,7 @@ You provide the label, the value and a hint that states the consequence of the s
 - `ng-seg` is for Effort and model presets only: three options, mutually exclusive, with the resulting budget shown beside it in `ng-mono`.
 - `ng-keyfield` never renders a key. It shows "Key set" or "No key" and a Replace button. Replace swaps the row for an empty `ng-input--mono` that is cleared on save.
 - Settings save on change. There is no Save button; show "Saved" in the hint for two seconds.
+- `ng-combo` picks one value from a list too long for `ng-select`, such as a provider's models. An `ng-input--mono` with `role="combobox"` over an `ng-menu ng-combo__list`. Typing filters by fuzzy match: words in any order, letters in order with gaps; matched letters are `mark`ed. Each `ng-menu__item` holds the id in `b`, a right-aligned fact in `span` (price), and a `small` line (name, context). Arrow keys move `is-hover`, Enter picks, Escape restores the saved value. Picking saves at once, like any other setting.
 """)
 
 # ---------------- Status ----------------

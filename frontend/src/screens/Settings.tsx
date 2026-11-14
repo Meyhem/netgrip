@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { ApiError, getJSON, patchJSON, postJSON, putJSON } from "../api/client";
-import type { OfferedModel, EffortBudget, EffortName, KeyStatus, ModelPrice, PresetName, Settings as SettingsT, Storage, Pools, Tier } from "../api/types";
+import type { OfferedModel, RoutingSort, EffortBudget, EffortName, KeyStatus, ModelPrice, PresetName, Settings as SettingsT, Storage, Pools, Tier } from "../api/types";
 import { bytes, money } from "../lib/format";
 import { usePoll } from "../lib/usePoll";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
-import { Input, KeyField, NumberField, parseMoney, Seg } from "../ui/Field";
+import { Input, KeyField, NumberField, parseMoney, Seg, Toggle } from "../ui/Field";
+import { ModelCombo, type PickableModel } from "../ui/ModelCombo";
 import { browserHealthText } from "../ui/TopBar";
 import { Page } from "./InvestigationRoute";
 import { parseDomains, PRESET_WORD, TIER_WORD } from "./NewInvestigation";
@@ -25,6 +26,13 @@ const EFFORT_COLS: [keyof EffortBudget, string, string][] = [
 ];
 const PRESETS: PresetName[] = ["economy", "balanced", "maximum"];
 const TIER_ORDER: Tier[] = ["strong", "standard", "fast", "verifier"];
+const SORT_WORD: Record<RoutingSort, string> = {
+  default: "OpenRouter's balance of price and uptime",
+  price: "Lowest price",
+  throughput: "Highest throughput",
+  latency: "Lowest latency",
+};
+const isOpenRouter = (url: string) => { try { return /(^|\.)openrouter\.ai$/.test(new URL(url).hostname); } catch { return false; } };
 const integer = (s: string) => (/^\s*\d+\s*$/.test(s) && Number(s) > 0 ? Number(s) : null);
 const price = (s: string) => (/^\s*\d+(\.\d+)?\s*$/.test(s) && Number(s) > 0 ? Number(s) : null);
 
@@ -109,6 +117,10 @@ export function Settings() {
   };
   const pickTier = (p: PresetName, t: Tier, id: string) =>
     patch(`tier-${p}-${t}`, { presets: { [p]: { [t]: id } }, ...(known.has(id) ? {} : { models: [...s.models, entryFor(id)] }) });
+  // Everything the pickers offer: the provider's list, plus models already listed here that the
+  // provider no longer offers (or all of them when its list could not be fetched).
+  const pickable: PickableModel[] = [...(offered ?? []), ...s.models.filter((m) => !offeredById.has(m.id))];
+  const openRouter = isOpenRouter(s.model_endpoint);
   const addModel = (id: string) => patch("add-model", { models: [...s.models, entryFor(id)] });
   const setModel = (i: number, change: Partial<ModelPrice>) =>
     patch(`model-${i}`, { models: s.models.map((m, j) => (j === i ? { ...m, ...change, price_source: "you" } : m)) });
@@ -148,9 +160,8 @@ export function Settings() {
                       <td><span className="ng-heading">{TIER_WORD[t]}</span></td>
                       {PRESETS.map((p) => (
                         <td key={p}>
-                          <ModelSelect label={`${PRESET_WORD[p]} ${TIER_WORD[t]} model`} value={s.presets[p][t]}
-                            options={[...(offered ?? []).map((m) => m.id), ...s.models.map((m) => m.id)]}
-                            onPick={(id) => pickTier(p, t, id)} />
+                          <ModelCombo label={`${PRESET_WORD[p]} ${TIER_WORD[t]} model`} value={s.presets[p][t]}
+                            models={pickable} onPick={(id) => pickTier(p, t, id)} />
                           {saved === `tier-${p}-${t}` && <div className="ng-small ng-muted">Saved</div>}
                           {err(`tier-${p}-${t}`) && <div className="ng-small ng-danger">{err(`tier-${p}-${t}`)}</div>}
                         </td>
@@ -191,9 +202,31 @@ export function Settings() {
               </table>
             </div>
             <div className="ng-row">
-              <ModelSelect label="Add a model" value="" placeholder={offered ? "Add a model from the provider…" : "The provider's models could not be loaded"}
-                disabled={!offered} options={(offered ?? []).map((m) => m.id).filter((id) => !known.has(id))} onPick={addModel} />
+              <div className="add-model">
+                <ModelCombo label="Add a model" value="" placeholder={!offered ? "The provider's models could not be loaded" : offered.length ? `Search ${offered.length.toLocaleString("en-US")} models from the provider…` : "The provider lists no models"}
+                  disabled={!offered?.length} models={(offered ?? []).filter((m) => !known.has(m.id))} onPick={addModel} />
+              </div>
               <span className="ng-small ng-muted">{saved === "add-model" ? "Saved" : err("add-model") ?? "Priced from the provider's list."}</span>
+            </div>
+            <div className="ng-panel form-panel">
+              <Row label="Provider routing" saved={saved === "routing-sort"} error={err("routing-sort")}
+                hint={openRouter ? "OpenRouter serves most models from several providers. This picks which one answers each call." : "Only OpenRouter routes between providers. Your endpoint ignores these settings."}>
+                <select className="ng-select routing-select" aria-label="Provider routing" value={s.model_routing.sort} disabled={!openRouter}
+                  onChange={(e) => patch("routing-sort", { model_routing: { sort: e.target.value } })}>
+                  {(Object.keys(SORT_WORD) as RoutingSort[]).map((k) => <option key={k} value={k}>{SORT_WORD[k]}</option>)}
+                </select>
+              </Row>
+              <Row label="Data policy" saved={saved === "routing-data"} error={err("routing-data")}
+                hint="Fewer providers can answer, so some models may become unavailable.">
+                <Toggle on={s.model_routing.deny_data_collection}
+                  onChange={(v) => openRouter && patch("routing-data", { model_routing: { deny_data_collection: v } })}>
+                  Only providers that do not store or train on prompts
+                </Toggle>
+                <Toggle on={s.model_routing.zero_retention}
+                  onChange={(v) => openRouter && patch("routing-data", { model_routing: { zero_retention: v } })}>
+                  Only providers with zero data retention
+                </Toggle>
+              </Row>
             </div>
           </Section>
 
@@ -302,27 +335,6 @@ export function Settings() {
         </div>
       </div>
     </Page>
-  );
-}
-
-/** A dropdown of model ids grouped by provider (the part before the slash). */
-function ModelSelect({ label, value, options, onPick, placeholder, disabled }: {
-  label: string; value: string; options: string[]; onPick: (id: string) => void; placeholder?: string; disabled?: boolean;
-}) {
-  const ids = Array.from(new Set(value ? [...options, value] : options)).sort();
-  const groups = new Map<string, string[]>();
-  for (const id of ids) {
-    const g = id.includes("/") ? id.split("/")[0] : "other";
-    groups.set(g, [...(groups.get(g) ?? []), id]);
-  }
-  return (
-    <select className="ng-select ng-input--mono" aria-label={label} value={value} disabled={disabled}
-      onChange={(e) => { if (e.target.value && e.target.value !== value) onPick(e.target.value); }}>
-      {!value && <option value="">{placeholder ?? "Choose a model…"}</option>}
-      {Array.from(groups).map(([g, list]) => (
-        <optgroup key={g} label={g}>{list.map((id) => <option key={id} value={id}>{id}</option>)}</optgroup>
-      ))}
-    </select>
   );
 }
 

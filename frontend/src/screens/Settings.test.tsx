@@ -118,39 +118,97 @@ describe("Settings", () => {
 
   describe("model pickers", () => {
     const OFFER = [
-      { id: "anthropic/claude-opus-5.5", name: "Opus", price_in_per_m: 15, price_out_per_m: 75 },
-      { id: "meta-llama/llama-4", name: "Llama 4", price_in_per_m: 0.2, price_out_per_m: 0.6 },
+      { id: "anthropic/claude-opus-5.5", name: "Anthropic: Claude Opus 5.5", price_in_per_m: 15, price_out_per_m: 75, context_length: 1_000_000 },
+      { id: "meta-llama/llama-4-maverick", name: "Meta: Llama 4 Maverick", price_in_per_m: 0.2, price_out_per_m: 0.6, context_length: 128_000 },
+      { id: "mistralai/mistral-large", name: "Mistral Large", price_in_per_m: 2, price_out_per_m: 6, context_length: 128_000 },
     ];
+    const body = (f: ReturnType<typeof api>, i = 0) => JSON.parse(callsTo(f, "PATCH", "/api/settings")[i][1]!.body as string);
+    const options = () => within(screen.getByRole("listbox")).queryAllByRole("option").map((o) => o.querySelector("b")!.textContent);
 
-    it("a tier is picked from the provider's models and the model joins the list with its price", async () => {
+    it("typing searches the provider's models fuzzily and Enter picks one with its price", async () => {
       const f = api({ "GET /api/settings/models/available": OFFER });
       show();
-      const pick = await screen.findByLabelText("Balanced Fast model");
-      await waitFor(() => expect(within(pick).getByRole("option", { name: "meta-llama/llama-4" })).toBeInTheDocument());
-      fireEvent.change(pick, { target: { value: "meta-llama/llama-4" } });
+      const pick = await screen.findByRole("combobox", { name: "Balanced Fast model" });
+      await waitFor(() => expect(screen.getByRole("combobox", { name: "Add a model" })).not.toBeDisabled());
+      fireEvent.focus(pick);
+      fireEvent.change(pick, { target: { value: "llmav" } });
+      expect(options()[0]).toBe("meta-llama/llama-4-maverick");
+      expect(within(screen.getByRole("listbox")).getAllByRole("option")[0]).toHaveTextContent("$0.20 / $0.60");
+      fireEvent.keyDown(pick, { key: "Enter" });
       await waitFor(() => expect(callsTo(f, "PATCH", "/api/settings")).toHaveLength(1));
-      const body = JSON.parse(callsTo(f, "PATCH", "/api/settings")[0][1]!.body as string);
-      expect(body.presets).toEqual({ balanced: { fast: "meta-llama/llama-4" } });
-      expect(body.models.at(-1)).toEqual({ id: "meta-llama/llama-4", price_in_per_m: 0.2, price_out_per_m: 0.6, price_source: "provider" });
+      expect(body(f).presets).toEqual({ balanced: { fast: "meta-llama/llama-4-maverick" } });
+      expect(body(f).models.at(-1)).toEqual({ id: "meta-llama/llama-4-maverick", price_in_per_m: 0.2, price_out_per_m: 0.6, price_source: "provider" });
+    });
+
+    it("the search matches model names and says when nothing matches", async () => {
+      api({ "GET /api/settings/models/available": OFFER });
+      show();
+      const pick = await screen.findByRole("combobox", { name: "Balanced Strong model" });
+      await waitFor(() => expect(screen.getByRole("combobox", { name: "Add a model" })).not.toBeDisabled());
+      fireEvent.focus(pick);
+      fireEvent.change(pick, { target: { value: "large mistral" } });
+      expect(options()).toEqual(["mistralai/mistral-large"]);
+      fireEvent.change(pick, { target: { value: "qqqq" } });
+      expect(screen.getByText(/No model matches/)).toBeInTheDocument();
+    });
+
+    it("Escape puts the saved value back and sends nothing", async () => {
+      const f = api({ "GET /api/settings/models/available": OFFER });
+      show();
+      const pick = await screen.findByRole("combobox", { name: "Balanced Fast model" });
+      const before = (pick as HTMLInputElement).value;
+      fireEvent.focus(pick);
+      fireEvent.change(pick, { target: { value: "mistral" } });
+      fireEvent.keyDown(pick, { key: "Escape" });
+      expect(pick).toHaveValue(before);
+      expect(callsTo(f, "PATCH", "/api/settings")).toHaveLength(0);
     });
 
     it("Add a model offers only models not yet listed", async () => {
       const f = api({ "GET /api/settings/models/available": OFFER });
       show();
-      const add = await screen.findByLabelText("Add a model");
-      await waitFor(() => expect(within(add).getByRole("option", { name: "meta-llama/llama-4" })).toBeInTheDocument());
-      expect(within(add).queryByRole("option", { name: "anthropic/claude-opus-5.5" })).toBeNull();
-      fireEvent.change(add, { target: { value: "meta-llama/llama-4" } });
+      const add = await screen.findByRole("combobox", { name: "Add a model" });
+      await waitFor(() => expect(add).not.toBeDisabled());
+      fireEvent.focus(add);
+      expect(options()).not.toContain("anthropic/claude-opus-5.5");
+      fireEvent.mouseDown(screen.getByRole("option", { name: /mistral-large/ }));
       await waitFor(() => expect(callsTo(f, "PATCH", "/api/settings")).toHaveLength(1));
-      expect(JSON.parse(callsTo(f, "PATCH", "/api/settings")[0][1]!.body as string).models).toHaveLength(settings().models.length + 1);
+      expect(body(f).models).toHaveLength(settings().models.length + 1);
     });
 
     it("without the provider's list the pickers still offer the listed models", async () => {
       api();
       show();
-      const pick = await screen.findByLabelText("Balanced Fast model");
-      expect(within(pick).getAllByRole("option").length).toBe(settings().models.length);
-      expect(screen.getByLabelText("Add a model")).toBeDisabled();
+      const pick = await screen.findByRole("combobox", { name: "Balanced Fast model" });
+      fireEvent.focus(pick);
+      expect(options()).toHaveLength(settings().models.length);
+      expect(screen.getByRole("combobox", { name: "Add a model" })).toBeDisabled();
+    });
+  });
+
+  describe("provider routing", () => {
+    it("picking lowest price sends only the routing sort", async () => {
+      const f = api();
+      show();
+      const sort = await screen.findByLabelText("Provider routing");
+      fireEvent.change(sort, { target: { value: "price" } });
+      await waitFor(() => expect(callsTo(f, "PATCH", "/api/settings")).toHaveLength(1));
+      expect(JSON.parse(callsTo(f, "PATCH", "/api/settings")[0][1]!.body as string)).toEqual({ model_routing: { sort: "price" } });
+    });
+
+    it("the data policy toggles send their own flag", async () => {
+      const f = api();
+      show();
+      fireEvent.click(await screen.findByText("Only providers with zero data retention"));
+      await waitFor(() => expect(callsTo(f, "PATCH", "/api/settings")).toHaveLength(1));
+      expect(JSON.parse(callsTo(f, "PATCH", "/api/settings")[0][1]!.body as string)).toEqual({ model_routing: { zero_retention: true } });
+    });
+
+    it("is disabled for endpoints other than OpenRouter", async () => {
+      api({ "GET /api/settings": settings({ model_endpoint: "http://localhost:11434/v1" }) });
+      show();
+      expect(await screen.findByLabelText("Provider routing")).toBeDisabled();
+      expect(screen.getByText(/Only OpenRouter routes between providers/)).toBeInTheDocument();
     });
   });
 });

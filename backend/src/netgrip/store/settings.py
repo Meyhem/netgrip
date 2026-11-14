@@ -15,6 +15,7 @@ Tier = Literal["strong", "standard", "fast", "verifier"]
 PresetName = Literal["economy", "balanced", "maximum"]
 PageReuse = Literal["1d", "always_refetch"]
 EffortName = Literal["Low", "Medium", "High"]
+RoutingSort = Literal["default", "price", "throughput", "latency"]
 
 OPUS = "anthropic/claude-opus-5.5"
 SONNET = "anthropic/claude-sonnet-5.5"
@@ -57,6 +58,8 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "politeness_seconds": 2.0,
     "capacity": {"investigations": 5, "model_calls": 8, "searches": 4, "browser_pages": 6},
     "model_endpoint": "https://openrouter.ai/api/v1",
+    # How OpenRouter picks among the providers serving a model. Sent only to OpenRouter.
+    "model_routing": {"sort": "default", "deny_data_collection": False, "zero_retention": False},
     "presets": {
         "economy": {"strong": SONNET, "standard": HAIKU, "fast": HAIKU, "verifier": GPT},
         "balanced": {"strong": OPUS, "standard": SONNET, "fast": HAIKU, "verifier": GPT},
@@ -92,6 +95,12 @@ class Capacity(_Strict):
     browser_pages: int = Field(gt=0)
 
 
+class ModelRouting(_Strict):
+    sort: RoutingSort
+    deny_data_collection: bool  # only providers that do not store or train on prompts
+    zero_retention: bool  # only providers with a zero data retention policy
+
+
 class ModelPrice(_Strict):
     id: str = Field(min_length=1)
     price_in_per_m: float | None = Field(default=None, gt=0)
@@ -108,6 +117,7 @@ class SettingsModel(_Strict):
     politeness_seconds: float = Field(gt=0)
     capacity: Capacity
     model_endpoint: str = Field(min_length=1)
+    model_routing: ModelRouting
     presets: dict[PresetName, dict[Tier, str]]
     default_preset: PresetName
     models: list[ModelPrice]

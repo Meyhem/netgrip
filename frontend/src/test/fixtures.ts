@@ -33,6 +33,7 @@ export function settings(over: Partial<Settings> = {}): Settings {
     politeness_seconds: 2,
     capacity: { investigations: 5, model_calls: 8, searches: 4, browser_pages: 6 },
     model_endpoint: "https://openrouter.ai/api/v1",
+    model_routing: { sort: "default", deny_data_collection: false, zero_retention: false },
     presets: {
       economy: { strong: SONNET, standard: HAIKU, fast: HAIKU, verifier: GPT },
       balanced: { strong: OPUS, standard: SONNET, fast: HAIKU, verifier: GPT },

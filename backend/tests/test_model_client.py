@@ -475,3 +475,65 @@ async def test_list_models_unreachable_raises_unavailable():
 
     with pytest.raises(ModelUnavailable):
         await client_for(handler).list_models()
+
+
+def routed_client(handler, base: str, routing: dict) -> OpenAICompatClient:
+    async def get_key():
+        return SECRET
+
+    async def get_routing():
+        return routing
+
+    return OpenAICompatClient(
+        base, get_key, transport=httpx.MockTransport(handler), get_routing=get_routing
+    )
+
+
+async def test_routing_preferences_are_sent_to_openrouter():
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json=completion("ok"))
+
+    routing = {"sort": "price", "deny_data_collection": True, "zero_retention": True}
+    await routed_client(handler, "https://openrouter.ai/api/v1", routing).complete(req())
+    assert seen["provider"] == {"sort": "price", "data_collection": "deny", "zdr": True}
+
+
+async def test_default_routing_sends_no_provider_field():
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json=completion("ok"))
+
+    routing = {"sort": "default", "deny_data_collection": False, "zero_retention": False}
+    await routed_client(handler, "https://openrouter.ai/api/v1", routing).complete(req())
+    assert "provider" not in seen
+
+
+async def test_routing_is_not_sent_to_other_endpoints():
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json=completion("ok"))
+
+    routing = {"sort": "latency", "deny_data_collection": True, "zero_retention": False}
+    await routed_client(handler, "https://models.test/v1", routing).complete(req())
+    assert "provider" not in seen
+
+
+async def test_model_list_is_cached():
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(1)
+        return httpx.Response(200, json={"data": [{"id": "a/b", "context_length": 200000}]})
+
+    client = client_for(handler)
+    first = await client.list_models()
+    await client.list_models()
+    assert len(calls) == 1
+    assert first[0]["context_length"] == 200000

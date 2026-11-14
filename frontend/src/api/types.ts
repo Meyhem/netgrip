@@ -180,6 +180,16 @@ export interface OfferedModel {
   name: string;
   price_in_per_m: number | null;
   price_out_per_m: number | null;
+  context_length: number | null;
+}
+
+export type RoutingSort = "default" | "price" | "throughput" | "latency";
+
+/** How OpenRouter picks among the providers serving a model. */
+export interface ModelRouting {
+  sort: RoutingSort;
+  deny_data_collection: boolean;
+  zero_retention: boolean;
 }
 
 export interface Capacity {
@@ -198,6 +208,7 @@ export interface Settings {
   politeness_seconds: number;
   capacity: Capacity;
   model_endpoint: string;
+  model_routing: ModelRouting;
   presets: Record<PresetName, Record<Tier, string>>;
   default_preset: PresetName;
   models: ModelPrice[];

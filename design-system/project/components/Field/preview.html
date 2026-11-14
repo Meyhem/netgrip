@@ -1,4 +1,4 @@
-<!-- @dsCard group="Actions" height=330 -->
+<!-- @dsCard group="Actions" height=600 -->
 <!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><title>Field</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"><style>html,body{margin:0}</style></head>
@@ -16,6 +16,12 @@
   <input id="f2" class="ng-input ng-input--mono is-error" value="reddit.com, quora" >
   <span class="ng-field__hint is-error">"quora" is not a domain. Write it as quora.com.</span></div>
  <label class="ng-toggle is-on"><span class="ng-toggle__track"></span>Always fetch pages again for this investigation</label>
+ <div class="ng-field" style="max-width:380px"><label class="ng-field__label" for="f3">Strong model</label>
+  <div class="ng-combo"><input id="f3" class="ng-input ng-input--mono" role="combobox" aria-expanded="true" value="son 5.5">
+   <ul class="ng-menu ng-combo__list" role="listbox">
+    <li class="ng-menu__item is-hover" role="option"><b>anthropic/claude-<mark>son</mark>net-<mark>5.5</mark></b><span>$3 / $15</span><small>Anthropic: Claude Sonnet 5.5 · 1M context</small></li>
+    <li class="ng-menu__item" role="option"><b>openai/gpt-<mark>5.5</mark>-<mark>s</mark>w<mark>on</mark></b><span>no price</span><small>OpenAI: GPT-5.5 Swon · 400k context</small></li>
+   </ul></div></div>
 </div>
 </body>
 </html>

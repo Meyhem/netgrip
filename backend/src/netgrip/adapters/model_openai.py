@@ -5,9 +5,11 @@ never put in an exception message, never kept on the client."""
 
 import json
 import logging
+import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from decimal import Decimal, InvalidOperation
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 import jsonschema
@@ -126,23 +128,35 @@ class OpenAICompatClient:
         base_url: BaseUrl,
         get_key: Callable[[], Awaitable[str | None]],
         transport: httpx.AsyncBaseTransport | None = None,
+        get_routing: Callable[[], Awaitable[Any]] | None = None,
     ) -> None:
         self._base_url = base_url
         self._get_key = get_key
+        self._get_routing = get_routing
+        self._catalogue: tuple[str, float, list[dict]] | None = None  # (base, fetched at, rows)
         self._http = httpx.AsyncClient(transport=transport, timeout=TIMEOUT_SECONDS)
 
     async def aclose(self) -> None:
         await self._http.aclose()
 
     async def _url(self, path: str) -> str:
-        base = self._base_url if isinstance(self._base_url, str) else await self._base_url()
-        return base.rstrip("/") + path
+        return (await self._base()).rstrip("/") + path
 
     async def _headers(self) -> dict[str, str]:
         key = await self._get_key()
         if not key:
             raise ModelRejected("key", "No model key is set")
         return {"Authorization": f"Bearer {key}"}
+
+    async def _base(self) -> str:
+        return self._base_url if isinstance(self._base_url, str) else await self._base_url()
+
+    async def _body(self, req: ModelRequest, stream: bool) -> dict:
+        body = self._payload(req, stream)
+        if self._get_routing is not None and is_openrouter(await self._base()):
+            if provider := provider_preferences(await self._get_routing()):
+                body["provider"] = provider
+        return body
 
     def _payload(self, req: ModelRequest, stream: bool) -> dict:
         body: dict[str, Any] = {
@@ -177,7 +191,7 @@ class OpenAICompatClient:
         try:
             resp = await self._http.post(
                 await self._url("/chat/completions"),
-                json=self._payload(req, stream=False),
+                json=await self._body(req, stream=False),
                 headers=await self._headers(),
             )
         except httpx.HTTPError as e:
@@ -208,7 +222,7 @@ class OpenAICompatClient:
             async with self._http.stream(
                 "POST",
                 await self._url("/chat/completions"),
-                json=self._payload(req, stream=True),
+                json=await self._body(req, stream=True),
                 headers=await self._headers(),
             ) as resp:
                 if resp.status_code >= 400:
@@ -246,6 +260,13 @@ class OpenAICompatClient:
         """The provider's model catalogue, for pickers: id, name and USD per million tokens
         (None when the provider lists no price). `/models` is public on OpenRouter, so a key
         is sent only if there is one."""
+        base = await self._base()
+        if (
+            self._catalogue
+            and self._catalogue[0] == base
+            and time.monotonic() - self._catalogue[1] < CATALOGUE_TTL_SECONDS
+        ):
+            return self._catalogue[2]
         headers: dict[str, str] = {}
         if key := await self._get_key():
             headers["Authorization"] = f"Bearer {key}"
@@ -256,12 +277,38 @@ class OpenAICompatClient:
         _raise_for_status(resp)
         try:
             rows = resp.json()["data"]
-            return sorted(
+            models = sorted(
                 (_catalogue_entry(r) for r in rows if isinstance(r, dict) and r.get("id")),
                 key=lambda m: m["id"],
             )
         except (ValueError, KeyError, TypeError) as e:
             raise ModelMalformed("unexpected response from the model endpoint") from e
+        self._catalogue = (base, time.monotonic(), models)
+        return models
+
+
+CATALOGUE_TTL_SECONDS = 600
+
+
+def is_openrouter(base_url: str) -> bool:
+    host = urlsplit(base_url).hostname or ""
+    return host == "openrouter.ai" or host.endswith(".openrouter.ai")
+
+
+def provider_preferences(routing: Any) -> dict:
+    """OpenRouter's `provider` request field from the routing setting; empty when it is all
+    defaults, so OpenRouter balances providers as it normally does."""
+    if routing is None:
+        return {}
+    r = routing if isinstance(routing, dict) else routing.model_dump()
+    out: dict[str, Any] = {}
+    if r.get("sort") in ("price", "throughput", "latency"):
+        out["sort"] = r["sort"]
+    if r.get("deny_data_collection"):
+        out["data_collection"] = "deny"
+    if r.get("zero_retention"):
+        out["zdr"] = True
+    return out
 
 
 def _per_million(value: Any) -> float | None:
@@ -279,6 +326,9 @@ def _catalogue_entry(row: dict) -> dict:
         "name": row.get("name") or row["id"],
         "price_in_per_m": _per_million(pricing.get("prompt")),
         "price_out_per_m": _per_million(pricing.get("completion")),
+        "context_length": row.get("context_length")
+        if isinstance(row.get("context_length"), int)
+        else None,
     }
 
 
