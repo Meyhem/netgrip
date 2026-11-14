@@ -1,6 +1,12 @@
 export const money = (n: number) => `$${n.toFixed(2)}`;
 export const moneyOf = (a: number, b: number) => `${money(a)} / ${money(b)}`;
 
+/** A price per million tokens, without the $. Cheap models keep four decimals, so $0.0399
+ * does not read as $0.04. */
+export function perMillion(n: number): string {
+  return n >= 0.1 ? n.toFixed(2) : n.toFixed(4);
+}
+
 export function duration(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
   const h = Math.floor(s / 3600);

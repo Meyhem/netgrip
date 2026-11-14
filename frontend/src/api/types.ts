@@ -183,6 +183,12 @@ export interface OfferedModel {
   context_length: number | null;
 }
 
+/** GET /api/settings/models/available. `scripted` in fake mode. */
+export interface ModelCatalogue {
+  source: "provider" | "scripted";
+  models: OfferedModel[];
+}
+
 export type RoutingSort = "default" | "price" | "throughput" | "latency";
 
 /** How OpenRouter picks among the providers serving a model. */

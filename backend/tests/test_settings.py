@@ -101,7 +101,8 @@ async def test_available_models_in_fake_mode_is_the_scripted_catalogue(tmp_path)
         ) as client:
             r = await client.get("/api/settings/models/available")
     assert r.status_code == 200
-    ids = [m["id"] for m in r.json()]
+    assert r.json()["source"] == "scripted"
+    ids = [m["id"] for m in r.json()["models"]]
     assert "anthropic/claude-opus-5.5" in ids and ids == sorted(ids)
 
 
@@ -117,3 +118,22 @@ async def test_model_routing_defaults_and_patch(db):
     assert s.model_routing.deny_data_collection is False
     with pytest.raises(ValidationError):
         await patch_settings(db, {"model_routing": {"sort": "fastest"}})
+
+
+async def test_a_preset_cannot_use_an_unlisted_model(db):
+    with pytest.raises(ValidationError):
+        await patch_settings(db, {"presets": {"balanced": {"fast": "nobody/unlisted"}}})
+    s = await get_settings(db)
+    listed = [m for m in s.models if m.id != "openai/gpt-5.2"]
+    with pytest.raises(ValidationError):  # gpt-5.2 is every preset's verifier
+        await patch_settings(db, {"models": [m.model_dump() for m in listed]})
+
+
+async def test_an_unused_model_can_be_removed(db):
+    s = await get_settings(db)
+    extra = {"id": "z-ai/glm-5.3-flash", "price_in_per_m": 0.04, "price_out_per_m": 0.2}
+    s = await patch_settings(db, {"models": [m.model_dump() for m in s.models] + [extra]})
+    assert "z-ai/glm-5.3-flash" in [m.id for m in s.models]
+    kept = [m.model_dump() for m in s.models if m.id != "z-ai/glm-5.3-flash"]
+    s = await patch_settings(db, {"models": kept})
+    assert "z-ai/glm-5.3-flash" not in [m.id for m in s.models]

@@ -1,5 +1,6 @@
 import { useId, useMemo, useRef, useState, type ReactNode } from "react";
 import type { OfferedModel } from "../api/types";
+import { perMillion } from "../lib/format";
 import { rank } from "../lib/fuzzy";
 
 /** A model the picker can offer: from the provider's list, or already listed in Settings. */
@@ -20,7 +21,7 @@ function Marked({ text, marks }: { text: string; marks: number[] }) {
   return <>{out}</>;
 }
 
-const perM = (n: number) => `$${n < 1 ? n.toFixed(2) : n.toFixed(n % 1 ? 2 : 0)}`;
+const perM = (n: number) => `$${perMillion(n)}`;
 const priceText = (m: PickableModel) =>
   m.price_in_per_m != null && m.price_out_per_m != null ? `${perM(m.price_in_per_m)} / ${perM(m.price_out_per_m)}` : "no price";
 const context = (n?: number | null) => (n ? ` · ${n >= 1_000_000 ? `${n / 1_000_000}M` : `${Math.round(n / 1000)}k`} context` : "");

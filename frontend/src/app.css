@@ -37,7 +37,9 @@ html, body, #root { height: 100%; margin: 0; }
 .settings-sections .money { width: 120px; }
 .settings-sections .wide-select { width: 200px; }
 .settings-sections .routing-select { width: 300px; }
-.settings-sections .add-model { width: 420px; }
+.settings-sections .add-model { width: min(420px, 100%); }
+/* The listed-models table scrolls inside its panel on a narrow window instead of widening the page. */
+.settings-sections .models-panel { overflow-x: auto; }
 
 /* InstructionComposer / Instruction */
 .instr-diff { margin-top: var(--space-2); }

@@ -4,7 +4,7 @@ import copy
 import json
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from netgrip.adapters.model import redact
 from netgrip.boundary.events import utc_now_iso
@@ -122,6 +122,17 @@ class SettingsModel(_Strict):
     default_preset: PresetName
     models: list[ModelPrice]
     excluded_domains: list[str]
+
+    @model_validator(mode="after")
+    def _presets_use_listed_models(self) -> "SettingsModel":
+        listed = [m.id for m in self.models]
+        if len(set(listed)) != len(listed):
+            raise ValueError("a model is listed twice")
+        for preset, tiers in self.presets.items():
+            for tier, model in tiers.items():
+                if model not in listed:
+                    raise ValueError(f"{preset} {tier} uses a model that is not listed")
+        return self
 
 
 def _merge(base: dict, partial: dict) -> dict:

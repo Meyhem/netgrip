@@ -126,7 +126,7 @@ describe("Settings", () => {
     const options = () => within(screen.getByRole("listbox")).queryAllByRole("option").map((o) => o.querySelector("b")!.textContent);
 
     it("typing searches the provider's models fuzzily and Enter picks one with its price", async () => {
-      const f = api({ "GET /api/settings/models/available": OFFER });
+      const f = api({ "GET /api/settings/models/available": { source: "provider", models: OFFER } });
       show();
       const pick = await screen.findByRole("combobox", { name: "Balanced Fast model" });
       await waitFor(() => expect(screen.getByRole("combobox", { name: "Add a model" })).not.toBeDisabled());
@@ -141,7 +141,7 @@ describe("Settings", () => {
     });
 
     it("the search matches model names and says when nothing matches", async () => {
-      api({ "GET /api/settings/models/available": OFFER });
+      api({ "GET /api/settings/models/available": { source: "provider", models: OFFER } });
       show();
       const pick = await screen.findByRole("combobox", { name: "Balanced Strong model" });
       await waitFor(() => expect(screen.getByRole("combobox", { name: "Add a model" })).not.toBeDisabled());
@@ -153,7 +153,7 @@ describe("Settings", () => {
     });
 
     it("Escape puts the saved value back and sends nothing", async () => {
-      const f = api({ "GET /api/settings/models/available": OFFER });
+      const f = api({ "GET /api/settings/models/available": { source: "provider", models: OFFER } });
       show();
       const pick = await screen.findByRole("combobox", { name: "Balanced Fast model" });
       const before = (pick as HTMLInputElement).value;
@@ -165,7 +165,7 @@ describe("Settings", () => {
     });
 
     it("Add a model offers only models not yet listed", async () => {
-      const f = api({ "GET /api/settings/models/available": OFFER });
+      const f = api({ "GET /api/settings/models/available": { source: "provider", models: OFFER } });
       show();
       const add = await screen.findByRole("combobox", { name: "Add a model" });
       await waitFor(() => expect(add).not.toBeDisabled());
@@ -183,6 +183,57 @@ describe("Settings", () => {
       fireEvent.focus(pick);
       expect(options()).toHaveLength(settings().models.length);
       expect(screen.getByRole("combobox", { name: "Add a model" })).toBeDisabled();
+    });
+  });
+
+  describe("listed models", () => {
+    const LISTED = settings().models.map((m) => m.id);
+    const body = (f: ReturnType<typeof api>) => JSON.parse(callsTo(f, "PATCH", "/api/settings")[0][1]!.body as string);
+    const withExtra = () => settings({ models: [...settings().models, { id: "z-ai/glm-5.3-flash", price_in_per_m: 0.04, price_out_per_m: 0.2, price_source: "provider" }] });
+
+    it("a model no tier uses can be removed", async () => {
+      const f = api({ "GET /api/settings": withExtra() });
+      show();
+      fireEvent.click(await screen.findByRole("button", { name: "Remove z-ai/glm-5.3-flash" }));
+      await waitFor(() => expect(callsTo(f, "PATCH", "/api/settings")).toHaveLength(1));
+      expect(body(f).models.map((m: { id: string }) => m.id)).toEqual(LISTED);
+    });
+
+    it("a model a tier uses cannot be removed and says which tiers", async () => {
+      api();
+      show();
+      const remove = await screen.findByRole("button", { name: "Remove openai/gpt-5.2" });
+      expect(remove).toBeDisabled();
+      expect(remove.title).toMatch(/^Used by Economy Verifier, Balanced Verifier, Maximum quality Verifier\./);
+    });
+
+    it("a row takes the provider's price when it differs", async () => {
+      const f = api({ "GET /api/settings/models/available": { source: "provider", models: [
+        { id: "openai/gpt-5.2", name: "GPT-5.2", price_in_per_m: 1.25, price_out_per_m: 10, context_length: 400_000 },
+      ] } });
+      show();
+      fireEvent.click(await screen.findByRole("button", { name: "Use the provider's price for openai/gpt-5.2" }));
+      await waitFor(() => expect(callsTo(f, "PATCH", "/api/settings")).toHaveLength(1));
+      expect(body(f).models.find((m: { id: string }) => m.id === "openai/gpt-5.2")).toEqual({ id: "openai/gpt-5.2", price_in_per_m: 1.25, price_out_per_m: 10, price_source: "provider" });
+    });
+
+    it("Update prices takes every differing provider price at once", async () => {
+      const f = api({ "GET /api/settings/models/available": { source: "provider", models: [
+        { id: "openai/gpt-5.2", name: "GPT-5.2", price_in_per_m: 1.25, price_out_per_m: 10, context_length: null },
+        { id: settings().models[0].id, name: "x", price_in_per_m: 99, price_out_per_m: 199, context_length: null },
+      ] } });
+      show();
+      fireEvent.click(await screen.findByRole("button", { name: "Update 2 prices from the provider" }));
+      await waitFor(() => expect(callsTo(f, "PATCH", "/api/settings")).toHaveLength(1));
+      const sent = body(f).models;
+      expect(sent.map((m: { id: string }) => m.id)).toEqual(LISTED);
+      expect(sent[0]).toMatchObject({ price_in_per_m: 99, price_out_per_m: 199, price_source: "provider" });
+    });
+
+    it("fake mode says its list is scripted", async () => {
+      api({ "GET /api/settings/models/available": { source: "scripted", models: [] } });
+      show();
+      expect(await screen.findByText("Fake mode: a scripted list, not the provider's.")).toBeInTheDocument();
     });
   });
 

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { ApiError, getJSON, patchJSON, postJSON, putJSON } from "../api/client";
-import type { OfferedModel, RoutingSort, EffortBudget, EffortName, KeyStatus, ModelPrice, PresetName, Settings as SettingsT, Storage, Pools, Tier } from "../api/types";
-import { bytes, money } from "../lib/format";
+import type { ModelCatalogue, RoutingSort, EffortBudget, EffortName, KeyStatus, ModelPrice, PresetName, Settings as SettingsT, Storage, Pools, Tier } from "../api/types";
+import { bytes, money, perMillion } from "../lib/format";
 import { usePoll } from "../lib/usePoll";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
@@ -67,7 +67,8 @@ export function Settings() {
   const { data: storage } = usePoll(() => getJSON<Storage>("/api/system/storage"), 10000);
   // What the provider offers; absent when it cannot be reached, and the pickers then offer only
   // the models already listed here.
-  const { data: offered } = usePoll(() => getJSON<OfferedModel[]>("/api/settings/models/available"), 30000, { untilLoaded: true });
+  const { data: catalogue } = usePoll(() => getJSON<ModelCatalogue>("/api/settings/models/available"), 30000, { untilLoaded: true });
+  const offered = catalogue?.models;
   const [s, setS] = useState<SettingsT | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [failed, setFailed] = useState<{ field: string; message: string } | null>(null);
@@ -122,8 +123,21 @@ export function Settings() {
   const pickable: PickableModel[] = [...(offered ?? []), ...s.models.filter((m) => !offeredById.has(m.id))];
   const openRouter = isOpenRouter(s.model_endpoint);
   const addModel = (id: string) => patch("add-model", { models: [...s.models, entryFor(id)] });
-  const setModel = (i: number, change: Partial<ModelPrice>) =>
-    patch(`model-${i}`, { models: s.models.map((m, j) => (j === i ? { ...m, ...change, price_source: "you" } : m)) });
+  const setModel = (id: string, change: Partial<ModelPrice>, source = "you") =>
+    patch(`model-${id}`, { models: s.models.map((m) => (m.id === id ? { ...m, ...change, price_source: source } : m)) });
+  const usedBy = (id: string) => PRESETS.flatMap((p) => TIER_ORDER.filter((t) => s.presets[p][t] === id).map((t) => `${PRESET_WORD[p]} ${TIER_WORD[t]}`));
+  const dropModel = (id: string) => patch("drop-model", { models: s.models.filter((m) => m.id !== id) });
+  /** The provider's price for a listed model, when it has one that differs from ours. */
+  const newerPrice = (m: ModelPrice) => {
+    const o = offeredById.get(m.id);
+    if (o?.price_in_per_m == null || o.price_out_per_m == null) return null;
+    return o.price_in_per_m === m.price_in_per_m && o.price_out_per_m === m.price_out_per_m ? null : o;
+  };
+  const stale = s.models.filter((m) => newerPrice(m));
+  const updatePrices = () => patch("update-prices", {
+    models: s.models.map((m) => { const o = newerPrice(m); return o ? { ...m, price_in_per_m: o.price_in_per_m, price_out_per_m: o.price_out_per_m, price_source: "provider" } : m; }),
+  });
+  const perM = (n: number) => `$${perMillion(n)}`;
 
   return (
     <Page>
@@ -171,29 +185,44 @@ export function Settings() {
                 </tbody>
               </table>
             </div>
-            <div className="ng-panel">
+            <div className="ng-panel models-panel">
               <table className="ng-table">
-                <thead><tr><th>Model</th><th>Tier in {PRESET_WORD[s.default_preset]}</th><th className="num">$ / M input</th><th className="num">$ / M output</th><th>Price source</th></tr></thead>
+                <thead><tr><th>Model</th><th>Tier in {PRESET_WORD[s.default_preset]}</th><th className="num">$ / M input</th><th className="num">$ / M output</th><th>Price source</th><th /></tr></thead>
                 <tbody>
-                  {s.models.map((m, i) => {
+                  {s.models.map((m) => {
                     const unpriced = m.price_in_per_m == null || m.price_out_per_m == null;
+                    const fresh = newerPrice(m);
+                    const used = usedBy(m.id);
                     return (
                       <tr key={m.id}>
                         <td className="ng-mono">{m.id}</td>
                         <td>{tierOf(m.id)}</td>
                         <td className="is-num">
                           <NumberField className="price" aria-label={`${m.id} input price`} placeholder="–" value={m.price_in_per_m} parse={price}
-                            format={(n) => n.toFixed(2)} error={m.price_in_per_m == null} onCommit={(n) => setModel(i, { price_in_per_m: n })} />
+                            format={perMillion} error={m.price_in_per_m == null} onCommit={(n) => setModel(m.id, { price_in_per_m: n })} />
                         </td>
                         <td className="is-num">
                           <NumberField className="price" aria-label={`${m.id} output price`} placeholder="–" value={m.price_out_per_m} parse={price}
-                            format={(n) => n.toFixed(2)} error={m.price_out_per_m == null} onCommit={(n) => setModel(i, { price_out_per_m: n })} />
+                            format={perMillion} error={m.price_out_per_m == null} onCommit={(n) => setModel(m.id, { price_out_per_m: n })} />
                         </td>
                         <td>
-                          {saved === `model-${i}` ? <span className="ng-small ng-muted">Saved</span>
-                            : err(`model-${i}`) ? <span className="ng-small ng-danger">{err(`model-${i}`)}</span>
-                              : unpriced ? <span className="ng-small ng-warn">No price on record. Enter one, or spend will be approximate.</span>
+                          {saved === `model-${m.id}` ? <span className="ng-small ng-muted">Saved</span>
+                            : err(`model-${m.id}`) ? <span className="ng-small ng-danger">{err(`model-${m.id}`)}</span>
+                              : unpriced ? <span className="ng-small ng-warn">No price on record. {fresh ? "The provider has one." : "Enter one, or spend will be approximate."}</span>
                                 : <span className="ng-small ng-muted">{m.price_source ?? "–"}</span>}
+                          {fresh && (
+                            <div>
+                              <Button size="sm" variant="quiet" aria-label={`Use the provider's price for ${m.id}`}
+                                onClick={() => setModel(m.id, { price_in_per_m: fresh.price_in_per_m, price_out_per_m: fresh.price_out_per_m }, "provider")}>
+                                Use {perM(fresh.price_in_per_m!)} / {perM(fresh.price_out_per_m!)}
+                              </Button>
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <Button size="sm" variant="quiet" aria-label={`Remove ${m.id}`} disabled={used.length > 0}
+                            title={used.length ? `Used by ${used.join(", ")}. Pick another model for ${used.length === 1 ? "that tier" : "those tiers"} first.` : undefined}
+                            onClick={() => dropModel(m.id)}>Remove</Button>
                         </td>
                       </tr>
                     );
@@ -203,10 +232,19 @@ export function Settings() {
             </div>
             <div className="ng-row">
               <div className="add-model">
-                <ModelCombo label="Add a model" value="" placeholder={!offered ? "The provider's models could not be loaded" : offered.length ? `Search ${offered.length.toLocaleString("en-US")} models from the provider…` : "The provider lists no models"}
+                <ModelCombo label="Add a model" value="" placeholder={!offered ? "The provider's models could not be loaded" : offered.length ? `Search ${offered.length.toLocaleString("en-US")} ${catalogue?.source === "scripted" ? "scripted models (fake mode)" : "models from the provider"}…` : "The provider lists no models"}
                   disabled={!offered?.length} models={(offered ?? []).filter((m) => !known.has(m.id))} onPick={addModel} />
               </div>
-              <span className="ng-small ng-muted">{saved === "add-model" ? "Saved" : err("add-model") ?? "Priced from the provider's list."}</span>
+              <span className="ng-small ng-muted">
+                {saved === "add-model" || saved === "drop-model" || saved === "update-prices" ? "Saved"
+                  : err("add-model") ?? err("drop-model") ?? err("update-prices")
+                    ?? (catalogue?.source === "scripted" ? "Fake mode: a scripted list, not the provider's." : "Priced from the provider's list.")}
+              </span>
+              {stale.length > 0 && (
+                <Button size="sm" className="ng-right" onClick={updatePrices}>
+                  Update {stale.length} price{stale.length === 1 ? "" : "s"} from the provider
+                </Button>
+              )}
             </div>
             <div className="ng-panel form-panel">
               <Row label="Provider routing" saved={saved === "routing-sort"} error={err("routing-sort")}

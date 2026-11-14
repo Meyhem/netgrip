@@ -52,11 +52,13 @@ class KeyBody(BaseModel):
 
 
 @router.get("/models/available")
-async def available_models(engine: Annotated[Engine, Depends(get_engine)]) -> list[dict]:
+async def available_models(engine: Annotated[Engine, Depends(get_engine)]) -> dict:
     """What the model provider offers, for the model pickers. The pickers fall back to the
-    models already in Settings when the provider cannot be reached (502)."""
+    models already in Settings when the provider cannot be reached (502). In fake mode the
+    list is scripted, and `source` says so."""
     try:
-        return await engine.model_client.list_models()
+        models = await engine.model_client.list_models()
+        return {"source": "scripted" if engine.config.fake else "provider", "models": models}
     except (ModelUnavailable, ModelRejected) as e:
         raise HTTPException(502, "The model provider's list of models could not be fetched") from e
 
