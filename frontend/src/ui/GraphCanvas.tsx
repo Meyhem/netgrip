@@ -183,10 +183,11 @@ export function GraphCanvas({
       }
       const k = clamp(Math.max(minK, Math.min(1, (cw - 2 * FIT_PAD) / layout.width, (ch - 2 * FIT_PAD) / layout.height)));
       const root = rootId ? layout.positions[rootId] : undefined;
-      const y = layout.height * k <= ch - 2 * FIT_PAD || !root
-        ? Math.max(FIT_PAD, (ch - layout.height * k) / 2)
-        : ch / 2 - (root.y + NODE_H / 2) * k;
-      setView({ x: FIT_PAD, y, k });
+      const fits = layout.width * k <= cw - 2 * FIT_PAD && layout.height * k <= ch - 2 * FIT_PAD;
+      // The root is in the middle: a graph too big to fit is centred on it.
+      const x = fits || !root ? Math.max(FIT_PAD, (cw - layout.width * k) / 2) : cw / 2 - (root.x + NODE_W / 2) * k;
+      const y = fits || !root ? Math.max(FIT_PAD, (ch - layout.height * k) / 2) : ch / 2 - (root.y + NODE_H / 2) * k;
+      setView({ x, y, k });
       return true;
     },
     [layout, rootId],

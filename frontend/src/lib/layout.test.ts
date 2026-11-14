@@ -23,14 +23,17 @@ const overlaps = (a: { x: number; y: number }, b: { x: number; y: number }) =>
   a.x < b.x + NODE_W && b.x < a.x + NODE_W && a.y < b.y + NODE_H && b.y < a.y + NODE_H;
 
 describe("layoutGraph", () => {
-  it("layout places parents before children (depth runs left to right) and no two boxes overlap", () => {
+  it("puts the root in the middle, deeper nodes on wider rings, and no two boxes overlap", () => {
     const nodes = fortyNodes();
     expect(nodes).toHaveLength(40);
     const { positions, width, height } = layoutGraph(nodes);
     expect(Object.keys(positions)).toHaveLength(40);
+    const centre = (id: string) => ({ x: positions[id].x + NODE_W / 2, y: positions[id].y + NODE_H / 2 });
+    const dist = (id: string) => Math.hypot(centre(id).x - centre("R").x, centre(id).y - centre("R").y);
     for (const n of nodes) {
-      if (n.parentId) expect(positions[n.parentId].x + NODE_W).toBeLessThan(positions[n.id].x);
+      if (n.parentId) expect(dist(n.parentId)).toBeLessThan(dist(n.id));
     }
+    expect(dist("P1")).toBeCloseTo(dist("D1"));
     const ids = nodes.map((n) => n.id);
     for (let i = 0; i < ids.length; i++) {
       for (let j = i + 1; j < ids.length; j++) {
@@ -53,11 +56,6 @@ describe("layoutGraph", () => {
     expect(edges.filter((e) => e.kind === "dependency")).toHaveLength(17);
     expect(edges.filter((e) => e.kind === "decomposition")).toHaveLength(39);
     for (const e of edges) expect(e.points.length).toBeGreaterThanOrEqual(2);
-  });
-
-  it("a dependency places the waiting node after the one it waits on", () => {
-    const { positions } = layoutGraph(fortyNodes());
-    expect(positions.D3.x + NODE_W).toBeLessThan(positions.V1.x);
   });
 
   it("collapsed branches hide their descendants and count them", () => {
