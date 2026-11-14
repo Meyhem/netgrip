@@ -86,3 +86,19 @@ async def test_key_status_never_contains_value(db):
     assert status.status == "rejected" and status.checked_at is not None
     assert "sk-secret-123" not in status.model_dump_json()
     assert await get_key(db, "search") is None
+
+
+async def test_available_models_in_fake_mode_is_empty_list(tmp_path):
+    import httpx
+
+    from netgrip.app import create_app
+    from netgrip.config import Config
+
+    app = create_app(Config(data_dir=tmp_path / "data", fake=True))
+    async with app.router.lifespan_context(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            r = await client.get("/api/settings/models/available")
+    assert r.status_code == 200
+    assert r.json() == []

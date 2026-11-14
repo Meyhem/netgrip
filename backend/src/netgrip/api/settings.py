@@ -3,6 +3,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel
 
+from netgrip.adapters.model import ModelRejected, ModelUnavailable
 from netgrip.adapters.model_openai import check_model_key
 from netgrip.adapters.search import SearchUnavailable
 from netgrip.api.deps import get_db, get_engine
@@ -48,6 +49,16 @@ async def patch(
 
 class KeyBody(BaseModel):
     value: str
+
+
+@router.get("/models/available")
+async def available_models(engine: Annotated[Engine, Depends(get_engine)]) -> list[dict]:
+    """What the model provider offers, for the model pickers. The pickers fall back to the
+    models already in Settings when the provider cannot be reached (502)."""
+    try:
+        return await engine.model_client.list_models()
+    except (ModelUnavailable, ModelRejected) as e:
+        raise HTTPException(502, "The model provider's list of models could not be fetched") from e
 
 
 @router.put("/keys/{name}")

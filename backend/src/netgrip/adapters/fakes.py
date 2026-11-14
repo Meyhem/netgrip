@@ -150,6 +150,9 @@ class FakeModelClient:
     async def check(self) -> None:
         return None
 
+    async def list_models(self) -> list[dict]:
+        return []
+
 
 class FakeSearch:
     """`fixtures`: {"results": [{"match": substring of the query, "hits": [...]} or

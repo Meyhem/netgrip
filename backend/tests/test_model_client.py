@@ -442,3 +442,36 @@ async def test_fake_mode_passes_the_delay_to_the_fake_client(tmp_path):
     app = create_app(Config(data_dir=tmp_path / "d", fake=True, fake_delay_ms=150))
     async with app.router.lifespan_context(app):
         assert app.state.engine.model_client.delay_s == 0.15
+
+
+async def test_list_models_converts_prices_to_per_million():
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/models"
+        return httpx.Response(
+            200,
+            json={
+                "data": [
+                    {"id": "b/free", "name": "Free", "pricing": {"prompt": "0", "completion": "0"}},
+                    {
+                        "id": "a/paid",
+                        "name": "Paid",
+                        "pricing": {"prompt": "0.000003", "completion": "0.000015"},
+                    },
+                    {"id": "c/none"},
+                ]
+            },
+        )
+
+    models = await client_for(handler, key=None).list_models()
+    assert [m["id"] for m in models] == ["a/paid", "b/free", "c/none"]
+    assert (models[0]["price_in_per_m"], models[0]["price_out_per_m"]) == (3.0, 15.0)
+    assert models[1]["price_in_per_m"] is None  # zero is no price on record
+    assert models[2]["name"] == "c/none"
+
+
+async def test_list_models_unreachable_raises_unavailable():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(503, json={"error": {"message": "down"}})
+
+    with pytest.raises(ModelUnavailable):
+        await client_for(handler).list_models()

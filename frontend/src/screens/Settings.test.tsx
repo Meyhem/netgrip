@@ -13,7 +13,7 @@ function api(extra: Record<string, unknown> = {}) {
     "GET /api/settings": () => current,
     "PATCH /api/settings": (_u: string, init: RequestInit) => {
       const partial = JSON.parse(init.body as string);
-      current = { ...current, ...partial, effort: { ...current.effort, ...Object.fromEntries(Object.entries(partial.effort ?? {}).map(([k, v]) => [k, { ...current.effort[k as "Low"], ...(v as object) }])) } };
+      current = { ...current, ...partial, presets: Object.fromEntries(Object.entries(current.presets).map(([k, v]) => [k, { ...v, ...(partial.presets?.[k] ?? {}) }])) as typeof current.presets, effort: { ...current.effort, ...Object.fromEntries(Object.entries(partial.effort ?? {}).map(([k, v]) => [k, { ...current.effort[k as "Low"], ...(v as object) }])) } };
       return current;
     },
     "PUT /api/settings/keys/model": { set: true, status: "set", checked_at: null, message: null },
@@ -114,5 +114,43 @@ describe("Settings", () => {
     const ids = Array.from(document.querySelectorAll("section")).map((s) => s.id);
     expect(ids).toEqual(["keys", "models", "effort", "spend", "sources", "capacity", "storage"]);
     expect(screen.queryByText(/theme|account|notification/i)).toBeNull();
+  });
+
+  describe("model pickers", () => {
+    const OFFER = [
+      { id: "anthropic/claude-opus-5.5", name: "Opus", price_in_per_m: 15, price_out_per_m: 75 },
+      { id: "meta-llama/llama-4", name: "Llama 4", price_in_per_m: 0.2, price_out_per_m: 0.6 },
+    ];
+
+    it("a tier is picked from the provider's models and the model joins the list with its price", async () => {
+      const f = api({ "GET /api/settings/models/available": OFFER });
+      show();
+      const pick = await screen.findByLabelText("Balanced Fast model");
+      await waitFor(() => expect(within(pick).getByRole("option", { name: "meta-llama/llama-4" })).toBeInTheDocument());
+      fireEvent.change(pick, { target: { value: "meta-llama/llama-4" } });
+      await waitFor(() => expect(callsTo(f, "PATCH", "/api/settings")).toHaveLength(1));
+      const body = JSON.parse(callsTo(f, "PATCH", "/api/settings")[0][1]!.body as string);
+      expect(body.presets).toEqual({ balanced: { fast: "meta-llama/llama-4" } });
+      expect(body.models.at(-1)).toEqual({ id: "meta-llama/llama-4", price_in_per_m: 0.2, price_out_per_m: 0.6, price_source: "provider" });
+    });
+
+    it("Add a model offers only models not yet listed", async () => {
+      const f = api({ "GET /api/settings/models/available": OFFER });
+      show();
+      const add = await screen.findByLabelText("Add a model");
+      await waitFor(() => expect(within(add).getByRole("option", { name: "meta-llama/llama-4" })).toBeInTheDocument());
+      expect(within(add).queryByRole("option", { name: "anthropic/claude-opus-5.5" })).toBeNull();
+      fireEvent.change(add, { target: { value: "meta-llama/llama-4" } });
+      await waitFor(() => expect(callsTo(f, "PATCH", "/api/settings")).toHaveLength(1));
+      expect(JSON.parse(callsTo(f, "PATCH", "/api/settings")[0][1]!.body as string).models).toHaveLength(settings().models.length + 1);
+    });
+
+    it("without the provider's list the pickers still offer the listed models", async () => {
+      api();
+      show();
+      const pick = await screen.findByLabelText("Balanced Fast model");
+      expect(within(pick).getAllByRole("option").length).toBe(settings().models.length);
+      expect(screen.getByLabelText("Add a model")).toBeDisabled();
+    });
   });
 });

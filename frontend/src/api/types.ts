@@ -174,6 +174,14 @@ export interface ModelPrice {
   price_source: string | null;
 }
 
+/** A model the provider offers, with its price per million tokens when it lists one. */
+export interface OfferedModel {
+  id: string;
+  name: string;
+  price_in_per_m: number | null;
+  price_out_per_m: number | null;
+}
+
 export interface Capacity {
   investigations: number;
   model_calls: number;

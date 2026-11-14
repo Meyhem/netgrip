@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { ApiError, getJSON, patchJSON, postJSON, putJSON } from "../api/client";
-import type { EffortBudget, EffortName, KeyStatus, ModelPrice, PresetName, Settings as SettingsT, Storage, Pools, Tier } from "../api/types";
+import type { OfferedModel, EffortBudget, EffortName, KeyStatus, ModelPrice, PresetName, Settings as SettingsT, Storage, Pools, Tier } from "../api/types";
 import { bytes, money } from "../lib/format";
 import { usePoll } from "../lib/usePoll";
 import { Banner } from "../ui/Banner";
@@ -24,6 +24,7 @@ const EFFORT_COLS: [keyof EffortBudget, string, string][] = [
   ["sources_to_confirm", "Sources to confirm", "sources to confirm"],
 ];
 const PRESETS: PresetName[] = ["economy", "balanced", "maximum"];
+const TIER_ORDER: Tier[] = ["strong", "standard", "fast", "verifier"];
 const integer = (s: string) => (/^\s*\d+\s*$/.test(s) && Number(s) > 0 ? Number(s) : null);
 const price = (s: string) => (/^\s*\d+(\.\d+)?\s*$/.test(s) && Number(s) > 0 ? Number(s) : null);
 
@@ -56,6 +57,9 @@ export function Settings() {
   const { data: loaded, error } = usePoll(() => getJSON<SettingsT>("/api/settings"), 3000, { untilLoaded: true });
   const { data: pools } = usePoll(() => getJSON<Pools>("/api/system/pools"), 5000);
   const { data: storage } = usePoll(() => getJSON<Storage>("/api/system/storage"), 10000);
+  // What the provider offers; absent when it cannot be reached, and the pickers then offer only
+  // the models already listed here.
+  const { data: offered } = usePoll(() => getJSON<OfferedModel[]>("/api/settings/models/available"), 30000, { untilLoaded: true });
   const [s, setS] = useState<SettingsT | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [failed, setFailed] = useState<{ field: string; message: string } | null>(null);
@@ -95,6 +99,17 @@ export function Settings() {
   const on = hash.slice(1) || "keys";
   const preset = s.presets[s.default_preset];
   const tierOf = (id: string) => (Object.keys(preset) as Tier[]).filter((t) => preset[t] === id).map((t) => TIER_WORD[t]).join(", ") || "–";
+  const offeredById = new Map((offered ?? []).map((m) => [m.id, m]));
+  const known = new Set(s.models.map((m) => m.id));
+  /** Entry for a model picked from the provider's list: its price comes along. */
+  const entryFor = (id: string): ModelPrice => {
+    const o = offeredById.get(id);
+    const priced = o?.price_in_per_m != null && o?.price_out_per_m != null;
+    return { id, price_in_per_m: o?.price_in_per_m ?? null, price_out_per_m: o?.price_out_per_m ?? null, price_source: priced ? "provider" : null };
+  };
+  const pickTier = (p: PresetName, t: Tier, id: string) =>
+    patch(`tier-${p}-${t}`, { presets: { [p]: { [t]: id } }, ...(known.has(id) ? {} : { models: [...s.models, entryFor(id)] }) });
+  const addModel = (id: string) => patch("add-model", { models: [...s.models, entryFor(id)] });
   const setModel = (i: number, change: Partial<ModelPrice>) =>
     patch(`model-${i}`, { models: s.models.map((m, j) => (j === i ? { ...m, ...change, price_source: "you" } : m)) });
 
@@ -126,6 +141,27 @@ export function Settings() {
             </div>
             <div className="ng-panel">
               <table className="ng-table">
+                <thead><tr><th>Tier</th>{PRESETS.map((p) => <th key={p}>{PRESET_WORD[p]}</th>)}</tr></thead>
+                <tbody>
+                  {TIER_ORDER.map((t) => (
+                    <tr key={t}>
+                      <td><span className="ng-heading">{TIER_WORD[t]}</span></td>
+                      {PRESETS.map((p) => (
+                        <td key={p}>
+                          <ModelSelect label={`${PRESET_WORD[p]} ${TIER_WORD[t]} model`} value={s.presets[p][t]}
+                            options={[...(offered ?? []).map((m) => m.id), ...s.models.map((m) => m.id)]}
+                            onPick={(id) => pickTier(p, t, id)} />
+                          {saved === `tier-${p}-${t}` && <div className="ng-small ng-muted">Saved</div>}
+                          {err(`tier-${p}-${t}`) && <div className="ng-small ng-danger">{err(`tier-${p}-${t}`)}</div>}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="ng-panel">
+              <table className="ng-table">
                 <thead><tr><th>Model</th><th>Tier in {PRESET_WORD[s.default_preset]}</th><th className="num">$ / M input</th><th className="num">$ / M output</th><th>Price source</th></tr></thead>
                 <tbody>
                   {s.models.map((m, i) => {
@@ -153,6 +189,11 @@ export function Settings() {
                   })}
                 </tbody>
               </table>
+            </div>
+            <div className="ng-row">
+              <ModelSelect label="Add a model" value="" placeholder={offered ? "Add a model from the provider…" : "The provider's models could not be loaded"}
+                disabled={!offered} options={(offered ?? []).map((m) => m.id).filter((id) => !known.has(id))} onPick={addModel} />
+              <span className="ng-small ng-muted">{saved === "add-model" ? "Saved" : err("add-model") ?? "Priced from the provider's list."}</span>
             </div>
           </Section>
 
@@ -261,6 +302,27 @@ export function Settings() {
         </div>
       </div>
     </Page>
+  );
+}
+
+/** A dropdown of model ids grouped by provider (the part before the slash). */
+function ModelSelect({ label, value, options, onPick, placeholder, disabled }: {
+  label: string; value: string; options: string[]; onPick: (id: string) => void; placeholder?: string; disabled?: boolean;
+}) {
+  const ids = Array.from(new Set(value ? [...options, value] : options)).sort();
+  const groups = new Map<string, string[]>();
+  for (const id of ids) {
+    const g = id.includes("/") ? id.split("/")[0] : "other";
+    groups.set(g, [...(groups.get(g) ?? []), id]);
+  }
+  return (
+    <select className="ng-select ng-input--mono" aria-label={label} value={value} disabled={disabled}
+      onChange={(e) => { if (e.target.value && e.target.value !== value) onPick(e.target.value); }}>
+      {!value && <option value="">{placeholder ?? "Choose a model…"}</option>}
+      {Array.from(groups).map(([g, list]) => (
+        <optgroup key={g} label={g}>{list.map((id) => <option key={id} value={id}>{id}</option>)}</optgroup>
+      ))}
+    </select>
   );
 }
 

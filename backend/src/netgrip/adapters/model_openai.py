@@ -242,6 +242,45 @@ class OpenAICompatClient:
             raise ModelUnavailable(f"{type(e).__name__} reaching the model endpoint") from None
         _raise_for_status(resp)
 
+    async def list_models(self) -> list[dict]:
+        """The provider's model catalogue, for pickers: id, name and USD per million tokens
+        (None when the provider lists no price). `/models` is public on OpenRouter, so a key
+        is sent only if there is one."""
+        headers: dict[str, str] = {}
+        if key := await self._get_key():
+            headers["Authorization"] = f"Bearer {key}"
+        try:
+            resp = await self._http.get(await self._url("/models"), headers=headers)
+        except httpx.HTTPError as e:
+            raise ModelUnavailable(f"{type(e).__name__} reaching the model endpoint") from None
+        _raise_for_status(resp)
+        try:
+            rows = resp.json()["data"]
+            return sorted(
+                (_catalogue_entry(r) for r in rows if isinstance(r, dict) and r.get("id")),
+                key=lambda m: m["id"],
+            )
+        except (ValueError, KeyError, TypeError) as e:
+            raise ModelMalformed("unexpected response from the model endpoint") from e
+
+
+def _per_million(value: Any) -> float | None:
+    try:
+        n = float(value) * 1_000_000
+    except (TypeError, ValueError):
+        return None
+    return round(n, 4) if n > 0 else None
+
+
+def _catalogue_entry(row: dict) -> dict:
+    pricing = row.get("pricing") or {}
+    return {
+        "id": row["id"],
+        "name": row.get("name") or row["id"],
+        "price_in_per_m": _per_million(pricing.get("prompt")),
+        "price_out_per_m": _per_million(pricing.get("completion")),
+    }
+
 
 async def check_model_key(client) -> KeyStatus:
     """Ask the provider whether the key works. A rejection of the key or the credit is a
