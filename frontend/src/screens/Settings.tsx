@@ -10,7 +10,7 @@ import { Input, KeyField, NumberField, parseMoney, Seg, Toggle } from "../ui/Fie
 import { ModelCombo, type PickableModel } from "../ui/ModelCombo";
 import { browserHealthText } from "../ui/TopBar";
 import { Page } from "./InvestigationRoute";
-import { parseDomains, PRESET_WORD, TIER_WORD } from "./NewInvestigation";
+import { parseDomains, PRESET_WORD, TIER_DOES, TIER_WORD } from "./NewInvestigation";
 
 const SECTIONS = [
   ["keys", "Keys"], ["models", "Models"], ["effort", "Effort"], ["spend", "Spending"],
@@ -77,6 +77,7 @@ export function Settings() {
   const [rebuilt, setRebuilt] = useState<string | null>(null);
   const [rebuilding, setRebuilding] = useState(false);
   const [resetKey, setResetKey] = useState(0); // bumped when the server refuses a change
+  const [viewed, setViewed] = useState<PresetName | null>(null); // preset the Models table shows; null: the default
 
   useEffect(() => { if (loaded) setS(loaded); }, [loaded]);
   const ready = s != null;
@@ -106,8 +107,8 @@ export function Settings() {
   };
   const err = (field: string) => (failed?.field === field ? failed.message : null);
   const on = hash.slice(1) || "keys";
-  const preset = s.presets[s.default_preset];
-  const tierOf = (id: string) => (Object.keys(preset) as Tier[]).filter((t) => preset[t] === id).map((t) => TIER_WORD[t]).join(", ") || "–";
+  const shown = viewed ?? s.default_preset; // the preset the Models table is showing
+  const setShown = (p: PresetName) => setViewed(p);
   const offeredById = new Map((offered ?? []).map((m) => [m.id, m]));
   const known = new Set(s.models.map((m) => m.id));
   /** Entry for a model picked from the provider's list: its price comes along. */
@@ -125,6 +126,41 @@ export function Settings() {
   const addModel = (id: string) => patch("add-model", { models: [...s.models, entryFor(id)] });
   const setModel = (id: string, change: Partial<ModelPrice>, source = "you") =>
     patch(`model-${id}`, { models: s.models.map((m) => (m.id === id ? { ...m, ...change, price_source: source } : m)) });
+  /** The listed entry for a model id; a tier can name a model the list lost, so fall back to a bare one. */
+  const priceOf = (id: string): ModelPrice => s.models.find((m) => m.id === id) ?? { id, price_in_per_m: null, price_out_per_m: null, price_source: null };
+  const inShown = new Set(TIER_ORDER.map((t) => s.presets[shown][t]));
+  const others = s.models.filter((m) => !inShown.has(m.id));
+  /** Input and output price cells and the price note for one model (shared by every row that shows it). */
+  const priceCells = (m: ModelPrice) => {
+    const unpriced = m.price_in_per_m == null || m.price_out_per_m == null;
+    const fresh = newerPrice(m);
+    return (
+      <>
+        <td className="is-num">
+          <NumberField className="price" aria-label={`${m.id} input price`} placeholder="–" value={m.price_in_per_m} parse={price}
+            format={perMillion} error={m.price_in_per_m == null} onCommit={(n) => setModel(m.id, { price_in_per_m: n })} />
+        </td>
+        <td className="is-num">
+          <NumberField className="price" aria-label={`${m.id} output price`} placeholder="–" value={m.price_out_per_m} parse={price}
+            format={perMillion} error={m.price_out_per_m == null} onCommit={(n) => setModel(m.id, { price_out_per_m: n })} />
+        </td>
+        <td>
+          {saved === `model-${m.id}` ? <span className="ng-small ng-muted">Saved</span>
+            : err(`model-${m.id}`) ? <span className="ng-small ng-danger">{err(`model-${m.id}`)}</span>
+              : unpriced ? <span className="ng-small ng-warn">No price on record. {fresh ? "The provider has one." : "Enter one, or spend will be approximate."}</span>
+                : <span className="ng-small ng-muted">{m.price_source ?? "–"}</span>}
+          {fresh && (
+            <div>
+              <Button size="sm" variant="quiet" aria-label={`Use the provider's price for ${m.id}`}
+                onClick={() => setModel(m.id, { price_in_per_m: fresh.price_in_per_m, price_out_per_m: fresh.price_out_per_m }, "provider")}>
+                Use {perM(fresh.price_in_per_m!)} / {perM(fresh.price_out_per_m!)}
+              </Button>
+            </div>
+          )}
+        </td>
+      </>
+    );
+  };
   const usedBy = (id: string) => PRESETS.flatMap((p) => TIER_ORDER.filter((t) => s.presets[p][t] === id).map((t) => `${PRESET_WORD[p]} ${TIER_WORD[t]}`));
   const dropModel = (id: string) => patch("drop-model", { models: s.models.filter((m) => m.id !== id) });
   /** The provider's price for a listed model, when it has one that differs from ours. */
@@ -160,91 +196,79 @@ export function Settings() {
 
           <Section id="models" title="Models" panel={false}>
             <div className="ng-row">
-              <span className="ng-field__label">Default preset</span>
-              <Seg aria-label="Default preset" options={PRESETS} labels={PRESET_WORD} value={s.default_preset}
-                onChange={(p) => patch("preset", { default_preset: p })} />
-              <span className="ng-small ng-muted">{saved === "preset" ? "Saved" : "Each investigation can override any tier."}</span>
-            </div>
-            <div className="ng-panel">
-              <table className="ng-table">
-                <thead><tr><th>Tier</th>{PRESETS.map((p) => <th key={p}>{PRESET_WORD[p]}</th>)}</tr></thead>
-                <tbody>
-                  {TIER_ORDER.map((t) => (
-                    <tr key={t}>
-                      <td><span className="ng-heading">{TIER_WORD[t]}</span></td>
-                      {PRESETS.map((p) => (
-                        <td key={p}>
-                          <ModelCombo label={`${PRESET_WORD[p]} ${TIER_WORD[t]} model`} value={s.presets[p][t]}
-                            models={pickable} onPick={(id) => pickTier(p, t, id)} />
-                          {saved === `tier-${p}-${t}` && <div className="ng-small ng-muted">Saved</div>}
-                          {err(`tier-${p}-${t}`) && <div className="ng-small ng-danger">{err(`tier-${p}-${t}`)}</div>}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <span className="ng-field__label">Preset</span>
+              <Seg aria-label="Preset" options={PRESETS} labels={PRESET_WORD} value={shown} onChange={setShown} />
+              {shown === s.default_preset
+                ? <span className="ng-tag">DEFAULT</span>
+                : <Button size="sm" variant="quiet" onClick={() => patch("preset", { default_preset: shown })}>Make default for new investigations</Button>}
+              <span className="ng-small ng-muted">
+                {saved === "preset" ? "Saved" : shown === s.default_preset ? "New investigations start with this preset. Each can override any tier." : `Each tier below belongs to ${PRESET_WORD[shown]} only.`}
+              </span>
             </div>
             <div className="ng-panel models-panel">
               <table className="ng-table">
-                <thead><tr><th>Model</th><th>Tier in {PRESET_WORD[s.default_preset]}</th><th className="num">$ / M input</th><th className="num">$ / M output</th><th>Price source</th><th /></tr></thead>
+                <thead><tr><th>Tier</th><th>Model</th><th className="num">$ / M input</th><th className="num">$ / M output</th><th>Price</th><th /></tr></thead>
                 <tbody>
-                  {s.models.map((m) => {
-                    const unpriced = m.price_in_per_m == null || m.price_out_per_m == null;
-                    const fresh = newerPrice(m);
+                  {TIER_ORDER.map((t) => {
+                    const m = priceOf(s.presets[shown][t]);
+                    return (
+                      <tr key={t}>
+                        <td className="tier-cell">
+                          <span className="ng-heading">{TIER_WORD[t]}</span>
+                          <div className="ng-small ng-muted">{TIER_DOES[t]}</div>
+                        </td>
+                        <td className="model-cell">
+                          <ModelCombo label={`${PRESET_WORD[shown]} ${TIER_WORD[t]} model`} value={m.id} models={pickable} onPick={(id) => pickTier(shown, t, id)} />
+                          {saved === `tier-${shown}-${t}` && <div className="ng-small ng-muted">Saved</div>}
+                          {err(`tier-${shown}-${t}`) && <div className="ng-small ng-danger">{err(`tier-${shown}-${t}`)}</div>}
+                        </td>
+                        {priceCells(m)}
+                        <td />
+                      </tr>
+                    );
+                  })}
+                  {others.length > 0 && (
+                    <tr className="group-row"><th colSpan={6}>Also priced, for single investigations and the other presets</th></tr>
+                  )}
+                  {others.map((m) => {
                     const used = usedBy(m.id);
                     return (
                       <tr key={m.id}>
-                        <td className="ng-mono">{m.id}</td>
-                        <td>{tierOf(m.id)}</td>
-                        <td className="is-num">
-                          <NumberField className="price" aria-label={`${m.id} input price`} placeholder="–" value={m.price_in_per_m} parse={price}
-                            format={perMillion} error={m.price_in_per_m == null} onCommit={(n) => setModel(m.id, { price_in_per_m: n })} />
+                        <td colSpan={2}>
+                          <span className="ng-mono">{m.id}</span>
+                          <div className="ng-small ng-muted">{used.length ? `Used by ${used.join(", ")}` : "Not used by a preset"}</div>
                         </td>
-                        <td className="is-num">
-                          <NumberField className="price" aria-label={`${m.id} output price`} placeholder="–" value={m.price_out_per_m} parse={price}
-                            format={perMillion} error={m.price_out_per_m == null} onCommit={(n) => setModel(m.id, { price_out_per_m: n })} />
-                        </td>
-                        <td>
-                          {saved === `model-${m.id}` ? <span className="ng-small ng-muted">Saved</span>
-                            : err(`model-${m.id}`) ? <span className="ng-small ng-danger">{err(`model-${m.id}`)}</span>
-                              : unpriced ? <span className="ng-small ng-warn">No price on record. {fresh ? "The provider has one." : "Enter one, or spend will be approximate."}</span>
-                                : <span className="ng-small ng-muted">{m.price_source ?? "–"}</span>}
-                          {fresh && (
-                            <div>
-                              <Button size="sm" variant="quiet" aria-label={`Use the provider's price for ${m.id}`}
-                                onClick={() => setModel(m.id, { price_in_per_m: fresh.price_in_per_m, price_out_per_m: fresh.price_out_per_m }, "provider")}>
-                                Use {perM(fresh.price_in_per_m!)} / {perM(fresh.price_out_per_m!)}
-                              </Button>
-                            </div>
-                          )}
-                        </td>
+                        {priceCells(m)}
                         <td>
                           <Button size="sm" variant="quiet" aria-label={`Remove ${m.id}`} disabled={used.length > 0}
-                            title={used.length ? `Used by ${used.join(", ")}. Pick another model for ${used.length === 1 ? "that tier" : "those tiers"} first.` : undefined}
+                            title={used.length ? `Used by ${used.join(", ")}. Pick another model there first.` : undefined}
                             onClick={() => dropModel(m.id)}>Remove</Button>
                         </td>
                       </tr>
                     );
                   })}
+                  <tr className="add-row">
+                    <td colSpan={6}>
+                      <div className="ng-row">
+                        <div className="add-model">
+                          <ModelCombo label="Add a model" value="" placeholder={!offered ? "The provider's models could not be loaded" : offered.length ? `Search ${offered.length.toLocaleString("en-US")} ${catalogue?.source === "scripted" ? "scripted models (fake mode)" : "models from the provider"}…` : "The provider lists no models"}
+                            disabled={!offered?.length} models={(offered ?? []).filter((m) => !known.has(m.id))} onPick={addModel} />
+                        </div>
+                        <span className="ng-small ng-muted">
+                          {saved === "add-model" || saved === "drop-model" || saved === "update-prices" ? "Saved"
+                            : err("add-model") ?? err("drop-model") ?? err("update-prices")
+                              ?? (catalogue?.source === "scripted" ? "Fake mode: a scripted list, not the provider's." : "Priced from the provider's list.")}
+                        </span>
+                        {stale.length > 0 && (
+                          <Button size="sm" className="ng-right" onClick={updatePrices}>
+                            Update {stale.length} price{stale.length === 1 ? "" : "s"} from the provider
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
                 </tbody>
               </table>
-            </div>
-            <div className="ng-row">
-              <div className="add-model">
-                <ModelCombo label="Add a model" value="" placeholder={!offered ? "The provider's models could not be loaded" : offered.length ? `Search ${offered.length.toLocaleString("en-US")} ${catalogue?.source === "scripted" ? "scripted models (fake mode)" : "models from the provider"}…` : "The provider lists no models"}
-                  disabled={!offered?.length} models={(offered ?? []).filter((m) => !known.has(m.id))} onPick={addModel} />
-              </div>
-              <span className="ng-small ng-muted">
-                {saved === "add-model" || saved === "drop-model" || saved === "update-prices" ? "Saved"
-                  : err("add-model") ?? err("drop-model") ?? err("update-prices")
-                    ?? (catalogue?.source === "scripted" ? "Fake mode: a scripted list, not the provider's." : "Priced from the provider's list.")}
-              </span>
-              {stale.length > 0 && (
-                <Button size="sm" className="ng-right" onClick={updatePrices}>
-                  Update {stale.length} price{stale.length === 1 ? "" : "s"} from the provider
-                </Button>
-              )}
             </div>
             <div className="ng-panel form-panel">
               <Row label="Provider routing" saved={saved === "routing-sort"} error={err("routing-sort")}

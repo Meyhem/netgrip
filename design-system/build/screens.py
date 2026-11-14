@@ -435,8 +435,15 @@ def key(name, state, note, btn="Replace"):
 def eff(name, vals, on=""):
     cells = "".join(f'<td><input class="ng-input ng-input--mono" value="{v}" aria-label="{name} {i}" style="width:64px"></td>' for i, v in enumerate(vals))
     return f'<tr><td><span class="ng-heading">{name}</span>{on}</td>{cells}</tr>'
-def price(model, tier, i, o, flag=""):
-    return f'<tr><td class="ng-mono">{model}</td><td>{tier}</td><td class="is-num">{i}</td><td class="is-num">{o}</td><td>{flag}</td></tr>'
+def tier_row(tier, does, model, i, o, note):
+    return (f'<tr><td><span class="ng-heading">{tier}</span><div class="ng-small ng-muted">{does}</div></td>'
+            f'<td><input class="ng-input ng-input--mono" value="{model}" role="combobox" aria-label="{tier} model"></td>'
+            f'<td class="is-num">{i}</td><td class="is-num">{o}</td><td>{note}</td><td></td></tr>')
+def other_row(model, used, i, o, note, remove):
+    return (f'<tr><td colspan="2"><span class="ng-mono">{model}</span><div class="ng-small ng-muted">{used}</div></td>'
+            f'<td class="is-num">{i}</td><td class="is-num">{o}</td><td>{note}</td><td>{remove}</td></tr>')
+def pin(v): return f'<input class="ng-input ng-input--mono" value="{v}" aria-label="price" style="width:72px;text-align:right">'
+PROVIDER = '<span class="ng-small ng-muted">provider</span>'
 screen("ScreenSettings", 1960, top("Settings") + f"""
 <main class="ng-page"><div class="ng-page__in"><h1 class="ng-display">Settings</h1>
 <div class="ng-settings">
@@ -448,13 +455,21 @@ screen("ScreenSettings", 1960, top("Settings") + f"""
    {frow("Web search", "Tavily.", key("k", pill("danger","✕","Key rejected"), "Tavily answered \"invalid key\" at 02:14", "Replace key"))}
    </div></section>
   <section class="ng-col" id="models"><h2 class="ng-title">Models</h2>
-   <div class="ng-row"><span class="ng-field__label">Default preset</span><div class="ng-seg"><button class="ng-seg__opt">Economy</button><button class="ng-seg__opt is-on">Balanced</button><button class="ng-seg__opt">Maximum quality</button></div><span class="ng-small ng-muted">Each investigation can override any tier.</span></div>
-   <div class="ng-panel"><table class="ng-table"><thead><tr><th>Model</th><th>Tier in Balanced</th><th style="text-align:right">$ / M input</th><th style="text-align:right">$ / M output</th><th>Price source</th></tr></thead><tbody>
-    {price("anthropic/claude-opus-5.5", "Strong", "15.00", "75.00", '<span class="ng-small ng-muted">provider</span>')}
-    {price("anthropic/claude-sonnet-5.5", "Standard", "3.00", "15.00", '<span class="ng-small ng-muted">provider</span>')}
-    {price("anthropic/claude-haiku-5.5", "Fast", "1.00", "5.00", '<span class="ng-small ng-muted">provider</span>')}
-    {price("openai/gpt-5.2", "Verifier", '<input class="ng-input ng-input--mono is-error" aria-label="input price" style="width:72px" placeholder="–">', '<input class="ng-input ng-input--mono is-error" aria-label="output price" style="width:72px" placeholder="–">', '<span class="ng-small ng-warn">No price on record. Enter one, or spend will be approximate.</span>')}
-   </tbody></table></div></section>
+   <div class="ng-row"><span class="ng-field__label">Preset</span><div class="ng-seg"><button class="ng-seg__opt">Economy</button><button class="ng-seg__opt is-on">Balanced</button><button class="ng-seg__opt">Maximum quality</button></div><span class="ng-tag">DEFAULT</span><span class="ng-small ng-muted">New investigations start with this preset. Each can override any tier.</span></div>
+   <div class="ng-panel"><table class="ng-table"><thead><tr><th>Tier</th><th>Model</th><th style="text-align:right">$ / M input</th><th style="text-align:right">$ / M output</th><th>Price</th><th></th></tr></thead><tbody>
+    {tier_row("Strong", "Orchestrator, final synthesis, judging contradictions", "anthropic/claude-opus-5.5", pin("15.00"), pin("75.00"), PROVIDER)}
+    {tier_row("Standard", "The agent inside each node", "anthropic/claude-sonnet-5.5", pin("3.00"), pin("15.00"), PROVIDER)}
+    {tier_row("Fast", "Reading pages, extracting claims", "anthropic/claude-haiku-5.5", pin("1.00"), pin("5.00"), PROVIDER)}
+    {tier_row("Verifier", "Independent re-check of important claims", "openai/gpt-5.2", '<input class="ng-input ng-input--mono is-error" aria-label="input price" style="width:72px" placeholder="–">', '<input class="ng-input ng-input--mono is-error" aria-label="output price" style="width:72px" placeholder="–">', '<span class="ng-small ng-warn">No price on record. The provider has one.</span><div><button class="ng-btn ng-btn--sm ng-btn--quiet">Use $1.25 / $10.00</button></div>')}
+    <tr><th colspan="6" style="padding-top:var(--space-4)">Also priced, for single investigations and the other presets</th></tr>
+    {other_row("anthropic/claude-sonnet-5.5", "Used by Economy Standard", pin("3.00"), pin("15.00"), PROVIDER, '<button class="ng-btn ng-btn--sm ng-btn--quiet" disabled>Remove</button>')}
+    {other_row("z-ai/glm-5.3-flash", "Not used by a preset", pin("0.0399"), pin("0.0784"), PROVIDER, '<button class="ng-btn ng-btn--sm ng-btn--quiet">Remove</button>')}
+    <tr><td colspan="6" style="border-bottom:0"><div class="ng-row"><div style="width:420px"><input class="ng-input ng-input--mono" role="combobox" aria-label="Add a model" placeholder="Search 471 models from the provider…"></div><span class="ng-small ng-muted">Priced from the provider's list.</span><button class="ng-btn ng-btn--sm ng-right">Update 1 price from the provider</button></div></td></tr>
+   </tbody></table></div>
+   <div class="ng-panel" style="padding:0 var(--space-4)">
+   {frow("Provider routing", "OpenRouter serves most models from several providers. This picks which one answers each call.", '<select class="ng-select" style="width:300px" aria-label="Provider routing"><option>OpenRouter&#39;s balance of price and uptime</option></select>')}
+   {frow("Data policy", "Fewer providers can answer, so some models may become unavailable.", '<label class="ng-toggle"><span class="ng-toggle__track"></span>Only providers that do not store or train on prompts</label><label class="ng-toggle"><span class="ng-toggle__track"></span>Only providers with zero data retention</label>')}
+   </div></section>
   <section class="ng-col" id="effort"><h2 class="ng-title">Effort</h2><p class="ng-small ng-muted">What Low, Medium and High mean. These are starting values, to be tuned after real runs.</p>
    <div class="ng-panel"><table class="ng-table"><thead><tr><th>Level</th><th>Max depth</th><th>Max nodes</th><th>Sources / node</th><th>In parallel</th><th>Sources to confirm</th></tr></thead><tbody>
     {eff("Low", [2, 12, 4, 2, 1])}{eff("Medium", [4, 40, 8, 4, 2], ' <span class="ng-tag">DEFAULT</span>')}{eff("High", [6, 80, 12, 6, 3])}
@@ -487,7 +502,7 @@ Defaults for every new investigation and the machine-wide limits, on one scrolli
 | Section | Holds |
 |---|---|
 | Keys | model endpoint and key; search key. Write-only `ng-keyfield` rows with a status pill and the last check |
-| Models | default preset; tier × preset grid of `ng-combo` pickers searching the provider's models; provider routing (OpenRouter only: pick by price, throughput or latency; deny data collection; zero data retention); per-model table with tier, input and output price, and where the price came from; "Use $a / $b" when the provider's price differs, and one button to take every such price; Remove, disabled while a tier uses the model; add a model |
+| Models | One table. A preset switcher (`ng-seg`) picks which preset the table shows and edits; the default preset carries a DEFAULT tag, any other offers "Make default for new investigations". One row per tier (name, what it does) with an `ng-combo` searching the provider's models and that model's input and output price, and where the price came from; "Use $a / $b" when the provider's price differs. Below, in the same table, models priced but not in the shown preset ("Used by Economy Standard" or "Not used by a preset") with Remove, disabled while a preset uses the model. The last row adds a model by searching the provider and has one button to take every differing provider price. Under the table: provider routing (OpenRouter only: balance, lowest price, throughput or latency; deny data collection; zero data retention) |
 | Effort | the budget behind Low, Medium, High: depth, nodes, sources per node, parallelism, sources needed to confirm |
 | Spending | default spending limit; how long to retry a failing service before pausing |
 | Sources | domains always excluded; page reuse window, including "Always fetch again"; per-site politeness |

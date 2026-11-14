@@ -199,12 +199,20 @@ describe("Settings", () => {
       expect(body(f).models.map((m: { id: string }) => m.id)).toEqual(LISTED);
     });
 
-    it("a model a tier uses cannot be removed and says which tiers", async () => {
+    it("a model another preset uses cannot be removed and says which tier", async () => {
+      const base = withExtra();
+      api({ "GET /api/settings": { ...base, presets: { ...base.presets, economy: { ...base.presets.economy, fast: "z-ai/glm-5.3-flash" } } } });
+      show();
+      const remove = await screen.findByRole("button", { name: "Remove z-ai/glm-5.3-flash" });
+      expect(remove).toBeDisabled();
+      expect(remove.title).toMatch(/^Used by Economy Fast\./);
+    });
+
+    it("a model the shown preset uses sits in its tier row and has no Remove", async () => {
       api();
       show();
-      const remove = await screen.findByRole("button", { name: "Remove openai/gpt-5.2" });
-      expect(remove).toBeDisabled();
-      expect(remove.title).toMatch(/^Used by Economy Verifier, Balanced Verifier, Maximum quality Verifier\./);
+      expect(await screen.findByRole("combobox", { name: "Balanced Verifier model" })).toHaveValue("openai/gpt-5.2");
+      expect(screen.queryByRole("button", { name: "Remove openai/gpt-5.2" })).toBeNull();
     });
 
     it("a row takes the provider's price when it differs", async () => {
@@ -234,6 +242,48 @@ describe("Settings", () => {
       api({ "GET /api/settings/models/available": { source: "scripted", models: [] } });
       show();
       expect(await screen.findByText("Fake mode: a scripted list, not the provider's.")).toBeInTheDocument();
+    });
+  });
+
+  describe("preset switcher", () => {
+    const body = (f: ReturnType<typeof api>, i = 0) => JSON.parse(callsTo(f, "PATCH", "/api/settings")[i][1]!.body as string);
+
+    it("switching the preset shows that preset's tiers and sends nothing", async () => {
+      const f = api();
+      show();
+      expect(await screen.findByRole("combobox", { name: "Balanced Strong model" })).toHaveValue("anthropic/claude-opus-5.5");
+      fireEvent.click(screen.getByRole("button", { name: "Economy" }));
+      expect(screen.getByRole("combobox", { name: "Economy Strong model" })).toHaveValue("anthropic/claude-sonnet-5.5");
+      expect(screen.queryByRole("combobox", { name: "Balanced Strong model" })).toBeNull();
+      expect(callsTo(f, "PATCH", "/api/settings")).toHaveLength(0);
+    });
+
+    it("marks the default preset and offers to make another one the default", async () => {
+      const f = api();
+      show();
+      await screen.findByRole("combobox", { name: "Balanced Strong model" });
+      const models = within(document.getElementById("models")!);
+      expect(models.getByText("DEFAULT")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Maximum quality" }));
+      expect(models.queryByText("DEFAULT")).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Make default for new investigations" }));
+      await waitFor(() => expect(callsTo(f, "PATCH", "/api/settings")).toHaveLength(1));
+      expect(body(f)).toEqual({ default_preset: "maximum" });
+    });
+
+    it("a tier picked while another preset is shown changes that preset only", async () => {
+      const f = api({ "GET /api/settings/models/available": { source: "provider", models: [
+        { id: "mistralai/mistral-large", name: "Mistral Large", price_in_per_m: 2, price_out_per_m: 6, context_length: null },
+      ] } });
+      show();
+      await screen.findByRole("combobox", { name: "Balanced Strong model" });
+      fireEvent.click(screen.getByRole("button", { name: "Economy" }));
+      const pick = screen.getByRole("combobox", { name: "Economy Fast model" });
+      fireEvent.focus(pick);
+      fireEvent.change(pick, { target: { value: "mistral" } });
+      fireEvent.keyDown(pick, { key: "Enter" });
+      await waitFor(() => expect(callsTo(f, "PATCH", "/api/settings")).toHaveLength(1));
+      expect(body(f).presets).toEqual({ economy: { fast: "mistralai/mistral-large" } });
     });
   });
 

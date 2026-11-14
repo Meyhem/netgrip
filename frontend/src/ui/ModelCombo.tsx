@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { OfferedModel } from "../api/types";
 import { perMillion } from "../lib/format";
 import { rank } from "../lib/fuzzy";
@@ -42,6 +42,29 @@ export function ModelCombo({ label, value, models, onPick, placeholder, disabled
   );
 
   const close = () => { setQuery(null); setHover(0); };
+
+  // The list is position:fixed under the input, so a scrolling or clipping ancestor (a table
+  // panel) cannot cut it off. It closes if the page scrolls or resizes under it.
+  const list = useRef<HTMLUListElement>(null);
+  const [place, setPlace] = useState<CSSProperties>({});
+  useLayoutEffect(() => {
+    if (!open || !input.current) return;
+    const r = input.current.getBoundingClientRect();
+    const below = window.innerHeight - r.bottom - 12;
+    const flip = below < 200 && r.top > below;
+    setPlace({
+      position: "fixed", left: r.left, width: Math.max(r.width, 380),
+      ...(flip ? { bottom: window.innerHeight - r.top + 4, top: "auto", maxHeight: Math.min(320, r.top - 12) }
+        : { top: r.bottom + 4, maxHeight: Math.min(320, Math.max(below, 120)) }),
+    });
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: Event) => { if (!(e.target instanceof Node && list.current?.contains(e.target))) { close(); input.current?.blur(); } };
+    window.addEventListener("scroll", away, true);
+    window.addEventListener("resize", away);
+    return () => { window.removeEventListener("scroll", away, true); window.removeEventListener("resize", away); };
+  }, [open]);
   const pick = (id: string) => {
     close();
     if (id !== value) onPick(id);
@@ -63,7 +86,7 @@ export function ModelCombo({ label, value, models, onPick, placeholder, disabled
           else if (e.key === "Escape" && open) { e.preventDefault(); close(); input.current?.blur(); }
         }} />
       {open && (
-        <ul className="ng-menu ng-combo__list" role="listbox" id={listId} aria-label={label}>
+        <ul ref={list} className="ng-menu ng-combo__list" role="listbox" id={listId} aria-label={label} style={place}>
           {hits.length === 0 && <li className="ng-combo__empty">No model matches “{query}”.</li>}
           {hits.map(({ item: m, marks }, i) => (
             <li key={m.id} id={`${listId}-${i}`} role="option" aria-selected={m.id === value}

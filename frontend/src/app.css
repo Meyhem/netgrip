@@ -38,8 +38,13 @@ html, body, #root { height: 100%; margin: 0; }
 .settings-sections .wide-select { width: 200px; }
 .settings-sections .routing-select { width: 300px; }
 .settings-sections .add-model { width: min(420px, 100%); }
-/* The listed-models table scrolls inside its panel on a narrow window instead of widening the page. */
+/* The table scrolls inside its panel on a narrow window instead of widening the page. The model
+   pickers' lists are position:fixed (ModelCombo), so the panel does not clip them. */
 .settings-sections .models-panel { overflow-x: auto; }
+.settings-sections .tier-cell { min-width: 180px; }
+.settings-sections .model-cell { min-width: 220px; }
+.settings-sections .group-row th { padding-top: var(--space-4); }
+.settings-sections .add-row td { border-bottom: 0; }
 
 /* InstructionComposer / Instruction */
 .instr-diff { margin-top: var(--space-2); }
